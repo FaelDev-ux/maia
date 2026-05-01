@@ -2,6 +2,7 @@
   "name": "maia",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,16 +19,18 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.0",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "eslint-config-prettier": "^10.1.8",
+    "postcss": "^8.5.13",
     "prettier": "^3.8.3",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.2.4",
     "typescript": "^5"
   }
 }
