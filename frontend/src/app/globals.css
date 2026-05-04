@@ -2,7 +2,7 @@
 @config "../../tailwind.config.ts";
 
 :root {
-  --maia-primary: #df8097;
+  --maia-primary: #f48ba4;
   --maia-secondary: #be7ab8;
   --maia-tertiary: #8262b6;
   --maia-title: #393738;
@@ -75,7 +75,52 @@ select {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--maia-primary) 35%, white);
   color: var(--maia-title);
+}
+
+@keyframes maia-slide-visual-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes maia-slide-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.maia-slide-visual {
+  animation: maia-slide-visual-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.maia-slide-copy,
+.maia-slide-badge {
+  animation: maia-slide-copy-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maia-slide-visual,
+  .maia-slide-copy,
+  .maia-slide-badge {
+    animation: none;
+  }
 }
