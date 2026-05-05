@@ -1,7 +1,5 @@
+import { OnboardingPage } from "@/features/onboarding/components/OnboardingPage";
+
 export default function Home() {
-  return (
-    <>
-      <h3>Home</h3>
-    </>
-  );
+  return <OnboardingPage />;
 }
