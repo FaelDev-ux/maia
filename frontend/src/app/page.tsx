@@ -1,5 +1,5 @@
-import OnboardingScreen from "@/components/features/onboarding/OnboardingScreen";
+import { OnboardingPage } from "@/features/onboarding/components/OnboardingPage";
 
 export default function Home() {
-  return <OnboardingScreen />;
+  return <OnboardingPage />;
 }
