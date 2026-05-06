@@ -8,7 +8,12 @@ const FALLBACK_VIEWPORT_HEIGHT = 720;
 const MIN_REVEAL_DISTANCE = 520;
 const REVEAL_THRESHOLD_RATIO = 0.78;
 
-export function SignupPage() {
+export type SignupPageProps = {
+  onLoginClick?: () => void;
+  rootElement?: "div" | "main";
+};
+
+export function SignupPage({ onLoginClick, rootElement = "main" }: SignupPageProps) {
   const pointerStartY = useRef<number | null>(null);
   const [viewportHeight, setViewportHeight] = useState(FALLBACK_VIEWPORT_HEIGHT);
   const [dragOffset, setDragOffset] = useState(0);
@@ -80,11 +85,12 @@ export function SignupPage() {
     setDragOffset(0);
   }
 
-  return (
-    <main className="relative min-h-dvh overflow-hidden bg-[#fff8fa] text-text">
+  const content = (
+    <>
       <SignupForm
         isDragging={isDragging}
         isRevealed={isSignupRevealed}
+        onLoginClick={onLoginClick}
         translateY={signupTranslateY}
       />
 
@@ -97,6 +103,16 @@ export function SignupPage() {
         onPointerUp={handlePointerUp}
         translateY={coverTranslateY}
       />
-    </main>
+    </>
+  );
+
+  if (rootElement === "div") {
+    return (
+      <div className="relative min-h-dvh overflow-hidden bg-[#fff8fa] text-text">{content}</div>
+    );
+  }
+
+  return (
+    <main className="relative min-h-dvh overflow-hidden bg-[#fff8fa] text-text">{content}</main>
   );
 }

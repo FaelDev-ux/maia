@@ -1,5 +1,7 @@
-import { Calendar, Lock, Mail, User } from "lucide-react";
+import { Calendar, Lock, Mail, Phone, User } from "lucide-react";
 import type { SignupField } from "../types";
+
+const digitReplacement = { _: /\d/ };
 
 export const signupFields: SignupField[] = [
   {
@@ -21,12 +23,26 @@ export const signupFields: SignupField[] = [
     type: "email",
   },
   {
+    autoComplete: "tel",
+    icon: Phone,
+    label: "Telefone",
+    mask: "(__) _____-____",
+    name: "phone",
+    placeholder: "(00) 00000-0000",
+    replacement: digitReplacement,
+    required: true,
+    type: "text",
+  },
+  {
     autoComplete: "bday",
     icon: Calendar,
     label: "Sua data de nascimento",
+    mask: "__/__/____",
     name: "birthDate",
     placeholder: "dd / mm / yyyy",
+    replacement: digitReplacement,
     required: true,
+    separate: true,
     type: "text",
   },
   {

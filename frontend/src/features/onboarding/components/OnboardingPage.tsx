@@ -92,7 +92,7 @@ export function OnboardingPage() {
           {isLastSlide ? (
             <Link
               className="flex h-14 w-full max-w-84 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-white! shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-16 sm:max-w-92 sm:text-base"
-              href="/auth/register"
+              href="/auth?mode=register&intro=1"
             >
               {primaryActionLabel}
             </Link>
@@ -109,7 +109,7 @@ export function OnboardingPage() {
           {isLastSlide && (
             <Link
               className="text-sm font-semibold text-text transition-colors hover:text-title focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
-              href="/auth/login"
+              href="/auth?mode=login"
             >
               Já tenho uma conta
             </Link>

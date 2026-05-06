@@ -7,7 +7,11 @@ import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema";
 import { AuthInput } from "./AuthInput";
 
-export function LoginForm() {
+type LoginFormProps = {
+  onRegisterClick?: () => void;
+};
+
+export function LoginForm({ onRegisterClick }: LoginFormProps) {
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -26,7 +30,7 @@ export function LoginForm() {
 
   return (
     <form
-      className="mx-auto w-full max-w-94 rounded-[2rem] bg-white/80 px-6 py-7 shadow-soft backdrop-blur"
+      className="mx-auto w-full max-w-94 rounded-[2rem] bg-white/80 px-6 py-7 backdrop-blur"
       onSubmit={handleSubmit(onSubmit)}
     >
       <div className="space-y-4">
@@ -70,9 +74,19 @@ export function LoginForm() {
 
       <p className="mt-7 text-center text-xs text-text">
         Ainda não tem uma conta?{" "}
-        <Link className="font-bold text-primary hover:text-buttons" href="/auth/register">
-          Cadastre-se
-        </Link>
+        {onRegisterClick ? (
+          <button
+            className="font-bold text-primary hover:text-buttons"
+            onClick={onRegisterClick}
+            type="button"
+          >
+            Cadastre-se
+          </button>
+        ) : (
+          <Link className="font-bold text-primary hover:text-buttons" href="/auth?mode=register">
+            Cadastre-se
+          </Link>
+        )}
       </p>
     </form>
   );

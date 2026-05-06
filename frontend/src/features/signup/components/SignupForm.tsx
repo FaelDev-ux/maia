@@ -9,12 +9,20 @@ import { registerSchema, type RegisterFormData } from "@/schemas/auth.schema";
 import { signupFields } from "../data/signup-fields";
 
 type SignupFormProps = {
-  isDragging: boolean;
-  isRevealed: boolean;
-  translateY: number;
+  isDragging?: boolean;
+  isRevealed?: boolean;
+  onLoginClick?: () => void;
+  translateY?: number;
+  variant?: "card" | "page";
 };
 
-export function SignupForm({ isDragging, isRevealed, translateY }: SignupFormProps) {
+export function SignupForm({
+  isDragging = false,
+  isRevealed = true,
+  onLoginClick,
+  translateY = 0,
+  variant = "page",
+}: SignupFormProps) {
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -27,11 +35,68 @@ export function SignupForm({ isDragging, isRevealed, translateY }: SignupFormPro
       email: "",
       name: "",
       password: "",
+      phone: "",
     },
   });
 
   async function onSubmit(_data: RegisterFormData) {
     await Promise.resolve();
+  }
+
+  const formCard = (
+    <div className="w-full">
+      <div className="rounded-[1.75rem] bg-white/90 px-5 py-6 backdrop-blur sm:px-6">
+        <form className="flex flex-col gap-3.5" onSubmit={handleSubmit(onSubmit)}>
+          {signupFields.map((field) => {
+            const Icon = field.icon;
+
+            return (
+              <AuthInput
+                autoComplete={field.autoComplete}
+                error={errors[field.name]}
+                icon={<Icon size={16} strokeWidth={2.2} />}
+                id={field.name}
+                key={field.name}
+                label={field.label}
+                mask={field.mask}
+                placeholder={field.placeholder}
+                replacement={field.replacement}
+                registration={register(field.name)}
+                required={field.required}
+                separate={field.separate}
+                showMask={field.showMask}
+                type={field.type}
+              />
+            );
+          })}
+
+          <button
+            className="mt-1 flex h-14 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting}
+            type="submit"
+          >
+            {isSubmitting ? "Cadastrando..." : "Cadastrar"}
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-4 text-center text-xs text-text">
+        Já tem uma conta?{" "}
+        {onLoginClick ? (
+          <button className="font-semibold text-primary" onClick={onLoginClick} type="button">
+            Faça login
+          </button>
+        ) : (
+          <Link className="font-semibold text-primary" href="/auth?mode=login">
+            Faça login
+          </Link>
+        )}
+      </p>
+    </div>
+  );
+
+  if (variant === "card") {
+    return <section className="w-full max-w-[25rem]">{formCard}</section>;
   }
 
   return (
@@ -46,45 +111,7 @@ export function SignupForm({ isDragging, isRevealed, translateY }: SignupFormPro
     >
       <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-sm flex-col justify-center sm:max-w-md md:max-w-none md:flex-row md:items-center md:justify-center md:gap-16 lg:gap-24">
         <section className="order-2 w-full md:order-1 md:flex md:w-1/2 md:justify-center">
-          <div className="w-full md:max-w-94">
-            <div className="rounded-[2rem] bg-white/85 px-6 py-7 shadow-soft backdrop-blur">
-              <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-                {signupFields.map((field) => {
-                  const Icon = field.icon;
-
-                  return (
-                    <AuthInput
-                      autoComplete={field.autoComplete}
-                      error={errors[field.name]}
-                      icon={<Icon size={16} strokeWidth={2.2} />}
-                      id={field.name}
-                      key={field.name}
-                      label={field.label}
-                      placeholder={field.placeholder}
-                      registration={register(field.name)}
-                      required={field.required}
-                      type={field.type}
-                    />
-                  );
-                })}
-
-                <button
-                  className="mt-2 flex h-14 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={isSubmitting}
-                  type="submit"
-                >
-                  {isSubmitting ? "Cadastrando..." : "Cadastrar"}
-                </button>
-              </form>
-            </div>
-
-            <p className="mt-5 text-center text-xs text-text">
-              Já tem uma conta?{" "}
-              <Link className="font-semibold text-primary" href="/auth/login">
-                Faça login
-              </Link>
-            </p>
-          </div>
+          <div className="w-full md:max-w-94">{formCard}</div>
         </section>
 
         <section className="order-1 mb-7 md:order-2 md:mb-0 md:flex md:w-1/2 md:flex-col md:items-start">

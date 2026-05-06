@@ -28,6 +28,11 @@ const passwordSchema = z
 
 const birthDateSchema = z.string().min(1, "Informe sua data de nascimento.");
 
+const phoneSchema = z
+  .string()
+  .min(1, "Informe seu telefone.")
+  .regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Informe um telefone válido.");
+
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(AUTH_PASSWORD_MIN_LENGTH, "Informe sua senha."),
@@ -37,6 +42,7 @@ export const registerSchema = z
   .object({
     name: nameSchema,
     email: emailSchema,
+    phone: phoneSchema,
     birthDate: birthDateSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(AUTH_PASSWORD_MIN_LENGTH, "Confirme sua senha."),
