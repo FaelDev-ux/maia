@@ -24,14 +24,7 @@ export const metadata: Metadata = {
   applicationName: "Maia",
   authors: [{ name: "Maia" }],
   creator: "Maia",
-  keywords: [
-    "Maia",
-    "puerpério",
-    "maternidade",
-    "saúde emocional",
-    "acolhimento",
-    "pós-parto",
-  ],
+  keywords: ["Maia", "puerpério", "maternidade", "saúde emocional", "acolhimento", "pós-parto"],
 };
 
 export const viewport: Viewport = {
@@ -46,13 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${inter.variable} ${poppins.variable} h-full antialiased`}
-    >
-      <body className="min-h-dvh bg-background text-text">
-        {children}
-      </body>
+    <html lang="pt-BR" className={`${inter.variable} ${poppins.variable} h-full antialiased`}>
+      <body className="min-h-dvh bg-background text-text">{children}</body>
     </html>
   );
 }
