@@ -9,10 +9,7 @@ type OnboardingVisualProps = {
 
 export function OnboardingVisual({ slide, priority = false }: OnboardingVisualProps) {
   return (
-    <section
-      aria-label={slide.imageAlt}
-      className="relative mx-auto w-full max-w-md lg:max-w-124"
-    >
+    <section aria-label={slide.imageAlt} className="relative mx-auto w-full max-w-md lg:max-w-124">
       <div className="relative h-[clamp(19rem,48dvh,28rem)] overflow-hidden rounded-maia-xl shadow-card sm:h-[clamp(23rem,52dvh,31rem)] lg:h-[min(68dvh,35rem)]">
         <div className="maia-slide-visual absolute inset-0" key={slide.imageSrc}>
           <Image
