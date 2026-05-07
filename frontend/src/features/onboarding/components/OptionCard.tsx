@@ -43,12 +43,12 @@ export default function OptionCard({
       </div>
 
       <div
-        className={cn("border-surface border-2 rounded-full", {
+        className={cn("border-surface border-3 rounded-full", {
           "border-primary": selected,
         })}
       >
         <div
-          className={cn("size-5 rounded-full shrink-0 border-2 border-white", {
+          className={cn("size-5 rounded-full shrink-0 border-3 border-white", {
             "bg-primary": selected,
           })}
         />

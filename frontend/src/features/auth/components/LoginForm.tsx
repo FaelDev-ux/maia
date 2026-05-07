@@ -52,7 +52,7 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
           placeholder="••••••••"
           registration={register("password")}
           type="password"
-        />
+        />  
       </div>
 
       <div className="mt-4 flex justify-end">
