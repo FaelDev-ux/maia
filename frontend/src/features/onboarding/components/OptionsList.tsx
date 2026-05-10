@@ -1,45 +1,51 @@
 import OptionCard from "@/features/onboarding/components/OptionCard";
-import { useState } from "react";
 
-export default function OptionsList() {
-  const [selected, setSelected] = useState(1);
+export type UserTypeOption =
+  | "recent-mother"
+  | "future-mother"
+  | "experienced-mother"
+  | "health-professional";
 
+type OptionsListProps = {
+  selected: UserTypeOption;
+  onSelect: (option: UserTypeOption) => void;
+};
+
+export default function OptionsList({ selected, onSelect }: OptionsListProps) {
   return (
-    <main className="flex flex-col justify-center gap-5">
+    <div className="flex w-full flex-col justify-center gap-4 sm:gap-5">
       <OptionCard
         icon="baby"
         color="#F48CA5"
         title="Sou mãe recente"
         text="Nos primeiros dias"
-        selected={selected === 1}
-        onClick={() => setSelected(1)}
+        selected={selected === "recent-mother"}
+        onClick={() => onSelect("recent-mother")}
       />
       <OptionCard
         icon="heart"
         color="#704CA8"
         title="Desejo ser mãe"
         text="Tentando ou planejando"
-        selected={selected === 2}
-        onClick={() => setSelected(2)}
+        selected={selected === "future-mother"}
+        onClick={() => onSelect("future-mother")}
       />
       <OptionCard
         icon="userStar"
         color="#894686"
         title="Já sou mãe a mais tempo"
         text="Quero ajudar outras mães"
-        selected={selected === 3}
-        onClick={() => setSelected(3)}
+        selected={selected === "experienced-mother"}
+        onClick={() => onSelect("experienced-mother")}
       />
       <OptionCard
         icon="medic"
         color="#00B62E"
         title="Sou profissional da saúde"
         text="Trabalho com saúde materna"
-        selected={selected === 4}
-        onClick={() => setSelected(4)}
+        selected={selected === "health-professional"}
+        onClick={() => onSelect("health-professional")}
       />
-    </main>
-
-    
+    </div>
   );
 }
