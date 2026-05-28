@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { AuthInput } from "@/features/auth/components/AuthInput";
 import { registerSchema, type RegisterFormData } from "@/schemas/auth.schema";
@@ -23,6 +24,7 @@ export function SignupForm({
   translateY = 0,
   variant = "page",
 }: SignupFormProps) {
+  const router = useRouter();
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -40,7 +42,7 @@ export function SignupForm({
   });
 
   async function onSubmit(_data: RegisterFormData) {
-    await Promise.resolve();
+    router.push("/auth/select-type");
   }
 
   const formCard = (

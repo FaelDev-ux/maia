@@ -42,9 +42,9 @@ export function SignupIntroCover({
           <Image
             alt="Maia"
             className="relative object-contain drop-shadow-[0_18px_24px_rgba(140,64,84,0.28)]"
-            fill
             priority
-            sizes="224px"
+            height={400}
+            width={400}
             src="/images/logo-maia.png"
           />
         </div>
