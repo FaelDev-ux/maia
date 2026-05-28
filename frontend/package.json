@@ -14,11 +14,12 @@
     "check": "npm run lint && npm run format:check && npm run build"
   },
   "dependencies": {
+    "@babel/runtime": "^7.29.2",
     "@hookform/resolvers": "^5.2.2",
     "@react-input/mask": "^2.0.4",
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
-    "next": "16.2.4",
+    "next": "^16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.75.0",
@@ -37,10 +38,10 @@
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.3",
     "tailwindcss": "^4.2.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@babel/runtime": "^7.26.10"
   },
   "overrides": {
-    "postcss": "^8.5.10",
-    "@babel/runtime": "^7.26.10"
+    "postcss": "^8.5.10"
   }
 }

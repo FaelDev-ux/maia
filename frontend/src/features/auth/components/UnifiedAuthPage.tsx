@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SignupForm } from "@/features/signup/components/SignupForm";
 import { SignupIntroGate } from "@/features/signup/components/SignupIntroGate";
 import { LoginForm } from "./LoginForm";
@@ -17,7 +17,6 @@ export function UnifiedAuthPage({
   initialMode = "login",
   shouldShowSignupIntro = false,
 }: UnifiedAuthPageProps) {
-  const signupIntroTimeoutRef = useRef<number | null>(null);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [hasShownSignupIntro, setHasShownSignupIntro] = useState(false);
   const [showSignupIntro, setShowSignupIntro] = useState(false);
@@ -27,13 +26,6 @@ export function UnifiedAuthPage({
   function changeMode(nextMode: AuthMode) {
     setMode(nextMode);
     window.history.replaceState(null, "", `/auth?mode=${nextMode}`);
-
-    if (nextMode === "register" && !hasShownSignupIntro) {
-      setHasShownSignupIntro(true);
-      signupIntroTimeoutRef.current = window.setTimeout(() => {
-        setShowSignupIntro(true);
-      }, 620);
-    }
   }
 
   const finishSignupIntro = useCallback(() => {
@@ -41,19 +33,11 @@ export function UnifiedAuthPage({
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (signupIntroTimeoutRef.current) {
-        window.clearTimeout(signupIntroTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (initialMode !== "register") {
+    if (initialMode !== "register" || !shouldShowSignupIntro) {
       return;
     }
 
-    if (!hasShownSignupIntro && (shouldShowSignupIntro || initialMode === "register")) {
+    if (!hasShownSignupIntro) {
       const timeoutId = window.setTimeout(() => {
         setHasShownSignupIntro(true);
         setShowSignupIntro(true);
