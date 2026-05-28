@@ -11,7 +11,7 @@
   --maia-neutral: #e7e1e2;
 
   --maia-background: #fffafa;
-  --maia-surface: #ffffff;
+  --maia-surface: #ede6e8;
   --maia-border: #eadfe2;
 
   --maia-success: #34d399;
@@ -137,6 +137,48 @@ canvas {
   }
 }
 
+@keyframes maia-swipe-dot-up {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translateY(5px) scale(0.82);
+  }
+
+  38% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.16);
+  }
+
+  64% {
+    opacity: 0.62;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+@keyframes maia-auth-mobile-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes maia-auth-mobile-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .maia-slide-visual {
   animation: maia-slide-visual-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -144,6 +186,18 @@ canvas {
 .maia-slide-copy,
 .maia-slide-badge {
   animation: maia-slide-copy-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.maia-swipe-dot {
+  animation: maia-swipe-dot-up 1.35s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.maia-auth-mobile-copy {
+  animation: maia-auth-mobile-copy-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.maia-auth-mobile-form {
+  animation: maia-auth-mobile-form-in 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -155,7 +209,10 @@ canvas {
 
   .maia-slide-visual,
   .maia-slide-copy,
-  .maia-slide-badge {
+  .maia-slide-badge,
+  .maia-swipe-dot,
+  .maia-auth-mobile-copy,
+  .maia-auth-mobile-form {
     animation: none;
   }
 }
