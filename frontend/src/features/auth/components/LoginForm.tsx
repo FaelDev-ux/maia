@@ -57,7 +57,7 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
 
       <div className="mt-4 flex justify-end">
         <Link
-          className="text-xs font-bold text-primary transition hover:text-buttons"
+          className="text-xs font-bold text-primary transition hover:text-primary-hover"
           href="/auth/forgot-password"
         >
           Esqueci minha senha
@@ -76,14 +76,17 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
         Ainda não tem uma conta?{" "}
         {onRegisterClick ? (
           <button
-            className="font-bold text-primary hover:text-buttons"
+            className="font-bold text-primary hover:text-primary-hover"
             onClick={onRegisterClick}
             type="button"
           >
             Cadastre-se
           </button>
         ) : (
-          <Link className="font-bold text-primary hover:text-buttons" href="/auth?mode=register">
+          <Link
+            className="font-bold text-primary hover:text-primary-hover"
+            href="/auth?mode=register"
+          >
             Cadastre-se
           </Link>
         )}
