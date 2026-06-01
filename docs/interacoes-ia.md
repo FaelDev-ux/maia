@@ -1,0 +1,197 @@
+# Registro de interações com IA
+
+Este documento registra interações importantes com IA no projeto Maia. O objetivo é manter um histórico curto, revisável e útil para apresentação acadêmica e acompanhamento da equipe.
+
+Cada registro deve seguir a ordem:
+
+**Objetivo -> Prompt -> Resposta -> Resultado -> Acertos -> Falhas -> Conclusão**
+
+## Critério de registro
+
+- Registrar apenas prompts que influenciaram entendimento, arquitetura, implementação ou validação do projeto.
+- Resumir respostas longas, mantendo apenas o que importa para revisão.
+- Não esconder falhas, limitações ou validações que não puderam ser feitas.
+- Atualizar este arquivo quando uma nova interação importante acontecer.
+
+---
+
+## Interação 1 - Varredura inicial do projeto
+
+### 1. Objetivo da interação
+
+Fazer uma leitura inicial do repositório para a IA entender o projeto antes de sugerir ou alterar código.
+
+### 2. Prompt enviado
+
+> "faça uma varredura dos arquivos, leia o agents.md e o context.md pra vc saber oq fazer e ter uma base"
+
+### 3. Resposta da IA
+
+A IA leu `AGENTS.md`, `context.md`, `globals.css`, estrutura do `frontend`, rotas existentes, schemas, componentes de autenticação, seleção de perfil e navegação.
+
+### 4. Resultado obtido
+
+A IA passou a ter uma base do projeto Maia, incluindo stack, regras de colaboração, identidade visual, rotas atuais e pendências conhecidas.
+
+### 5. Acertos
+
+- Leu as fontes principais do projeto.
+- Identificou Next.js, React, TypeScript, Tailwind v4 e tokens visuais.
+- Verificou o estado do Git antes de qualquer alteração.
+- Não alterou arquivos sem solicitação.
+
+### 6. Falhas ou limitações
+
+- A leitura no terminal exibiu alguns acentos quebrados por encoding.
+- Não executou lint ou build porque a tarefa era apenas de análise.
+
+### 7. Conclusão
+
+A interação foi útil para reduzir risco antes das mudanças. A IA entendeu a estrutura principal, mas a leitura ainda depende de revisão humana.
+
+---
+
+## Interação 2 - Criação da home após o fluxo de mãe recente
+
+### 1. Objetivo da interação
+
+Criar uma tela de home baseada na referência visual enviada e fazer o fluxo "sou mãe recente" chegar nessa tela.
+
+### 2. Prompt enviado
+
+> "Após apertar na tela do sou mãe recente e passar pelas etapas, deve aparecer essa tela, faça pra mim e se eu n gostar, vou pedir pra retirar"
+
+### 3. Resposta da IA
+
+A IA criou a rota `/home`, adicionou uma feature de home com dados mockados, conectou o botão final do fluxo de mãe recente e validou com lint, build e teste de navegação.
+
+### 4. Resultado obtido
+
+Após a etapa final do fluxo de mãe recente, o botão "Continuar" redireciona para `/home`.
+
+### 5. Acertos
+
+- Implementou a rota `/home`.
+- Conectou o fluxo de seleção de perfil sem mexer em autenticação real.
+- Usou mocks isolados.
+- Validou com `npm run lint` e `npm run build`.
+- Usou linguagem não diagnóstica no insight emocional.
+
+### 6. Falhas ou limitações
+
+- A primeira versão ainda não estava suficientemente componentizada.
+- A captura visual via Chrome falhou por timeout, então parte da validação foi feita por DOM/URL.
+- A tela usou imagens locais existentes, não assets oficiais do Figma.
+
+### 7. Conclusão
+
+A interação entregou uma primeira versão funcional da home, adequada para revisão, mas ainda exigiu ajustes visuais e estruturais posteriores.
+
+---
+
+## Interação 3 - Adaptação da home para desktop
+
+### 1. Objetivo da interação
+
+Criar uma versão desktop da home seguindo o padrão responsivo das outras telas do projeto.
+
+### 2. Prompt enviado
+
+> "Faz a versão pc da mesma forma q os outros componentes tem sua tela na versão pc, faça o mesmo pra essa"
+
+### 3. Resposta da IA
+
+A IA ajustou a home para funcionar em mobile e desktop, usando layout em colunas, container mais largo e espaçamentos maiores em telas `md+`.
+
+### 4. Resultado obtido
+
+A home passou a ter uma apresentação mais adequada em telas maiores, sem perder o comportamento mobile-first.
+
+### 5. Acertos
+
+- Manteve uma única rota e um único componente principal responsivo.
+- Preservou o mobile como base.
+- Validou com lint, build e checagem da rota.
+
+### 6. Falhas ou limitações
+
+- Ainda dependia de ajuste posterior para seguir exclusivamente os tokens visuais do projeto.
+- Não houve validação visual perfeita por screenshot automatizado.
+
+### 7. Conclusão
+
+A adaptação melhorou a experiência desktop, mas precisou de refinamento para ficar totalmente alinhada ao design system do Maia.
+
+---
+
+## Interação 4 - Correção para usar design tokens
+
+### 1. Objetivo da interação
+
+Garantir que a home usasse apenas as cores e tokens já definidos pela equipe.
+
+### 2. Prompt enviado
+
+> "as cores ja temos as cores padrões deeterminadas por nós, siga elas"
+
+### 3. Resposta da IA
+
+A IA removeu cores avulsas da home e substituiu por tokens/classes do projeto, como `bg-background`, `bg-surface`, `bg-primary/15`, `text-primary`, `text-title`, `text-text`, `shadow-card` e `shadow-soft`.
+
+### 4. Resultado obtido
+
+A tela ficou mais alinhada ao `globals.css` e à identidade visual definida no projeto.
+
+### 5. Acertos
+
+- Removeu cores hardcoded da feature da home.
+- Fez busca para confirmar ausência de `#`, `rgb(...)`, `bg-white`, `border-white`, `text-black` e `bg-black`.
+- Validou com lint e build.
+
+### 6. Falhas ou limitações
+
+- O ajuste foi reativo, feito depois de uma primeira versão com cores fora do padrão.
+- Alguns estilos utilitários de layout ainda usam valores arbitrários de tamanho, o que é aceitável para fidelidade visual, mas deve ser revisado se virar padrão global.
+
+### 7. Conclusão
+
+A interação corrigiu um ponto importante de consistência visual e reforçou que novas telas devem partir dos tokens já definidos.
+
+---
+
+## Interação 5 - Tentativa e acesso ao frame do Figma via MCP
+
+### 1. Objetivo da interação
+
+Ler o frame do Figma via MCP para implementar a interface com maior fidelidade visual.
+
+### 2. Prompt enviado
+
+> "Leia esse frame do figma usando o MCP e implemente a interface com base no context.md"
+
+### 3. Resposta da IA
+
+Na primeira tentativa, o MCP retornou erro de acesso ao arquivo. Depois, em nova tentativa, o MCP conseguiu ler o frame `215:1427` e identificou a tela **HOME 3**, voltada para mãe experiente/mentora da comunidade.
+
+### 4. Resultado obtido
+
+A IA obteve a estrutura visual do frame: header com logo/avatar, badge de mentora, card de impacto, pedidos urgentes, card de comunidade e bottom navigation.
+
+### 5. Acertos
+
+- Tentou usar o MCP do Figma antes de depender apenas de inferência.
+- Identificou corretamente a tela como `HOME 3`.
+- Relatou a falha inicial de acesso em vez de esconder o problema.
+- Não alterou arquivos quando o pedido posterior foi apenas "tente acessar".
+
+### 6. Falhas ou limitações
+
+- A primeira tentativa falhou por acesso ao arquivo.
+- A implementação anterior da home foi baseada na referência enviada por imagem, não no frame completo do Figma.
+- Ainda falta aplicar totalmente o frame `HOME 3` no código, caso essa seja a próxima decisão da equipe.
+
+### 7. Conclusão
+
+O acesso ao Figma melhorou a base visual para as próximas alterações, mas a equipe ainda precisa decidir se a home atual deve ser substituída ou adaptada para seguir exatamente a `HOME 3`.
+
+---
