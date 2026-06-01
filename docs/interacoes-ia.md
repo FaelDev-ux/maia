@@ -195,3 +195,52 @@ A IA obteve a estrutura visual do frame: header com logo/avatar, badge de mentor
 O acesso ao Figma melhorou a base visual para as próximas alterações, mas a equipe ainda precisa decidir se a home atual deve ser substituída ou adaptada para seguir exatamente a `HOME 3`.
 
 ---
+
+## Interação 6 - Criação do context.md completo do projeto
+
+### 1. Objetivo da interação
+
+Criar um `context.md` completo para servir como memória operacional do projeto Maia, consolidando visão de produto, estado técnico, decisões de arquitetura, padrões visuais, Figma, Documento de Visão, pendências e próximos passos.
+
+### 2. Prompt enviado
+
+> "atue como um engenheiro fullstack e IA sênior, sua tarefa é fazer um context.md completo com base no atual, dentro as fontes vou lhe mandar o documento de visão e o link do figma funciona? ou teria que exportar as telas? não faça o context ainda, vou enviar o atual"
+
+Depois, após envio das fontes principais:
+
+> "crie primeiro o context.md completo"
+
+### 3. Resposta da IA
+
+A IA orientou que o `context.md` deveria ser gerado com base em quatro fontes principais: o contexto operacional atual, o Documento de Visão, o Figma/export das principais telas e os tokens reais do `globals.css`.
+
+Em seguida, criou uma versão consolidada do `context.md`, separando visão do produto, proposta de valor, perfis de usuário, escopo funcional, MVP, cuidados éticos, stack frontend, backend planejado, rotas atuais, rotas futuras, identidade visual, UX, check-in emocional, motor de recomendação, comunidade, comandos, estado do Git, pendências e próximos passos.
+
+### 4. Resultado obtido
+
+Foi criado um `context.md` completo para ser salvo na raiz do repositório e utilizado por toda a equipe como fonte de alinhamento do projeto Maia.
+
+O arquivo passou a documentar não apenas a visão acadêmica do produto, mas também o estado real do frontend, decisões práticas, riscos conhecidos e orientações para futuras implementações com IA/Codex.
+
+### 5. Acertos
+
+* Consolidou fontes diferentes em um único documento operacional.
+* Separou visão de produto de estado técnico real.
+* Registrou divergências importantes, como backend planejado em Django REST versus recomendações anteriores.
+* Incluiu perfis de usuário do Documento de Visão.
+* Considerou o Figma e os exports das telas como fonte visual.
+* Usou os tokens reais do `globals.css` como referência visual implementada.
+* Documentou pendências técnicas existentes.
+* Reforçou cuidados éticos, privacidade e linguagem não diagnóstica.
+* Indicou que o arquivo deve ficar na raiz do repositório.
+
+### 6. Falhas ou limitações
+
+* O Figma não foi lido diretamente via MCP nessa etapa; os exports das telas foram usados como fonte visual principal.
+* Algumas decisões técnicas ainda dependem de validação do time, especialmente integração com backend Django REST.
+* O `context.md` precisará ser mantido atualizado conforme o projeto evoluir.
+* O documento não substitui documentação técnica específica, como README, contratos de API ou documentação de design system.
+
+### 7. Conclusão
+
+A interação foi essencial para alinhar produto, tecnologia, design e uso de IA no projeto Maia. O `context.md` passou a funcionar como memória viva do projeto e base para que todos os membros da equipe, incluindo usuários do Codex Desktop, trabalhem com o mesmo entendimento.
