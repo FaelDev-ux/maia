@@ -244,3 +244,64 @@ O arquivo passou a documentar não apenas a visão acadêmica do produto, mas ta
 ### 7. Conclusão
 
 A interação foi essencial para alinhar produto, tecnologia, design e uso de IA no projeto Maia. O `context.md` passou a funcionar como memória viva do projeto e base para que todos os membros da equipe, incluindo usuários do Codex Desktop, trabalhem com o mesmo entendimento.
+
+---
+
+## Interação 7 - Implementação da HOME 1 pelo Figma MCP
+
+### 1. Objetivo da interação
+
+Ler o frame **HOME 1** do Figma via MCP e implementar a interface da home para o perfil de mãe recente, mantendo fidelidade visual, componentização, responsividade mobile-first e uso dos design tokens do Maia.
+
+### 2. Prompt enviado
+
+> "Leia esse frame do figma usando o MCP e implemente a interface com base no context.md"
+>
+> "basicamente ao apertar em sou mãe recente, deve aparecer essa tela aí, faça o mais parecido possivel e use as cores que já temos na estrutura"
+>
+> "Todas as telas tem sua versão desktop, ent faça isso tambem, foque no mobile-first, mas faça o desktop asssim como tem nos outros componentes"
+
+### 3. Resposta da IA
+
+A IA leu `context.md` e `AGENTS.md`, verificou o estado do Git e acessou o frame do Figma pelo MCP. O frame identificado foi `206:588`, nomeado **HOME 1**, com largura mobile de 412px e seções de header, check-in emocional, insight semanal, recomendações, prévia da comunidade e navegação inferior.
+
+Depois, a IA implementou a rota `/home`, criou a feature `home` com componentes reutilizáveis e dados mockados tipados, ajustou o fluxo de seleção para que "Sou mãe recente" leve à home e adicionou uma versão desktop responsiva da tela.
+
+### 4. Resultado obtido
+
+A tela `/home` passou a renderizar uma home baseada no Figma, com:
+
+- header com logo e avatar;
+- saudação "Olá, Maria! Como você está hoje?";
+- chips de check-in emocional;
+- card de insight semanal com linguagem não diagnóstica;
+- recomendações em carrossel no mobile e grid no desktop;
+- card de comunidade;
+- botão flutuante de apoio;
+- bottom navigation flutuante com cinco ícones.
+
+No fluxo de seleção de tipo de usuário, clicar em "Sou mãe recente" ou continuar com essa opção selecionada redireciona para `/home`.
+
+### 5. Acertos
+
+- Usou o MCP do Figma para ler o frame antes de implementar.
+- Manteve a Home mobile-first e adicionou adaptação desktop em `md+`.
+- Criou componentes separados em `frontend/src/features/home/components`.
+- Isolou dados mockados em `frontend/src/features/home/data/home-content.ts`.
+- Usou tokens/classes do projeto como `bg-background`, `text-title`, `text-text`, `text-primary`, `shadow-card` e `shadow-soft`.
+- Preservou linguagem acolhedora e não diagnóstica no insight.
+- Validou com `npm run lint` e `npm run build`, ambos passando.
+- Verificou a rota no navegador local em `http://localhost:3000/home`.
+
+### 6. Falhas ou limitações
+
+- As imagens de recomendações e avatares ainda são mocks remotos temporários, não assets finais do Figma ou API real.
+- A validação visual desktop pelo navegador embutido ficou limitada pela largura disponível da superfície aberta; a responsividade foi validada principalmente por classes, build e inspeção do layout.
+- A tela ainda não consome backend Django REST; os mocks devem ser substituídos quando houver contrato real de API.
+- O arquivo `context.md` ainda menciona `(private)/page.tsx` como vazio e recomenda implementar a home; esse contexto precisa ser atualizado em uma tarefa própria para refletir o novo estado.
+
+### 7. Conclusão
+
+A interação avançou a home autenticada do Maia de forma alinhada ao Figma e ao contexto do projeto. A implementação ficou revisável, componentizada e validada, mas ainda depende de integração futura com API e substituição dos mocks por dados e assets definitivos.
+
+---
