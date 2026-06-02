@@ -11,10 +11,36 @@ import { CommunityCreatePostModal } from "@/features/community/components/Commun
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
+import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
 import type { CommunityPost } from "@/features/community/types";
 
+function getStoredCreatedPosts() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const storedPosts = window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
+
+    if (!storedPosts) {
+      return [];
+    }
+
+    const parsedPosts = JSON.parse(storedPosts) as CommunityPost[];
+    const fixedPostIds = new Set(communityPosts.map((post) => post.id));
+
+    return parsedPosts.filter((post) => !fixedPostIds.has(post.id));
+  } catch {
+    window.localStorage.removeItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
+    return [];
+  }
+}
+
 export function CommunityPage() {
-  const [posts, setPosts] = useState<CommunityPost[]>(communityPosts);
+  const [posts, setPosts] = useState<CommunityPost[]>(() => [
+    ...getStoredCreatedPosts(),
+    ...communityPosts,
+  ]);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
@@ -27,7 +53,19 @@ export function CommunityPage() {
     .join("");
 
   function handleCreatePost(post: CommunityPost) {
-    setPosts((currentPosts) => [post, ...currentPosts]);
+    setPosts((currentPosts) => {
+      const updatedPosts = [post, ...currentPosts];
+      const createdPosts = updatedPosts.filter((currentPost) =>
+        currentPost.id.startsWith("mock-post-")
+      );
+
+      window.localStorage.setItem(
+        COMMUNITY_CREATED_POSTS_STORAGE_KEY,
+        JSON.stringify(createdPosts)
+      );
+
+      return updatedPosts;
+    });
   }
 
   return (
