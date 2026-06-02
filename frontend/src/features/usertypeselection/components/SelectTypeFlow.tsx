@@ -63,6 +63,14 @@ export function SelectTypeFlow() {
     router.push(`/auth/select-type?step=${step}`);
   }
 
+  function handleSelectOption(option: UserTypeOption) {
+    setSelectedOption(option);
+  }
+
+  function handleContinue() {
+    goToStep(firstStepByOption[selectedOption]);
+  }
+
   function renderCurrentStep(): ReactNode {
     if (currentStep === "recent-mother-welcome") {
       return (
@@ -83,7 +91,12 @@ export function SelectTypeFlow() {
     }
 
     if (currentStep === "recent-mother-support") {
-      return <RecentMotherSupportStep onBack={() => goToStep("recent-mother-baby-info")} />;
+      return (
+        <RecentMotherSupportStep
+          onBack={() => goToStep("recent-mother-baby-info")}
+          onContinue={() => router.push("/home")}
+        />
+      );
     }
 
     if (currentStep === "future-mother-welcome") {
@@ -96,11 +109,21 @@ export function SelectTypeFlow() {
     }
 
     if (currentStep === "future-mother-support") {
-      return <FutureMotherSupportStep onBack={() => goToStep("future-mother-welcome")} />;
+      return (
+        <FutureMotherSupportStep
+          onBack={() => goToStep("future-mother-welcome")}
+          onContinue={() => router.push("/home?profile=future-mother")}
+        />
+      );
     }
 
     if (currentStep === "experienced-mother-welcome") {
-      return <ExperiencedMotherWelcomeStep onBack={() => goToStep("select-type")} />;
+      return (
+        <ExperiencedMotherWelcomeStep
+          onBack={() => goToStep("select-type")}
+          onContinue={() => router.push("/home?profile=experienced-mother")}
+        />
+      );
     }
 
     if (currentStep === "health-professional-data") {
@@ -113,7 +136,12 @@ export function SelectTypeFlow() {
     }
 
     if (currentStep === "health-professional-welcome") {
-      return <HealthProfessionalWelcomeStep onBack={() => goToStep("health-professional-data")} />;
+      return (
+        <HealthProfessionalWelcomeStep
+          onBack={() => goToStep("health-professional-data")}
+          onContinue={() => router.push("/home?profile=health-professional")}
+        />
+      );
     }
 
     return (
@@ -134,11 +162,11 @@ export function SelectTypeFlow() {
           </section>
 
           <section className="maia-auth-mobile-form mx-auto flex w-full max-w-92 flex-col items-center gap-6 md:max-w-[26rem]">
-            <OptionsList selected={selectedOption} onSelect={setSelectedOption} />
+            <OptionsList selected={selectedOption} onSelect={handleSelectOption} />
 
             <button
               className="flex h-14 w-full max-w-84 items-center justify-center rounded-full bg-primary px-8 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-16 sm:max-w-92 sm:text-base"
-              onClick={() => goToStep(firstStepByOption[selectedOption])}
+              onClick={handleContinue}
               type="button"
             >
               Continuar

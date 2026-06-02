@@ -305,3 +305,73 @@ No fluxo de seleção de tipo de usuário, clicar em "Sou mãe recente" ou conti
 A interação avançou a home autenticada do Maia de forma alinhada ao Figma e ao contexto do projeto. A implementação ficou revisável, componentizada e validada, mas ainda depende de integração futura com API e substituição dos mocks por dados e assets definitivos.
 
 ---
+
+## Interação 8 - Homes por perfil e correção do fluxo de seleção
+
+### 1. Objetivo da interação
+
+Criar variações da Home para todos os perfis principais selecionáveis no onboarding e corrigir o fluxo para que a Home apareça apenas após a finalização das etapas de boas-vindas de cada usuário.
+
+### 2. Prompt enviado
+
+> "Faça a mesma interface para o desejo ser mãe"
+>
+> "O print que estou enviando agora é da seleção da mãe experiente, com relação ao q vc já fez só muda umas coisinhas, lembre de fazer a versão desktop"
+>
+> "Por ultimo a home da profissional de saude, o print q lhe enviei é do profissional de saúde"
+>
+> "N deve haver redirecionamento ao selecionar, o fluxo funciona ao usuario selecionar e apertar no botão de continuar e temos as paginas de welcomestep de cada, logo, as homes só devem aparecer após a finalização de todas as steps do welcome de cada usuario"
+
+### 3. Resposta da IA
+
+A IA leu `context.md`, `AGENTS.md`, inspecionou a feature `home`, o fluxo `SelectTypeFlow` e as steps finais de cada perfil. Em seguida, transformou a Home em uma tela parametrizada por perfil via query string:
+
+- `/home`: mãe recente;
+- `/home?profile=future-mother`: deseja ser mãe/futura mãe;
+- `/home?profile=experienced-mother`: mãe experiente/mentora;
+- `/home?profile=health-professional`: profissional de saúde.
+
+Também criou componentes reutilizáveis para a variação de mentoria/profissional, como card de impacto, badge de perfil e cards de pedidos de ajuda.
+
+Por fim, corrigiu o fluxo de seleção: clicar em um card passou a apenas selecionar o perfil; o botão "Continuar" leva à primeira step daquele perfil; a Home só é aberta no botão final da última step.
+
+### 4. Resultado obtido
+
+O projeto passou a ter quatro variações de Home com a mesma base visual, responsivas e alinhadas aos prints:
+
+- mãe recente: check-in emocional, insight, recomendações e comunidade;
+- deseja ser mãe: check-in emocional adaptado, recomendações e comunidade para futura mãe;
+- mãe experiente: badge "Mentora da comunidade", impacto, pedidos de ajuda urgentes e comunidade;
+- profissional de saúde: badge "Especialista verificada", especialidade "Pediatra", impacto, pedidos de ajuda urgentes e comunidade.
+
+Os fluxos finais ficaram:
+
+- mãe recente: `welcome -> baby-info -> support -> /home`;
+- deseja ser mãe: `welcome -> support -> /home?profile=future-mother`;
+- mãe experiente: `welcome -> /home?profile=experienced-mother`;
+- profissional de saúde: `data -> welcome -> /home?profile=health-professional`.
+
+### 5. Acertos
+
+- Reaproveitou a rota `/home` sem criar rotas duplicadas para cada perfil.
+- Tipou os perfis em `HomeProfile` e os conteúdos em estruturas específicas.
+- Isolou mocks em `frontend/src/features/home/data/home-content.ts`.
+- Criou componentes reutilizáveis para impacto, badge e pedidos de ajuda.
+- Manteve mobile-first e adicionou adaptação desktop.
+- Preservou linguagem acolhedora, sem diagnóstico clínico.
+- Corrigiu a navegação para respeitar as steps de onboarding antes da Home.
+- Validou com `npm run lint` e `npm run build`, ambos passando.
+- Testou no navegador que selecionar um card não redireciona e que a step final da profissional leva à Home correta.
+
+### 6. Falhas ou limitações
+
+- As imagens de avatar, recomendações e participantes continuam como mocks remotos temporários.
+- Os dados de impacto, pedidos de ajuda e comunidade ainda não vêm de API real.
+- Algumas telas foram implementadas a partir de prints enviados, não por leitura direta de todos os frames via MCP.
+- O `context.md` ainda precisa ser atualizado em tarefa separada para refletir que `/home` e as variações por perfil já existem.
+
+### 7. Conclusão
+
+A interação consolidou a Home como uma experiência inicial personalizada por perfil, mantendo coerência visual e respeitando o fluxo correto de onboarding. A implementação está adequada para revisão e validação de produto, mas ainda depende de integração futura com backend Django REST e assets definitivos.
+
+---

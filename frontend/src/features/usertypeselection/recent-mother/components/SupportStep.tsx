@@ -6,9 +6,10 @@ import { supportBenefits } from "../data/support-benefits";
 
 type RecentMotherSupportStepProps = {
   onBack: () => void;
+  onContinue: () => void;
 };
 
-export function RecentMotherSupportStep({ onBack }: RecentMotherSupportStepProps) {
+export function RecentMotherSupportStep({ onBack, onContinue }: RecentMotherSupportStepProps) {
   return (
     <main className="min-h-dvh overflow-hidden bg-background text-text">
       <div className="mx-auto flex min-h-dvh w-full max-w-107.5 flex-col px-6 pb-7 pt-6 md:max-w-[64rem] md:px-10 md:pb-10 md:pt-8">
@@ -61,6 +62,7 @@ export function RecentMotherSupportStep({ onBack }: RecentMotherSupportStepProps
 
         <button
           className="mx-auto flex h-14 w-full max-w-84 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-16 sm:max-w-92 md:max-w-[25rem]"
+          onClick={onContinue}
           type="button"
         >
           <span className="font-extrabold">Continuar</span> <ArrowRight size={18} />
