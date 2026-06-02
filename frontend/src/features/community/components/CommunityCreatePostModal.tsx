@@ -141,9 +141,9 @@ export function CommunityCreatePostModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-title/35 px-4 pb-4 pt-12 backdrop-blur-sm md:items-center md:p-8"
       role="dialog"
     >
-      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-[31rem] overflow-y-auto rounded-[2rem] bg-background shadow-[0_28px_80px_rgb(57_55_56_/_0.24)] ring-1 ring-white/80">
-        <form onSubmit={handleSubmit}>
-          <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border/70 bg-background/95 px-6 py-5 backdrop-blur md:px-7">
+      <div className="w-full max-w-[31rem] overflow-hidden rounded-[2rem] bg-background shadow-[0_28px_80px_rgb(57_55_56_/_0.24)] ring-1 ring-white/80">
+        <form className="flex max-h-[calc(100dvh-2rem)] flex-col" onSubmit={handleSubmit}>
+          <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/70 bg-background/95 px-6 py-5 backdrop-blur md:px-7">
             <div className="flex items-start gap-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
                 <MessageSquareText aria-hidden size={21} strokeWidth={2.2} />
@@ -171,7 +171,7 @@ export function CommunityCreatePostModal({
             </button>
           </header>
 
-          <div className="space-y-5 px-6 py-6 md:px-7">
+          <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-primary/30 hover:scrollbar-thumb-primary/50 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6 [scrollbar-color:rgb(244_139_164_/_0.38)_transparent] [scrollbar-width:thin] md:px-7 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-track]:bg-transparent">
             <label className="block">
               <span className="text-sm font-extrabold text-title">Título</span>
               <input
@@ -196,10 +196,14 @@ export function CommunityCreatePostModal({
                   >
                     <input
                       checked={category === option.value}
-                      className="mt-1 size-4 accent-primary"
+                      className="peer sr-only"
                       name="community-category"
                       onChange={() => setCategory(option.value)}
                       type="radio"
+                    />
+                    <span
+                      aria-hidden
+                      className="relative mt-1 size-4 shrink-0 rounded-full border-2 border-border bg-white transition after:absolute after:left-1/2 after:top-1/2 after:size-2 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-primary after:opacity-0 after:transition peer-checked:border-primary peer-checked:after:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
                     />
                     <span>
                       <span className="block text-sm font-extrabold text-title">{option.label}</span>
@@ -262,7 +266,7 @@ export function CommunityCreatePostModal({
             </label>
           </div>
 
-          <footer className="sticky bottom-0 flex gap-3 border-t border-border/70 bg-background/95 px-6 py-5 backdrop-blur md:px-7">
+          <footer className="flex shrink-0 gap-3 border-t border-border/70 bg-background/95 px-6 py-5 backdrop-blur md:px-7">
             <button
               className="h-13 flex-1 rounded-full bg-white px-5 text-sm font-extrabold text-text shadow-[0_8px_22px_rgb(140_64_84_/_0.07)] ring-1 ring-border transition hover:bg-surface/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               onClick={onClose}
