@@ -105,14 +105,13 @@ export function CommunityPostCard({ onReply, post, variant = "feed" }: Community
             <span>{displayRole}</span>
           </p>
         </div>
+      </header>
 
+      <div className="mt-2">
         <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-[0.62rem] font-extrabold uppercase tracking-[0.08em] text-primary">
           {post.categoryLabel}
         </span>
-      </header>
-
-      <div className="mt-5">
-        <h3 className="font-title text-xl font-extrabold leading-tight text-title">{post.title}</h3>
+        <h3 className="mt-2 font-title text-xl font-extrabold leading-tight text-title">{post.title}</h3>
         <p className="mt-4 text-[0.95rem] leading-7 text-text">{post.message}</p>
       </div>
 
@@ -177,11 +176,12 @@ export function CommunityPostCard({ onReply, post, variant = "feed" }: Community
 
           <button
             aria-label={`Responder publicação. ${post.repliesCount} respostas`}
-            className="grid size-12 flex-1 place-items-center rounded-full bg-surface/65 text-text transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="flex flex-row-reverse gap-2 size-12 flex-1 justify-center items-center rounded-full bg-surface/65 text-text transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             onClick={handleReplyClick}
             type="button"
           >
             <MessageCircle aria-hidden size={23} strokeWidth={2.2} />
+            <p>{post.repliesCount}</p>
           </button>
         </div>
       </footer>

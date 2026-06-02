@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, EyeOff, MessageCircle, Send } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -96,7 +96,7 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
     focusComments();
   }, [focusComments]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedMessage = message.trim();
 
@@ -345,41 +345,40 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
                                   Resposta em destaque
                                 </p>
                               ) : null}
-                              <p
-                                className={cn(
-                                  "mt-1 text-sm font-extrabold",
-                                  supportBalance < 0 ? "text-danger" : "text-title"
-                                )}
-                              >
-                                Saldo {supportBalance > 0 ? `+${supportBalance}` : supportBalance}
-                              </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4 place-items-center rounded-full bg-white text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.08)] ring-1 ring-border transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                               <button
                                 aria-label={`Marcar resposta de ${displayName} como útil`}
                                 className={cn(
-                                  "grid size-10 place-items-center rounded-full bg-white text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.08)] ring-1 ring-border transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                                  "size-10 flex items-center justify-center rounded-full",
                                   comment.userVote === "helpful" &&
                                     "bg-primary text-white hover:bg-primary/90"
                                 )}
                                 onClick={() => handleCommentVote(comment.id, "helpful")}
                                 type="button"
                               >
-                                <ArrowUp aria-hidden size={18} strokeWidth={2.5} />
+                                <ArrowBigUp aria-hidden size={18} strokeWidth={2.5} />
                               </button>
-
+                              <p
+                                className={cn(
+                                  "mt-1 text-sm font-extrabold",
+                                  supportBalance < 0 ? "text-danger" : "text-title"
+                                )}
+                              >
+                                {supportBalance > 0 ? `+${supportBalance}` : supportBalance}
+                              </p>
                               <button
                                 aria-label={`Marcar resposta de ${displayName} como não útil`}
                                 className={cn(
-                                  "grid size-10 place-items-center rounded-full bg-white text-text shadow-[0_8px_20px_rgb(140_64_84_/_0.08)] ring-1 ring-border transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                                  "size-10 flex items-center justify-center rounded-full",
                                   comment.userVote === "not-helpful" &&
                                     "bg-danger text-white hover:bg-danger/90"
                                 )}
                                 onClick={() => handleCommentVote(comment.id, "not-helpful")}
                                 type="button"
                               >
-                                <ArrowDown aria-hidden size={18} strokeWidth={2.5} />
+                                <ArrowBigDown aria-hidden size={18} strokeWidth={2.5} />
                               </button>
                             </div>
                           </footer>

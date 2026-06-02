@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useId, useState } from "react";
+import { Search, Sparkles, X } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { mockAuthenticatedUser } from "@/data/authenticated-user";
@@ -12,7 +12,14 @@ import { CommunityFilterChips } from "@/features/community/components/CommunityF
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
 import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
-import type { CommunityPost } from "@/features/community/types";
+import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
+
+const filterCategoryById: Record<string, CommunityPostCategory | "all"> = {
+  all: "all",
+  support: "apoio",
+  sleep: "sono",
+  network: "rede",
+};
 
 function getStoredCreatedPosts() {
   if (typeof window === "undefined") {
@@ -36,11 +43,37 @@ function getStoredCreatedPosts() {
   }
 }
 
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getPostSearchText(post: CommunityPost) {
+  const searchableAuthor = post.isAnonymous ? "" : post.authorName;
+
+  return normalizeSearchValue(
+    [
+      searchableAuthor,
+      post.authorRole,
+      post.categoryLabel,
+      post.title,
+      post.message,
+      post.tags.join(" "),
+    ].join(" ")
+  );
+}
+
 export function CommunityPage() {
+  const searchInputId = useId();
   const [posts, setPosts] = useState<CommunityPost[]>(() => [
     ...getStoredCreatedPosts(),
     ...communityPosts,
   ]);
+  const [activeFilterId, setActiveFilterId] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
@@ -51,6 +84,15 @@ export function CommunityPage() {
     .slice(0, 2)
     .map((name) => name.charAt(0).toUpperCase())
     .join("");
+  const activeCategory = filterCategoryById[activeFilterId] ?? "all";
+  const normalizedSearchQuery = normalizeSearchValue(searchQuery);
+  const visiblePosts = posts.filter((post) => {
+    const matchesFilter = activeCategory === "all" || post.category === activeCategory;
+    const matchesSearch =
+      !normalizedSearchQuery || getPostSearchText(post).includes(normalizedSearchQuery);
+
+    return matchesFilter && matchesSearch;
+  });
 
   function handleCreatePost(post: CommunityPost) {
     setPosts((currentPosts) => {
@@ -128,24 +170,57 @@ export function CommunityPage() {
                     Mural de apoio
                   </h2>
                 </div>
-
-                <button
-                  aria-label="Buscar publicações"
-                  className="grid size-12 shrink-0 place-items-center rounded-full bg-white text-text shadow-[0_10px_26px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65 transition hover:bg-primary/10 hover:text-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  type="button"
-                >
-                  <Search aria-hidden size={20} strokeWidth={2.2} />
-                </button>
               </div>
 
+              <label className="relative mt-5 block" htmlFor={searchInputId}>
+                <span className="sr-only">Buscar publicações</span>
+                <Search
+                  aria-hidden
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text/55"
+                  size={18}
+                  strokeWidth={2.2}
+                />
+                <input
+                  className="h-12 w-full rounded-full border border-border bg-white pl-11 pr-11 text-sm font-semibold text-title shadow-[0_10px_26px_rgb(140_64_84_/_0.08)] outline-none transition placeholder:text-text/45 focus:border-primary focus:ring-4 focus:ring-primary/15"
+                  id={searchInputId}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Buscar publicações"
+                  type="search"
+                  value={searchQuery}
+                />
+                {searchQuery ? (
+                  <button
+                    aria-label="Limpar busca"
+                    className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-text transition hover:bg-primary/10 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    onClick={() => setSearchQuery("")}
+                    type="button"
+                  >
+                    <X aria-hidden size={16} strokeWidth={2.4} />
+                  </button>
+                ) : null}
+              </label>
+
               <div className="mt-6">
-                <CommunityFilterChips filters={communityFilters} />
+                <CommunityFilterChips
+                  activeFilterId={activeFilterId}
+                  filters={communityFilters}
+                  onSelectFilter={setActiveFilterId}
+                />
               </div>
 
               <div className="mt-6 grid gap-5">
-                {posts.map((post) => (
-                  <CommunityPostCard key={post.id} post={post} />
-                ))}
+                {visiblePosts.length > 0 ? (
+                  visiblePosts.map((post) => <CommunityPostCard key={post.id} post={post} />)
+                ) : (
+                  <div className="rounded-[2rem] bg-white px-6 py-8 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
+                    <p className="font-title text-xl font-extrabold text-title">
+                      Nenhuma conversa encontrada
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-text">
+                      Tente mudar o filtro ou buscar por outro termo.
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
           </div>
