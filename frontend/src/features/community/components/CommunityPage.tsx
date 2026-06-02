@@ -1,17 +1,34 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { CommunityComposerCard } from "@/features/community/components/CommunityComposerCard";
+import { CommunityCreatePostModal } from "@/features/community/components/CommunityCreatePostModal";
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
+import type { CommunityPost } from "@/features/community/types";
 
 export function CommunityPage() {
+  const [posts, setPosts] = useState<CommunityPost[]>(communityPosts);
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = mockAuthenticatedUser.avatarUrl;
+  const authorInitials = mockAuthenticatedUser.fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name.charAt(0).toUpperCase())
+    .join("");
+
+  function handleCreatePost(post: CommunityPost) {
+    setPosts((currentPosts) => [post, ...currentPosts]);
+  }
 
   return (
     <main className="min-h-dvh bg-background text-text">
@@ -55,7 +72,7 @@ export function CommunityPage() {
             </section>
 
             <section className="mt-8 md:mt-9" aria-label="Nova publicação na comunidade">
-              <CommunityComposerCard />
+              <CommunityComposerCard onCreatePost={() => setIsCreatePostModalOpen(true)} />
             </section>
           </div>
 
@@ -88,7 +105,7 @@ export function CommunityPage() {
               </div>
 
               <div className="mt-6 grid gap-5">
-                {communityPosts.map((post) => (
+                {posts.map((post) => (
                   <CommunityPostCard key={post.id} post={post} />
                 ))}
               </div>
@@ -98,6 +115,14 @@ export function CommunityPage() {
       </div>
 
       <BottomNavigation />
+      <CommunityCreatePostModal
+        authorInitials={authorInitials || avatarInitial}
+        authorName={mockAuthenticatedUser.fullName}
+        authorRole="Mãe no puerpério"
+        isOpen={isCreatePostModalOpen}
+        onClose={() => setIsCreatePostModalOpen(false)}
+        onCreatePost={handleCreatePost}
+      />
     </main>
   );
 }

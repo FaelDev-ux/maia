@@ -41,16 +41,18 @@ export function CommunityPostCard({ post }: CommunityPostCardProps) {
         <p className="mt-4 text-[0.95rem] leading-7 text-text">{post.message}</p>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        {post.tags.map((tag) => (
-          <span
-            className="rounded-full bg-surface/70 px-3 py-1.5 text-xs font-bold text-text"
-            key={tag}
-          >
-            #{tag}
-          </span>
-        ))}
-      </div>
+      {post.tags.length > 0 ? (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {post.tags.map((tag) => (
+            <span
+              className="rounded-full bg-surface/70 px-3 py-1.5 text-xs font-bold text-text"
+              key={tag}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {post.highlightedReply ? (
         <aside className="mt-5 rounded-[1.45rem] bg-primary/[0.08] px-4 py-4 ring-1 ring-primary/15">

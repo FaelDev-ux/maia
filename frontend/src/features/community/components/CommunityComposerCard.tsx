@@ -1,6 +1,10 @@
 import { PenLine } from "lucide-react";
 
-export function CommunityComposerCard() {
+type CommunityComposerCardProps = {
+  onCreatePost: () => void;
+};
+
+export function CommunityComposerCard({ onCreatePost }: CommunityComposerCardProps) {
   return (
     <section
       aria-labelledby="community-composer-title"
@@ -30,6 +34,7 @@ export function CommunityComposerCard() {
 
       <button
         className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-primary px-6 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+        onClick={onCreatePost}
         type="button"
       >
         Criar publicação
