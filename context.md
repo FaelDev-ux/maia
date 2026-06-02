@@ -331,6 +331,7 @@ Executar dentro de `frontend` quando aplicável:
 - Reaproveitar componentes de input entre login, cadastro e recuperação quando fizer sentido.
 - Priorizar construção das telas internas do produto após autenticação visual.
 - Usar mocks tipados até existir contrato real da API Django REST.
+- Buscar imagens de perfil mockadas a partir de `frontend/src/data/authenticated-user.ts`; telas internas não devem hardcodar avatar de usuária em mocks de feature.
 - Considerar `context.md` como memória do projeto e futuro `AGENTS.md` como instrução específica para Codex/agentes.
 
 ## 29. Próximos passos recomendados
@@ -348,3 +349,4 @@ Executar dentro de `frontend` quando aplicável:
 
 - 2026-05-27: Criado contexto operacional inicial com estado do frontend, padrões, riscos e comandos.
 - 2026-05-28: Incorporado Documento de Visão do Maia, perfis de usuário, requisitos funcionais/não funcionais, stack planejada com Django REST e referência ao Figma/export das telas principais.
+- 2026-06-02: Centralizada a imagem de perfil mockada em `frontend/src/data/authenticated-user.ts`; dashboards e telas internas devem ler avatar de usuária desse mock global.
