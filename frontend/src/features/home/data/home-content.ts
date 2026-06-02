@@ -28,6 +28,7 @@ export const weeklyInsight: WeeklyInsight = {
 export const homeRecommendations: Recommendation[] = [
   {
     id: "emotions",
+    contentId: "navegando-nas-emocoes",
     title: "Navegando nas emoções",
     description: "Práticas de autocompaixão",
     duration: "10 min",
@@ -36,6 +37,7 @@ export const homeRecommendations: Recommendation[] = [
   },
   {
     id: "stretching",
+    contentId: "alongamento-leve",
     title: "Alongamento leve",
     description: "Libere a tensão nas costas e ombros.",
     duration: "15 min",
@@ -72,6 +74,7 @@ export const futureMotherInsight: WeeklyInsight = {
 export const futureMotherRecommendations: Recommendation[] = [
   {
     id: "planning",
+    contentId: "preparando-sua-jornada",
     title: "Preparando sua jornada",
     description: "Conteúdos para uma espera mais leve",
     duration: "8 min",
@@ -80,6 +83,7 @@ export const futureMotherRecommendations: Recommendation[] = [
   },
   {
     id: "breathing",
+    contentId: "respiracao-para-ansiedade",
     title: "Respiração para ansiedade",
     description: "Um exercício simples para desacelerar.",
     duration: "12 min",

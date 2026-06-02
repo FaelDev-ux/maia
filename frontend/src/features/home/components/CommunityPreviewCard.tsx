@@ -1,10 +1,12 @@
 import type { CommunityPreview } from "@/features/home/types";
+import { useRouter } from "next/navigation"
 
 type CommunityPreviewCardProps = {
   community: CommunityPreview;
+  onClick: () => void;
 };
 
-export function CommunityPreviewCard({ community }: CommunityPreviewCardProps) {
+export function CommunityPreviewCard({ community,   onClick }: CommunityPreviewCardProps) {
   return (
     <article className="rounded-[2.35rem] bg-white px-7 py-8 shadow-[0_18px_52px_rgb(140_64_84_/_0.12)] ring-1 ring-border/65 md:px-8 md:py-9">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -41,6 +43,7 @@ export function CommunityPreviewCard({ community }: CommunityPreviewCardProps) {
       <button
         className="mt-7 flex h-14 w-full items-center justify-center rounded-full bg-primary px-6 text-base font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
         type="button"
+        onClick={onClick}
       >
         Participar da Conversa
       </button>

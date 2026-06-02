@@ -1,24 +1,44 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
 import { HandHeart, Heart } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { CommunityPreviewCard } from "@/features/home/components/CommunityPreviewCard";
 import { EmotionChip } from "@/features/home/components/EmotionChip";
+import { EmotionFeedbackCard } from "@/features/home/components/EmotionFeedbackCard";
 import { HelpRequestCard } from "@/features/home/components/HelpRequestCard";
 import { HomeSectionHeader } from "@/features/home/components/HomeSectionHeader";
 import { MentorImpactCard } from "@/features/home/components/MentorImpactCard";
 import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadge";
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
+import { getEmotionFeedback } from "@/features/home/data/emotion-feedback";
 import { homeContentByProfile } from "@/features/home/data/home-content";
-import type { HomeProfile } from "@/features/home/types";
+import type { EmotionOption, HomeProfile } from "@/features/home/types";
+import { useRouter } from "next/navigation";
 
 type HomePageProps = {
   profile?: HomeProfile;
 };
 
+type EmotionSelection = {
+  profile: HomeProfile;
+  emotion: EmotionOption;
+};
+
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
+  const [emotionSelection, setEmotionSelection] = useState<EmotionSelection | null>(null);
+  const selectedEmotion = emotionSelection?.profile === profile ? emotionSelection.emotion : null;
+
+  const router = useRouter();
+
+  function onRedirectCommunity() {
+    router.push("/comunidade");
+  }
 
   return (
     <main className="min-h-dvh bg-background text-text">
@@ -46,19 +66,14 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
           <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
             <div>
               <section aria-labelledby="home-title">
-                <MentorProfileBadge
-                  badge={content.badge}
-                  secondaryLabel={content.secondaryLabel}
-                />
+                <MentorProfileBadge badge={content.badge} secondaryLabel={content.secondaryLabel} />
 
                 <h1
                   className="mt-5 max-w-[22rem] font-title text-[2.12rem] font-extrabold leading-[1.12] text-title md:max-w-[24rem] md:text-[2.55rem] md:leading-[1.08]"
                   id="home-title"
                 >
                   Olá,{" "}
-                  <span className="text-primary">
-                    {content.displayName ?? content.firstName}!
-                  </span>
+                  <span className="text-primary">{content.displayName ?? content.firstName}!</span>
                 </h1>
                 <p className="mt-7 max-w-[20rem] text-[1.06rem] leading-8 text-text md:max-w-[23rem] md:text-lg">
                   {content.intro}
@@ -88,14 +103,14 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
               </section>
 
               <section className="relative mt-7 md:mt-8">
-                <CommunityPreviewCard community={content.community} />
-                <button
+                <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
+                <Link
                   aria-label="Oferecer apoio"
-                  className="absolute -bottom-8 right-4 z-10 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-8"
-                  type="button"
+                  className="fixed bottom-24 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-10"
+                  href="/check-in"
                 >
                   <HandHeart aria-hidden size={31} strokeWidth={2.2} />
-                </button>
+                </Link>
               </section>
             </div>
           </div>
@@ -119,9 +134,25 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 className="mt-7 flex flex-wrap gap-4 md:mt-8"
                 aria-label="Check-in emocional rápido"
               >
-                {content.emotions.map((emotion) => (
-                  <EmotionChip emotion={emotion} key={emotion.id} />
-                ))}
+                {selectedEmotion ? (
+                  <EmotionFeedbackCard
+                    emotion={selectedEmotion}
+                    feedback={getEmotionFeedback(selectedEmotion)}
+                  />
+                ) : (
+                  content.emotions.map((emotion) => (
+                    <EmotionChip
+                      emotion={emotion}
+                      key={emotion.id}
+                      onSelect={(selectedEmotionOption) =>
+                        setEmotionSelection({
+                          profile,
+                          emotion: selectedEmotionOption,
+                        })
+                      }
+                    />
+                  ))
+                )}
               </section>
 
               <section className="mt-10 md:mt-9">
@@ -132,7 +163,11 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
             <div className="md:min-w-0">
               <section className="mt-8 md:mt-0" aria-labelledby="recommendations-heading">
                 <div id="recommendations-heading">
-                  <HomeSectionHeader title="Recomendações para você" actionLabel="Ver tudo" />
+                  <HomeSectionHeader
+                    title="Recomendações para você"
+                    actionLabel="Ver tudo"
+                    actionHref="/conteudos"
+                  />
                 </div>
 
                 <div className="-mx-8 mt-7 flex gap-6 overflow-x-auto px-8 pb-3 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
@@ -143,14 +178,14 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
               </section>
 
               <section className="relative mt-5 md:mt-8">
-                <CommunityPreviewCard community={content.community} />
-                <button
-                  aria-label="Acessar apoio da comunidade"
-                  className="absolute -bottom-8 right-4 z-10 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-8"
-                  type="button"
+                <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
+                <Link
+                  aria-label="Registrar sentimentos"
+                  className="fixed bottom-24 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-10"
+                  href="/check-in"
                 >
                   <Heart aria-hidden className="fill-white" size={31} strokeWidth={0} />
-                </button>
+                </Link>
               </section>
             </div>
           </div>
