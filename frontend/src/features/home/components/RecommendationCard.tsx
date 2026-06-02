@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Recommendation } from "@/features/home/types";
 
 type RecommendationCardProps = {
@@ -6,9 +7,13 @@ type RecommendationCardProps = {
 
 export function RecommendationCard({ recommendation }: RecommendationCardProps) {
   return (
-    <article className="w-[17.5rem] shrink-0 md:w-full">
+    <Link
+      className="group w-[17.5rem] shrink-0 rounded-[2rem] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:w-full"
+      href={`/conteudos/${recommendation.contentId}`}
+    >
+      <article>
       <div
-        className="relative h-48 overflow-hidden rounded-[2rem] bg-cover bg-center shadow-card md:h-52"
+        className="relative h-48 overflow-hidden rounded-[2rem] bg-cover bg-center shadow-card transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[0_20px_42px_rgb(216_116_140_/_0.2)] md:h-52"
         style={{ backgroundImage: `url(${recommendation.imageUrl})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-title/26 via-transparent to-transparent" />
@@ -21,6 +26,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
         {recommendation.title}
       </h3>
       <p className="mt-1 text-sm leading-5 text-text">{recommendation.description}</p>
-    </article>
+      </article>
+    </Link>
   );
 }

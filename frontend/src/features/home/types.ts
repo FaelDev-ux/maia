@@ -13,6 +13,7 @@ export type WeeklyInsight = {
 
 export type Recommendation = {
   id: string;
+  contentId: string;
   title: string;
   description: string;
   duration: string;

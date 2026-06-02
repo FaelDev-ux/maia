@@ -375,3 +375,92 @@ Os fluxos finais ficaram:
 A interação consolidou a Home como uma experiência inicial personalizada por perfil, mantendo coerência visual e respeitando o fluxo correto de onboarding. A implementação está adequada para revisão e validação de produto, mas ainda depende de integração futura com backend Django REST e assets definitivos.
 
 ---
+
+## Interação 9 - Recomendações, artigos e check-in emocional
+
+### 1. Objetivo da interação
+
+Implementar a área de recomendações da Home, criar a biblioteca de conteúdos, abrir artigos individuais, tornar o registro emocional clicável e validar o fluxo completo sem introduzir problemas novos.
+
+### 2. Prompt enviado
+
+> "Vamos fazer a parte de recomendações, ok? como q funciona, ali vai ter um slide onde posso passar pro lado e no ver tudo vai mostrar os conteudos, apertando em algum desses conteudos vai abrir o artigo desse conteudo"
+>
+> "Vamos trabalhar nos registros de emoções na parte do feliz, cansada, sobrecarregada e assim por diante, deve ser clicavel e qnd clicar vai mostrar alguma coisa no lugar e esses botões vão sumir"
+>
+> "Esse botão ele é flutuante e fica fixo sempre a mostra e ao apertar nele ele vai para o /check-in onde posso registrar os sentimentos."
+>
+> "Faça validação, teste cada componente desde o começo, verifique se tem algo de errado, n crie problemas, após isso atualize o interacoes-ia"
+
+### 3. Resposta da IA
+
+A IA leu o contexto do projeto, inspecionou os componentes existentes da Home, comunidade e navegação, e criou a feature `contents` para a biblioteca e artigos. Também criou a rota `/check-in`, reaproveitando os chips de emoção e um card de feedback acolhedor.
+
+Durante a validação, foi identificado que o arquivo `CheckInPage.tsx` estava reduzido a um fragmento de teste com o texto "Eu gosto de check-in". A IA corrigiu a tela para a implementação completa antes de concluir a validação.
+
+### 4. Resultado obtido
+
+Foram adicionados ou ajustados:
+
+- `/conteudos`: biblioteca com todos os artigos recomendados;
+- `/conteudos/[contentId]`: página de artigo com layout inspirado no Figma, badges, imagem, conteúdo, quote e feedback;
+- botão "Ver tudo" da Home navegando para `/conteudos`;
+- cards de recomendação clicáveis navegando para o artigo correspondente;
+- botão de voltar na lista de artigos e no artigo individual;
+- chips de emoção clicáveis na Home;
+- card de confirmação substituindo os chips após a seleção;
+- `/check-in`: tela dedicada para registrar sentimentos;
+- botão flutuante fixo da Home apontando para `/check-in`.
+
+### 5. Validação executada
+
+Comandos executados:
+
+- `npm run lint`: passou;
+- `npm run build`: passou;
+- `npm run format:check`: falhou por pendências amplas de formatação já existentes no projeto, envolvendo 73 arquivos. Não foi executada formatação global.
+
+Rotas validadas com resposta `200`:
+
+- `/`;
+- `/auth?mode=login`;
+- `/auth?mode=register`;
+- `/auth/forgot-password`;
+- `/auth/select-type`;
+- `/home`;
+- `/home?profile=future-mother`;
+- `/home?profile=experienced-mother`;
+- `/home?profile=health-professional`;
+- `/check-in`;
+- `/conteudos`;
+- `/conteudos/navegando-nas-emocoes`;
+- `/conteudos/alongamento-leve`;
+- `/conteudos/preparando-sua-jornada`;
+- `/conteudos/respiracao-para-ansiedade`;
+- `/comunidade`;
+- `/comunidade/post-sono-madrugada`;
+- `/comunidade/post-rede-apoio`;
+- `/comunidade/post-respirar`.
+
+Também foram verificados textos e links essenciais em `/home`, `/check-in`, `/conteudos` e no artigo `navegando-nas-emocoes`.
+
+### 6. Acertos
+
+- A implementação manteve mobile-first e versão desktop responsiva.
+- Os conteúdos e feedbacks ficaram isolados em dados tipados.
+- Os componentes criados são reutilizáveis: card de artigo, página de artigo, header de conteúdo, feedback emocional e check-in.
+- A linguagem dos registros emocionais evita diagnóstico e usa tom acolhedor.
+- O botão flutuante agora tem destino real em `/check-in`.
+- A página de artigos possui navegação de volta consistente com o padrão da comunidade.
+
+### 7. Falhas ou limitações
+
+- A bottom navigation ainda aponta para `/historico`, `/perfil` e `/mais`, mas essas rotas retornam `404` porque ainda não foram implementadas. Isso foi identificado como pendência existente do produto, não corrigida nesta interação para evitar criação de telas falsas fora do escopo.
+- `npm run format:check` segue falhando por formatação global do repositório. A correção exigiria uma tarefa específica de formatação para não misturar feature e churn amplo.
+- Os dados de artigos, recomendações e check-in ainda são mocks locais, sem integração com backend Django REST.
+
+### 8. Conclusão
+
+A interação consolidou o fluxo Home -> recomendações -> biblioteca -> artigo e Home -> check-in emocional. A validação técnica principal passou em lint, build e rotas críticas, com pendências conhecidas registradas para evolução futura.
+
+---
