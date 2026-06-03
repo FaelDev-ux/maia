@@ -464,3 +464,53 @@ Também foram verificados textos e links essenciais em `/home`, `/check-in`, `/c
 A interação consolidou o fluxo Home -> recomendações -> biblioteca -> artigo e Home -> check-in emocional. A validação técnica principal passou em lint, build e rotas críticas, com pendências conhecidas registradas para evolução futura.
 
 ---
+
+## Interação 10 - Insight semanal conectado ao check-in
+
+### 1. Objetivo da interação
+
+Conectar o card "Insight da semana" da Home aos registros emocionais do usuário e criar variações de insight conforme o sentimento registrado.
+
+### 2. Prompt enviado
+
+> "Na home, preciso q vc conecte o insight da semana com o registro emocional do usuario, também crie varios insights da semana pq dependendo de como o usuario está se sentindo vc mostra um Diferente"
+
+### 3. Resposta da IA
+
+A IA inspecionou a Home, o armazenamento local de check-ins e os tipos de registro emocional. Depois criou um hook para a Home acompanhar `maia-daily-check-ins`, adicionou um evento local quando check-ins são salvos ou atualizados, e implementou uma tabela de insights semanais por emoção/perfil.
+
+### 4. Resultado obtido
+
+O card "Insight da semana" passou a usar os dados reais mockados do `localStorage`:
+
+- se houver check-in nas últimas 24 horas, o insight prioriza o sentimento mais recente;
+- se não houver registro recente, usa o sentimento dominante/intenso dos últimos 7 dias;
+- se houver pouco sono ou pouco apoio repetido na semana, mostra um insight específico para esse padrão;
+- se não houver check-ins, preserva o insight padrão do conteúdo da Home.
+
+Arquivos principais envolvidos:
+
+- `frontend/src/features/check-in/data/check-in-storage.ts`;
+- `frontend/src/features/check-in/hooks/useStoredDailyCheckIns.ts`;
+- `frontend/src/features/home/data/weekly-insights.ts`;
+- `frontend/src/features/home/components/HomePage.tsx`.
+
+### 5. Acertos
+
+- Manteve o mock isolado em `localStorage`, facilitando troca futura por API Django REST.
+- Evitou linguagem diagnóstica e manteve tom acolhedor.
+- Criou regras simples, compatíveis com o MVP descrito no `context.md`.
+- Separou a lógica de escolha do insight em arquivo próprio.
+- Validou com `npm run lint` e `npm run build`, ambos passando.
+
+### 6. Falhas ou limitações
+
+- A escolha do insight ainda é baseada em regras simples no frontend, não em motor de recomendação real.
+- Os registros continuam locais no navegador e não são sincronizados com backend.
+- A validação visual automatizada ficou limitada pelo ambiente do navegador interno; a rota foi conferida por carregamento da Home e checks de build/lint.
+
+### 7. Conclusão
+
+A interação tornou a Home mais personalizada e conectada ao check-in emocional, sem ampliar demais o escopo. A solução é adequada para o MVP e pode evoluir para um serviço de recomendação quando houver backend.
+
+---
