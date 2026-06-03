@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import {
   ChartNoAxesColumnIncreasing,
   Home,
@@ -8,8 +9,9 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import cn from "@/lib/utils";
+import { getProfileScopedHref, resolveProfile } from "@/features/profile/utils/profile-routing";
 
 const navigationItems = [
   {
@@ -43,8 +45,10 @@ function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function BottomNavigation() {
+function BottomNavigationContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const profile = resolveProfile(searchParams.get("profile"));
 
   return (
     <nav
@@ -55,6 +59,7 @@ export function BottomNavigation() {
         {navigationItems.map((item) => {
           const isActive = isActiveRoute(pathname, item.href);
           const Icon = item.icon;
+          const href = getProfileScopedHref(item.href, profile);
 
           return (
             <li key={item.href}>
@@ -64,7 +69,7 @@ export function BottomNavigation() {
                   "mx-auto grid size-12 place-items-center rounded-full text-text/80 transition hover:bg-primary/10 hover:text-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   isActive && "bg-primary/[0.12] text-primary"
                 )}
-                href={item.href}
+                href={href}
                 title={item.label}
               >
                 <Icon aria-hidden size={20} strokeWidth={2.2} />
@@ -75,5 +80,13 @@ export function BottomNavigation() {
         })}
       </ul>
     </nav>
+  );
+}
+
+export function BottomNavigation() {
+  return (
+    <Suspense fallback={null}>
+      <BottomNavigationContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -11,11 +12,15 @@ import { CommunityPostCard } from "@/features/community/components/CommunityPost
 import { communityComments } from "@/features/community/data/community-comments";
 import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
+import type { HomeProfile } from "@/features/home/types";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
 type CommunityPostDetailPageProps = {
   initialPost?: CommunityPost;
   postId: string;
+  profile: HomeProfile;
 };
 
 function getStoredPost(postId: string) {
@@ -54,7 +59,11 @@ function sortCommentsBySupport(comments: CommunityComment[]) {
   });
 }
 
-export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDetailPageProps) {
+export function CommunityPostDetailPage({
+  initialPost,
+  postId,
+  profile,
+}: CommunityPostDetailPageProps) {
   const router = useRouter();
   const commentsSectionRef = useRef<HTMLElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
@@ -63,9 +72,10 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
     initialPost || post ? communityComments.filter((comment) => comment.postId === postId) : []
   );
   const [message, setMessage] = useState("");
-  const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
+  const storedProfile = useStoredProfileValues(profile);
+  const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
-  const avatarUrl = mockAuthenticatedUser.avatarUrl;
+  const avatarUrl = storedProfile.avatarUrl;
   const sortedComments = sortCommentsBySupport(comments);
   const highlightedComment = sortedComments[0];
   const highlightedPost = post
@@ -104,7 +114,7 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
       return;
     }
 
-    const initials = mockAuthenticatedUser.fullName
+    const initials = storedProfile.fullName
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
@@ -115,7 +125,7 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
       {
         id: `mock-comment-${Date.now()}`,
         postId,
-        authorName: mockAuthenticatedUser.fullName,
+        authorName: storedProfile.fullName || mockAuthenticatedUser.fullName,
         authorRole: "Mãe no puerpério",
         avatarInitials: initials || avatarInitial,
         message: trimmedMessage,
@@ -167,7 +177,7 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
           <button
             aria-label="Voltar para a comunidade"
             className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            onClick={() => router.push("/comunidade")}
+            onClick={() => router.push(getProfileScopedHref("/comunidade", profile))}
             type="button"
           >
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
@@ -182,14 +192,15 @@ export function CommunityPostDetailPage({ initialPost, postId }: CommunityPostDe
             priority
           />
 
-          <div
+          <Link
             aria-label={`Perfil de ${firstName}`}
             className="grid size-11 place-items-center rounded-full border-[3px] border-primary bg-primary/10 bg-cover bg-center font-title text-base font-extrabold text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"
-            role="img"
+            href={getProfileScopedHref("/perfil", profile)}
+            title={`Perfil de ${firstName}`}
             style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
           >
             {avatarUrl ? null : avatarInitial}
-          </div>
+          </Link>
         </header>
 
         <div className="px-6 pb-8 pt-7 md:px-0 md:pt-9">

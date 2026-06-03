@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useId, useState } from "react";
 import { Search, Sparkles, X } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
@@ -13,6 +14,13 @@ import { CommunityPostCard } from "@/features/community/components/CommunityPost
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
 import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
 import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
+import type { HomeProfile } from "@/features/home/types";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
+
+type CommunityPageProps = {
+  profile: HomeProfile;
+};
 
 const filterCategoryById: Record<string, CommunityPostCategory | "all"> = {
   all: "all",
@@ -66,7 +74,7 @@ function getPostSearchText(post: CommunityPost) {
   );
 }
 
-export function CommunityPage() {
+export function CommunityPage({ profile }: CommunityPageProps) {
   const searchInputId = useId();
   const [posts, setPosts] = useState<CommunityPost[]>(() => [
     ...getStoredCreatedPosts(),
@@ -75,10 +83,11 @@ export function CommunityPage() {
   const [activeFilterId, setActiveFilterId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
-  const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
+  const storedProfile = useStoredProfileValues(profile);
+  const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
-  const avatarUrl = mockAuthenticatedUser.avatarUrl;
-  const authorInitials = mockAuthenticatedUser.fullName
+  const avatarUrl = storedProfile.avatarUrl;
+  const authorInitials = storedProfile.fullName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -122,14 +131,15 @@ export function CommunityPage() {
             className="size-14 object-contain"
             priority
           />
-          <div
+          <Link
             aria-label={`Perfil de ${firstName}`}
             className="grid size-[3.25rem] place-items-center rounded-full border-[3px] border-primary bg-primary/10 bg-cover bg-center font-title text-lg font-extrabold text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"
-            role="img"
+            href={getProfileScopedHref("/perfil", profile)}
+            title={`Perfil de ${firstName}`}
             style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
           >
             {avatarUrl ? null : avatarInitial}
-          </div>
+          </Link>
         </header>
 
         <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
@@ -210,7 +220,9 @@ export function CommunityPage() {
 
               <div className="mt-6 grid gap-5">
                 {visiblePosts.length > 0 ? (
-                  visiblePosts.map((post) => <CommunityPostCard key={post.id} post={post} />)
+                  visiblePosts.map((post) => (
+                    <CommunityPostCard key={post.id} post={post} profile={profile} />
+                  ))
                 ) : (
                   <div className="rounded-[2rem] bg-white px-6 py-8 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
                     <p className="font-title text-xl font-extrabold text-title">
@@ -230,7 +242,7 @@ export function CommunityPage() {
       <BottomNavigation />
       <CommunityCreatePostModal
         authorInitials={authorInitials || avatarInitial}
-        authorName={mockAuthenticatedUser.fullName}
+        authorName={storedProfile.fullName || mockAuthenticatedUser.fullName}
         authorRole="Mãe no puerpério"
         isOpen={isCreatePostModalOpen}
         onClose={() => setIsCreatePostModalOpen(false)}

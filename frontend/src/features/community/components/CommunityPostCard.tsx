@@ -4,16 +4,24 @@ import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { EyeOff, Heart, MessageCircle, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { HomeProfile } from "@/features/home/types";
 import type { CommunityPost } from "@/features/community/types";
+import { getProfileQuery } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
 type CommunityPostCardProps = {
   onReply?: () => void;
   post: CommunityPost;
+  profile?: HomeProfile;
   variant?: "feed" | "detail";
 };
 
-export function CommunityPostCard({ onReply, post, variant = "feed" }: CommunityPostCardProps) {
+export function CommunityPostCard({
+  onReply,
+  post,
+  profile = "recent-mother",
+  variant = "feed",
+}: CommunityPostCardProps) {
   const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
   const [isSupported, setIsSupported] = useState(false);
@@ -21,7 +29,7 @@ export function CommunityPostCard({ onReply, post, variant = "feed" }: Community
   const displayName = post.isAnonymous ? "Usuária" : post.authorName;
   const displayRole = post.isAnonymous ? "Publicação protegida" : post.authorRole;
   const isInteractive = variant === "feed";
-  const postUrl = `/comunidade/${post.id}`;
+  const postUrl = `/comunidade/${post.id}${getProfileQuery(profile)}`;
 
   function openPost(comments = false) {
     if (!isInteractive) {
@@ -111,7 +119,9 @@ export function CommunityPostCard({ onReply, post, variant = "feed" }: Community
         <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-[0.62rem] font-extrabold uppercase tracking-[0.08em] text-primary">
           {post.categoryLabel}
         </span>
-        <h3 className="mt-2 font-title text-xl font-extrabold leading-tight text-title">{post.title}</h3>
+        <h3 className="mt-2 font-title text-xl font-extrabold leading-tight text-title">
+          {post.title}
+        </h3>
         <p className="mt-4 text-[0.95rem] leading-7 text-text">{post.message}</p>
       </div>
 
