@@ -1,10 +1,12 @@
 import { Bookmark, CheckCircle2, Clock3, Heart, Share2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ContentHeader } from "@/features/contents/components/ContentHeader";
+import type { HomeProfile } from "@/features/home/types";
 import type { ContentArticle } from "@/features/contents/types";
 
 type ContentArticlePageProps = {
   article: ContentArticle;
+  profile: HomeProfile;
 };
 
 function renderHighlightedTitle(article: ContentArticle) {
@@ -23,11 +25,11 @@ function renderHighlightedTitle(article: ContentArticle) {
   );
 }
 
-export function ContentArticlePage({ article }: ContentArticlePageProps) {
+export function ContentArticlePage({ article, profile }: ContentArticlePageProps) {
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[64rem] md:overflow-visible md:px-8 md:pb-32 lg:px-10">
-        <ContentHeader backHref="/conteudos" backLabel="Voltar para conteúdos" />
+        <ContentHeader backHref="/conteudos" backLabel="Voltar para conteúdos" profile={profile} />
 
         <article className="px-8 pb-8 pt-6 md:mx-auto md:max-w-[44rem] md:px-0 md:pt-10">
           <div className="flex flex-wrap gap-3">

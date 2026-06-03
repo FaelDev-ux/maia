@@ -6,7 +6,6 @@ import Link from "next/link";
 import { HandHeart, Heart } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import { communityPosts } from "@/features/community/data/community-posts";
 import {
@@ -37,7 +36,10 @@ import {
   requestDailyCheckInNotifications,
 } from "@/features/notifications/data/notification-preferences";
 import { useNotificationPreferences } from "@/features/notifications/hooks/useNotificationPreferences";
-import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import {
+  useStoredProfileValues,
+  useStoredUserProfile,
+} from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import { useRouter } from "next/navigation";
 
@@ -82,6 +84,7 @@ function getCommunityStorageServerSnapshot() {
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
   const storedProfile = useStoredProfileValues(profile);
+  const storedUser = useStoredUserProfile(profile);
   const dailyCheckIns = useStoredDailyCheckIns();
   const { permission, preferences } = useNotificationPreferences();
   const isNotificationPromptOpen =
@@ -126,7 +129,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
         fallbackDisplayName: content.displayName,
         posts: communityFeedPosts,
         specialty: storedProfile.specialty,
-        status: mockAuthenticatedUser.professionalVerificationStatus,
+        status: storedUser.professionalVerificationStatus,
         supportedPostIds,
       }),
     [
@@ -134,6 +137,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
       content,
       displayName,
       storedProfile.specialty,
+      storedUser.professionalVerificationStatus,
       supportedPostIds,
     ]
   );
@@ -331,7 +335,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                   <HomeSectionHeader
                     title="Recomendações para você"
                     actionLabel="Ver tudo"
-                    actionHref="/conteudos"
+                    actionHref={getProfileScopedHref("/conteudos", profile)}
                   />
                 </div>
 

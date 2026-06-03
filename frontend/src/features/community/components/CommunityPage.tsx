@@ -6,7 +6,6 @@ import { useId, useState } from "react";
 import { Search, Sparkles, X } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { CommunityComposerCard } from "@/features/community/components/CommunityComposerCard";
 import { CommunityCreatePostModal } from "@/features/community/components/CommunityCreatePostModal";
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
@@ -242,7 +241,7 @@ export function CommunityPage({ profile }: CommunityPageProps) {
       <BottomNavigation />
       <CommunityCreatePostModal
         authorInitials={authorInitials || avatarInitial}
-        authorName={storedProfile.fullName || mockAuthenticatedUser.fullName}
+        authorName={storedProfile.fullName || "Usuária Maia"}
         authorRole="Mãe no puerpério"
         isOpen={isCreatePostModalOpen}
         onClose={() => setIsCreatePostModalOpen(false)}

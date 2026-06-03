@@ -7,7 +7,6 @@ import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from
 import { useRouter } from "next/navigation";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityComments } from "@/features/community/data/community-comments";
 import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
@@ -125,7 +124,7 @@ export function CommunityPostDetailPage({
       {
         id: `mock-comment-${Date.now()}`,
         postId,
-        authorName: storedProfile.fullName || mockAuthenticatedUser.fullName,
+        authorName: storedProfile.fullName || "Usuária Maia",
         authorRole: "Mãe no puerpério",
         avatarInitials: initials || avatarInitial,
         message: trimmedMessage,

@@ -2,12 +2,17 @@ import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ContentArticleCard } from "@/features/contents/components/ContentArticleCard";
 import { ContentHeader } from "@/features/contents/components/ContentHeader";
 import { contentArticles } from "@/features/contents/data/content-articles";
+import type { HomeProfile } from "@/features/home/types";
 
-export function ContentsPage() {
+type ContentsPageProps = {
+  profile: HomeProfile;
+};
+
+export function ContentsPage({ profile }: ContentsPageProps) {
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[72rem] md:overflow-visible md:px-8 md:pb-32 lg:px-10">
-        <ContentHeader backHref="/home" backLabel="Voltar para a home" />
+        <ContentHeader backHref="/home" backLabel="Voltar para a home" profile={profile} />
 
         <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
           <section aria-labelledby="contents-title">
@@ -29,7 +34,7 @@ export function ContentsPage() {
           <section className="mt-8 md:mt-0" aria-label="Artigos recomendados">
             <div className="grid gap-5 md:grid-cols-2">
               {contentArticles.map((article) => (
-                <ContentArticleCard article={article} key={article.id} />
+                <ContentArticleCard article={article} key={article.id} profile={profile} />
               ))}
             </div>
           </section>

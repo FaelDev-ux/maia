@@ -64,8 +64,12 @@ function getProfessionalVerificationBadge(status: string) {
     return "Especialista verificada";
   }
 
-  if (status === "verifying") {
+  if (status === "pending") {
     return "Verificação em análise";
+  }
+
+  if (status === "rejected") {
+    return "Verificação pendente";
   }
 
   return "Não verificada";

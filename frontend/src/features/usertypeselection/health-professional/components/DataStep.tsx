@@ -205,7 +205,7 @@ export function HealthProfessionalDataStep({
   onBack,
   onContinue,
 }: HealthProfessionalDataStepProps) {
-  const [initialProfileValues] = useState(() => getStoredProfileValues("recent-mother"));
+  const [initialProfileValues] = useState(() => getStoredProfileValues("health-professional"));
   const [openSelectId, setOpenSelectId] = useState<ProfessionalSelectId | null>(null);
   const [registrationNumber, setRegistrationNumber] = useState(
     initialProfileValues.registrationNumber
@@ -227,14 +227,17 @@ export function HealthProfessionalDataStep({
   }
 
   function handleContinue() {
-    const currentProfileValues = getStoredProfileValues("recent-mother");
+    const currentProfileValues = getStoredProfileValues("health-professional");
 
-    saveProfileValues({
-      ...currentProfileValues,
-      registrationNumber: registrationNumber.trim(),
-      specialty: getSpecialtyLabel(selectedSpecialty, customSpecialty),
-      state: selectedState,
-    });
+    saveProfileValues(
+      {
+        ...currentProfileValues,
+        registrationNumber: registrationNumber.trim(),
+        specialty: getSpecialtyLabel(selectedSpecialty, customSpecialty),
+        state: selectedState,
+      },
+      "health-professional"
+    );
     onContinue();
   }
 
