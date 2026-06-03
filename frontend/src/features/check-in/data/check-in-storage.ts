@@ -1,6 +1,15 @@
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 
 export const DAILY_CHECK_INS_STORAGE_KEY = "maia-daily-check-ins";
+export const DAILY_CHECK_INS_UPDATED_EVENT = "maia-daily-check-ins-updated";
+
+function emitDailyCheckInsUpdated() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(DAILY_CHECK_INS_UPDATED_EVENT));
+}
 
 export function getDailyCheckInDateKey(createdAt: string) {
   const date = new Date(createdAt);
@@ -45,6 +54,7 @@ export function saveDailyCheckIn(record: DailyCheckInRecord) {
   const records = getStoredDailyCheckIns();
 
   window.localStorage.setItem(DAILY_CHECK_INS_STORAGE_KEY, JSON.stringify([record, ...records]));
+  emitDailyCheckInsUpdated();
 }
 
 export function updateDailyCheckIn(record: DailyCheckInRecord) {
@@ -54,4 +64,5 @@ export function updateDailyCheckIn(record: DailyCheckInRecord) {
   );
 
   window.localStorage.setItem(DAILY_CHECK_INS_STORAGE_KEY, JSON.stringify(updatedRecords));
+  emitDailyCheckInsUpdated();
 }

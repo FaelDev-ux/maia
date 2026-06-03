@@ -3,10 +3,9 @@ import type { EmotionOption } from "@/features/home/types";
 
 type EmotionChipProps = {
   emotion: EmotionOption;
-  onSelect: (emotion: EmotionOption) => void;
 };
 
-export function EmotionChip({ emotion, onSelect }: EmotionChipProps) {
+export function EmotionChip({ emotion }: EmotionChipProps) {
   return (
     <Link
       className="flex h-[3.75rem] items-center gap-2 rounded-full bg-white px-5 text-[1.06rem] font-medium text-title shadow-[0_10px_26px_rgb(140_64_84_/_0.08)] ring-1 ring-border/45 transition hover:-translate-y-0.5 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"

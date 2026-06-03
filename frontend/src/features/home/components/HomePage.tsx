@@ -2,42 +2,65 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import { HandHeart, Heart } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import { CommunityPreviewCard } from "@/features/home/components/CommunityPreviewCard";
 import { EmotionChip } from "@/features/home/components/EmotionChip";
-import { EmotionFeedbackCard } from "@/features/home/components/EmotionFeedbackCard";
 import { HelpRequestCard } from "@/features/home/components/HelpRequestCard";
 import { HomeSectionHeader } from "@/features/home/components/HomeSectionHeader";
 import { MentorImpactCard } from "@/features/home/components/MentorImpactCard";
 import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadge";
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
-import { getEmotionFeedback } from "@/features/home/data/emotion-feedback";
 import { homeContentByProfile } from "@/features/home/data/home-content";
-import type { EmotionOption, HomeProfile } from "@/features/home/types";
+import { getWeeklyInsightFromCheckIns } from "@/features/home/data/weekly-insights";
+import type { HomeProfile } from "@/features/home/types";
+import { DailyCheckInNotificationModal } from "@/features/notifications/components/DailyCheckInNotificationModal";
+import {
+  getTodayNotificationPromptDate,
+  markNotificationPromptSeenToday,
+  requestDailyCheckInNotifications,
+} from "@/features/notifications/data/notification-preferences";
+import { useNotificationPreferences } from "@/features/notifications/hooks/useNotificationPreferences";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import { useRouter } from "next/navigation";
 
 type HomePageProps = {
   profile?: HomeProfile;
 };
 
-type EmotionSelection = {
-  profile: HomeProfile;
-  emotion: EmotionOption;
-};
-
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
-  const [emotionSelection, setEmotionSelection] = useState<EmotionSelection | null>(null);
-  const selectedEmotion = emotionSelection?.profile === profile ? emotionSelection.emotion : null;
+  const storedProfile = useStoredProfileValues(profile);
+  const dailyCheckIns = useStoredDailyCheckIns();
+  const { permission, preferences } = useNotificationPreferences();
+  const isNotificationPromptOpen =
+    permission !== "unsupported" &&
+    permission !== "denied" &&
+    !preferences.dailyCheckInEnabled &&
+    preferences.lastPromptDate !== getTodayNotificationPromptDate();
+  const storedFirstName = storedProfile.fullName.trim().split(" ")[0] || content.firstName;
+  const displayName = profile === "health-professional" ? `Dra. ${storedFirstName}` : storedFirstName;
+  const weeklyInsight =
+    content.variant === "wellbeing"
+      ? getWeeklyInsightFromCheckIns(profile, content.insight, dailyCheckIns)
+      : null;
 
   const router = useRouter();
 
   function onRedirectCommunity() {
-    router.push("/comunidade");
+    router.push(getProfileScopedHref("/comunidade", profile));
+  }
+
+  async function handleAllowNotifications() {
+    await requestDailyCheckInNotifications();
+  }
+
+  function handleDismissNotifications() {
+    markNotificationPromptSeenToday();
   }
 
   return (
@@ -52,12 +75,13 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
             className="size-14 object-contain"
             priority
           />
-          <div
-            aria-label={content.avatarLabel}
+          <Link
+            aria-label={`Perfil de ${storedProfile.fullName}`}
             className="size-[3.25rem] rounded-full border-[3px] border-primary bg-cover bg-center shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"
-            role="img"
+            href={getProfileScopedHref("/perfil", profile)}
+            title={`Perfil de ${storedProfile.fullName}`}
             style={{
-              backgroundImage: `url(${content.avatarUrl})`,
+              backgroundImage: `url(${storedProfile.avatarUrl || content.avatarUrl})`,
             }}
           />
         </header>
@@ -73,7 +97,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                   id="home-title"
                 >
                   Olá,{" "}
-                  <span className="text-primary">{content.displayName ?? content.firstName}!</span>
+                  <span className="text-primary">{displayName}!</span>
                 </h1>
                 <p className="mt-7 max-w-[20rem] text-[1.06rem] leading-8 text-text md:max-w-[23rem] md:text-lg">
                   {content.intro}
@@ -122,7 +146,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                   className="max-w-[22rem] font-title text-[2.12rem] font-extrabold leading-[1.28] text-title md:max-w-[24rem] md:text-[2.55rem] md:leading-[1.18]"
                   id="home-title"
                 >
-                  Olá, <span className="text-primary">{content.firstName}!</span>{" "}
+                  Olá, <span className="text-primary">{storedFirstName}!</span>{" "}
                   {content.titleSuffix}
                 </h1>
                 <p className="mt-6 max-w-[20rem] text-[1.06rem] leading-8 text-text md:max-w-[23rem] md:text-lg">
@@ -134,29 +158,13 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 className="mt-7 flex flex-wrap gap-4 md:mt-8"
                 aria-label="Check-in emocional rápido"
               >
-                {selectedEmotion ? (
-                  <EmotionFeedbackCard
-                    emotion={selectedEmotion}
-                    feedback={getEmotionFeedback(selectedEmotion)}
-                  />
-                ) : (
-                  content.emotions.map((emotion) => (
-                    <EmotionChip
-                      emotion={emotion}
-                      key={emotion.id}
-                      onSelect={(selectedEmotionOption) =>
-                        setEmotionSelection({
-                          profile,
-                          emotion: selectedEmotionOption,
-                        })
-                      }
-                    />
-                  ))
-                )}
+                {content.emotions.map((emotion) => (
+                  <EmotionChip emotion={emotion} key={emotion.id} />
+                ))}
               </section>
 
               <section className="mt-10 md:mt-9">
-                <WeeklyInsightCard insight={content.insight} />
+                <WeeklyInsightCard insight={weeklyInsight ?? content.insight} />
               </section>
             </div>
 
@@ -192,6 +200,12 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
         )}
       </div>
       <BottomNavigation />
+      {isNotificationPromptOpen ? (
+        <DailyCheckInNotificationModal
+          onAllow={handleAllowNotifications}
+          onDismiss={handleDismissNotifications}
+        />
+      ) : null}
     </main>
   );
 }
