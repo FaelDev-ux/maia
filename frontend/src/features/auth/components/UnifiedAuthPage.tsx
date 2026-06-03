@@ -51,11 +51,11 @@ export function UnifiedAuthPage({
 
   return (
     <main className="min-h-dvh overflow-x-hidden bg-background text-text">
-      <div className="mx-auto flex min-h-dvh w-full max-w-107.5 flex-col justify-center px-5 py-6 md:hidden">
-        <div className="grid w-full overflow-hidden">
+      <div className="mx-auto flex min-h-dvh w-full max-w-none flex-col justify-center overflow-x-hidden px-6 py-6 md:hidden">
+        <div className="grid w-full min-w-0 overflow-hidden">
           <section
             aria-hidden={!isLoginMode}
-            className={`col-start-1 row-start-1 transition duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            className={`col-start-1 row-start-1 min-w-0 transition duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isLoginMode
                 ? "translate-x-0 opacity-100"
                 : "pointer-events-none -translate-x-full opacity-0"
@@ -63,14 +63,14 @@ export function UnifiedAuthPage({
           >
             <AuthCopy mode="login" />
 
-            <div className="mt-7 flex justify-center">
+            <div className="mt-7 flex min-w-0 justify-center">
               <LoginForm onRegisterClick={() => changeMode("register")} />
             </div>
           </section>
 
           <section
             aria-hidden={isLoginMode}
-            className={`col-start-1 row-start-1 transition duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            className={`col-start-1 row-start-1 min-w-0 transition duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isLoginMode
                 ? "pointer-events-none translate-x-full opacity-0"
                 : "translate-x-0 opacity-100"
@@ -78,7 +78,7 @@ export function UnifiedAuthPage({
           >
             <AuthCopy mode="register" />
 
-            <div className="mt-7 flex justify-center">
+            <div className="mt-7 flex min-w-0 justify-center">
               <SignupForm onLoginClick={() => changeMode("login")} variant="card" />
             </div>
           </section>
