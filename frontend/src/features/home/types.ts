@@ -23,8 +23,10 @@ export type Recommendation = {
 export type CommunityPreview = {
   title: string;
   topic: string;
-  activeMothers: number;
+  activeMothers?: number;
   avatars: string[];
+  badgeLabel?: string;
+  ctaLabel?: string;
 };
 
 export type HelpRequest = {

@@ -5,6 +5,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import { EyeOff, Heart, MessageCircle, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HomeProfile } from "@/features/home/types";
+import {
+  getStoredSupportedPostIds,
+  saveStoredSupportedPostIds,
+} from "@/features/community/data/community-storage";
 import type { CommunityPost } from "@/features/community/types";
 import { getProfileQuery } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
@@ -24,8 +28,12 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
   const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
-  const [isSupported, setIsSupported] = useState(false);
-  const [supportCount, setSupportCount] = useState(post.supportCount);
+  const [isSupported, setIsSupported] = useState(() =>
+    getStoredSupportedPostIds().includes(post.id)
+  );
+  const [supportCount, setSupportCount] = useState(
+    () => post.supportCount + (getStoredSupportedPostIds().includes(post.id) ? 1 : 0)
+  );
   const displayName = post.isAnonymous ? "Usuária" : post.authorName;
   const displayRole = post.isAnonymous ? "Publicação protegida" : post.authorRole;
   const isInteractive = variant === "feed";
@@ -51,9 +59,14 @@ export function CommunityPostCard({
   function handleSupportClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
     const nextSupportedValue = !isSupported;
+    const storedSupportedPostIds = getStoredSupportedPostIds();
+    const nextSupportedPostIds = nextSupportedValue
+      ? [post.id, ...storedSupportedPostIds.filter((postId) => postId !== post.id)]
+      : storedSupportedPostIds.filter((postId) => postId !== post.id);
 
     setIsSupported(nextSupportedValue);
     setSupportCount((currentCount) => currentCount + (nextSupportedValue ? 1 : -1));
+    saveStoredSupportedPostIds(nextSupportedPostIds);
   }
 
   function handleReplyClick(event: MouseEvent<HTMLButtonElement>) {

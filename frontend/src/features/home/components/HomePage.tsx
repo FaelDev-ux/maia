@@ -1,11 +1,19 @@
 "use client";
 
+import { useMemo, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { HandHeart, Heart } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
+import { communityPosts } from "@/features/community/data/community-posts";
+import {
+  COMMUNITY_CREATED_POSTS_STORAGE_KEY,
+  COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY,
+  COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT,
+} from "@/features/community/data/community-storage";
 import { CommunityPreviewCard } from "@/features/home/components/CommunityPreviewCard";
 import { EmotionChip } from "@/features/home/components/EmotionChip";
 import { HelpRequestCard } from "@/features/home/components/HelpRequestCard";
@@ -15,6 +23,11 @@ import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadg
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
 import { homeContentByProfile } from "@/features/home/data/home-content";
+import {
+  buildProfessionalDashboardData,
+  parseCreatedCommunityPosts,
+  parseSupportedPostIds,
+} from "@/features/home/data/professional-dashboard";
 import { getWeeklyInsightFromCheckIns } from "@/features/home/data/weekly-insights";
 import type { HomeProfile } from "@/features/home/types";
 import { DailyCheckInNotificationModal } from "@/features/notifications/components/DailyCheckInNotificationModal";
@@ -32,6 +45,40 @@ type HomePageProps = {
   profile?: HomeProfile;
 };
 
+function subscribeToCommunityActivityChanges(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
+  };
+}
+
+function getCreatedCommunityPostsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY) ?? "[]";
+}
+
+function getSupportedCommunityPostsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY) ?? "[]";
+}
+
+function getCommunityStorageServerSnapshot() {
+  return "[]";
+}
+
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
   const storedProfile = useStoredProfileValues(profile);
@@ -42,17 +89,66 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
     permission !== "denied" &&
     !preferences.dailyCheckInEnabled &&
     preferences.lastPromptDate !== getTodayNotificationPromptDate();
+  const isHealthProfessionalDashboard = profile === "health-professional";
   const storedFirstName = storedProfile.fullName.trim().split(" ")[0] || content.firstName;
-  const displayName = profile === "health-professional" ? `Dra. ${storedFirstName}` : storedFirstName;
+  const displayName = isHealthProfessionalDashboard ? `Dra. ${storedFirstName}` : storedFirstName;
   const weeklyInsight =
     content.variant === "wellbeing"
       ? getWeeklyInsightFromCheckIns(profile, content.insight, dailyCheckIns)
       : null;
+  const createdCommunityPostsSnapshot = useSyncExternalStore(
+    subscribeToCommunityActivityChanges,
+    getCreatedCommunityPostsSnapshot,
+    getCommunityStorageServerSnapshot
+  );
+  const supportedCommunityPostsSnapshot = useSyncExternalStore(
+    subscribeToCommunityActivityChanges,
+    getSupportedCommunityPostsSnapshot,
+    getCommunityStorageServerSnapshot
+  );
+  const createdCommunityPosts = useMemo(
+    () => parseCreatedCommunityPosts(createdCommunityPostsSnapshot),
+    [createdCommunityPostsSnapshot]
+  );
+  const supportedPostIds = useMemo(
+    () => parseSupportedPostIds(supportedCommunityPostsSnapshot),
+    [supportedCommunityPostsSnapshot]
+  );
+  const communityFeedPosts = useMemo(
+    () => [...createdCommunityPosts, ...communityPosts],
+    [createdCommunityPosts]
+  );
+  const professionalDashboardData = useMemo(
+    () =>
+      buildProfessionalDashboardData({
+        avatars: content.community.avatars,
+        displayName,
+        fallbackDisplayName: content.displayName,
+        posts: communityFeedPosts,
+        specialty: storedProfile.specialty,
+        status: mockAuthenticatedUser.professionalVerificationStatus,
+        supportedPostIds,
+      }),
+    [
+      communityFeedPosts,
+      content,
+      displayName,
+      storedProfile.specialty,
+      supportedPostIds,
+    ]
+  );
+  const professionalActivityHref = professionalDashboardData.recentPostId
+    ? getProfileScopedHref(`/comunidade/${professionalDashboardData.recentPostId}`, profile)
+    : getProfileScopedHref("/comunidade", profile);
 
   const router = useRouter();
 
   function onRedirectCommunity() {
     router.push(getProfileScopedHref("/comunidade", profile));
+  }
+
+  function onRedirectProfessionalActivity() {
+    router.push(professionalActivityHref);
   }
 
   async function handleAllowNotifications() {
@@ -90,7 +186,16 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
           <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
             <div>
               <section aria-labelledby="home-title">
-                <MentorProfileBadge badge={content.badge} secondaryLabel={content.secondaryLabel} />
+                <MentorProfileBadge
+                  badge={
+                    isHealthProfessionalDashboard ? professionalDashboardData.badge : content.badge
+                  }
+                  secondaryLabel={
+                    isHealthProfessionalDashboard
+                      ? professionalDashboardData.specialtyLabel
+                      : content.secondaryLabel
+                  }
+                />
 
                 <h1
                   className="mt-5 max-w-[22rem] font-title text-[2.12rem] font-extrabold leading-[1.12] text-title md:max-w-[24rem] md:text-[2.55rem] md:leading-[1.08]"
@@ -106,9 +211,35 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
 
               <section className="mt-8 md:mt-9">
                 <MentorImpactCard
-                  description={content.impact.description}
-                  label={content.impact.label}
-                  value={content.impact.value}
+                  description={
+                    isHealthProfessionalDashboard
+                      ? `${professionalDashboardData.receivedSupportCount} ${
+                          professionalDashboardData.receivedSupportCount === 1
+                            ? "apoio recebido"
+                            : "apoios recebidos"
+                        } nos posts que você publicou.`
+                      : content.impact.description
+                  }
+                  emptyMessage={
+                    isHealthProfessionalDashboard
+                      ? "Uma resposta cuidadosa já pode ajudar uma mãe hoje."
+                      : undefined
+                  }
+                  label={isHealthProfessionalDashboard ? "Seu impacto" : content.impact.label}
+                  secondaryLabel={
+                    isHealthProfessionalDashboard ? "discussões em posts de mães" : undefined
+                  }
+                  secondaryValue={
+                    isHealthProfessionalDashboard
+                      ? professionalDashboardData.discussionCount
+                      : undefined
+                  }
+                  value={
+                    isHealthProfessionalDashboard
+                      ? professionalDashboardData.participatedPostsCount
+                      : content.impact.value
+                  }
+                  valueLabel={isHealthProfessionalDashboard ? "participações" : undefined}
                 />
               </section>
             </div>
@@ -116,22 +247,48 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
             <div className="md:min-w-0">
               <section className="mt-8 md:mt-0" aria-labelledby="help-requests-heading">
                 <div id="help-requests-heading">
-                  <HomeSectionHeader title="Pedidos de ajuda urgentes" actionLabel="Ver todos" />
+                  <HomeSectionHeader
+                    title={isHealthProfessionalDashboard ? "Pedidos de ajuda" : "Pedidos de ajuda urgentes"}
+                    actionLabel="Ver todos"
+                    actionHref={getProfileScopedHref("/comunidade", profile)}
+                  />
                 </div>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-1">
-                  {content.helpRequests.map((request) => (
-                    <HelpRequestCard key={request.id} request={request} />
+                  {(isHealthProfessionalDashboard
+                    ? professionalDashboardData.helpRequests
+                    : content.helpRequests
+                  ).map((request) => (
+                    <HelpRequestCard
+                      href={
+                        isHealthProfessionalDashboard
+                          ? getProfileScopedHref(`/comunidade/${request.id}`, profile)
+                          : undefined
+                      }
+                      key={request.id}
+                      request={request}
+                    />
                   ))}
                 </div>
               </section>
 
               <section className="relative mt-7 md:mt-8">
-                <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
+                <CommunityPreviewCard
+                  onClick={
+                    isHealthProfessionalDashboard
+                      ? onRedirectProfessionalActivity
+                      : onRedirectCommunity
+                  }
+                  community={
+                    isHealthProfessionalDashboard
+                      ? professionalDashboardData.community
+                      : content.community
+                  }
+                />
                 <Link
                   aria-label="Oferecer apoio"
-                  className="fixed bottom-30 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
-                  href="/check-in"
+                  className="fixed bottom-30 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
+                  href={getProfileScopedHref("/comunidade", profile)}
                 >
                   <HandHeart aria-hidden size={31} strokeWidth={2.2} />
                 </Link>

@@ -6,6 +6,9 @@ type CommunityPreviewCardProps = {
 };
 
 export function CommunityPreviewCard({ community, onClick }: CommunityPreviewCardProps) {
+  const hasActiveMothers =
+    typeof community.activeMothers === "number" && community.activeMothers > 0;
+
   return (
     <article className="rounded-[2.35rem] bg-white px-7 py-8 shadow-[0_18px_52px_rgb(140_64_84_/_0.12)] ring-1 ring-border/65 md:px-8 md:py-9">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -28,7 +31,7 @@ export function CommunityPreviewCard({ community, onClick }: CommunityPreviewCar
         </div>
 
         <span className="whitespace-nowrap rounded-full bg-primary/10 px-3 py-1.5 text-[0.62rem] font-extrabold uppercase tracking-[0.08em] text-primary">
-          Atividade recente
+          {community.badgeLabel ?? "Atividade recente"}
         </span>
       </div>
 
@@ -36,7 +39,8 @@ export function CommunityPreviewCard({ community, onClick }: CommunityPreviewCar
         {community.title}
       </h2>
       <p className="mt-5 max-w-[31rem] text-base leading-7 text-text">
-        {community.topic} {community.activeMothers} mães participando agora.
+        {community.topic}
+        {hasActiveMothers ? ` ${community.activeMothers} mães participando agora.` : null}
       </p>
 
       <button
@@ -44,7 +48,7 @@ export function CommunityPreviewCard({ community, onClick }: CommunityPreviewCar
         type="button"
         onClick={onClick}
       >
-        Participar da Conversa
+        {community.ctaLabel ?? "Participar da Conversa"}
       </button>
     </article>
   );

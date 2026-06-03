@@ -51,7 +51,7 @@ export const USER_PROFILES = {
   },
 } as const satisfies Record<UserProfileCode, UserProfile>;
 
-export type ProfessionalVerificationStatus = "not-required" | "pending" | "verified" | "rejected";
+export type ProfessionalVerificationStatus = "verified" | "verifying" | "not-verified";
 
 export type AuthenticatedUser = {
   id: string;
