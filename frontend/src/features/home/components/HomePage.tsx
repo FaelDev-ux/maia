@@ -106,7 +106,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
                 <Link
                   aria-label="Oferecer apoio"
-                  className="fixed bottom-24 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-10"
+                  className="fixed bottom-30 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
                   href="/check-in"
                 >
                   <HandHeart aria-hidden size={31} strokeWidth={2.2} />
@@ -181,7 +181,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
                 <Link
                   aria-label="Registrar sentimentos"
-                  className="fixed bottom-24 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-10"
+                  className="fixed bottom-30 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
                   href="/check-in"
                 >
                   <Heart aria-hidden className="fill-white" size={31} strokeWidth={0} />

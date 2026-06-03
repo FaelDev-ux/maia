@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ClipboardList, History, Home, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,12 @@ import {
   sleepQualityOptions,
   supportOptions,
 } from "@/features/check-in/data/check-in-options";
-import { saveDailyCheckIn } from "@/features/check-in/data/check-in-storage";
+import {
+  DAILY_CHECK_INS_STORAGE_KEY,
+  getDailyCheckInDateKey,
+  getTodayDateKey,
+  saveDailyCheckIn,
+} from "@/features/check-in/data/check-in-storage";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 import { checkInSchema, type CheckInFormData } from "@/schemas/check-in.schema";
 import cn from "@/lib/utils";
@@ -50,10 +55,70 @@ function createDailyCheckInRecord(data: CheckInFormData): DailyCheckInRecord {
 const selectedPillClasses =
   "bg-primary text-white ring-primary hover:bg-white hover:text-primary hover:ring-primary";
 
+function subscribeToStoredCheckIns(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function getStoredCheckInsSnapshot() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(DAILY_CHECK_INS_STORAGE_KEY) ?? "";
+}
+
+function getStoredCheckInsServerSnapshot() {
+  return "";
+}
+
+function getDailyCheckInByDateFromSnapshot(snapshot: string, dateKey: string) {
+  if (!snapshot) {
+    return null;
+  }
+
+  try {
+    const records = JSON.parse(snapshot) as unknown;
+
+    if (!Array.isArray(records)) {
+      return null;
+    }
+
+    const dailyCheckInRecords = records as DailyCheckInRecord[];
+
+    return (
+      dailyCheckInRecords.find((record) => getDailyCheckInDateKey(record.createdAt) === dateKey) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
   const router = useRouter();
+  const [todayDateKey] = useState(getTodayDateKey);
   const [savedRecord, setSavedRecord] = useState<DailyCheckInRecord | null>(null);
-  const [homeCountdown, setHomeCountdown] = useState(10);
+  const [modalCountdown, setModalCountdown] = useState(10);
+  const storedCheckInsSnapshot = useSyncExternalStore(
+    subscribeToStoredCheckIns,
+    getStoredCheckInsSnapshot,
+    getStoredCheckInsServerSnapshot
+  );
+  const existingTodayRecord = savedRecord
+    ? null
+    : getDailyCheckInByDateFromSnapshot(storedCheckInsSnapshot, todayDateKey);
+  const statusModalType = existingTodayRecord ? "existing" : savedRecord ? "saved" : null;
+  const statusModalIsExisting = statusModalType === "existing";
+  const statusModalRedirectHref = statusModalIsExisting ? "/historico" : "/home";
+  const StatusModalIcon = statusModalIsExisting ? History : Save;
   const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = mockAuthenticatedUser.avatarUrl;
@@ -85,22 +150,22 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
     : "Escolha uma emoção";
 
   useEffect(() => {
-    if (!savedRecord) {
+    if (!statusModalType) {
       return;
     }
 
     const countdownInterval = window.setInterval(() => {
-      setHomeCountdown((currentValue) => Math.max(currentValue - 1, 0));
+      setModalCountdown((currentValue) => Math.max(currentValue - 1, 0));
     }, 1000);
     const redirectTimeout = window.setTimeout(() => {
-      router.push("/home");
+      router.push(statusModalRedirectHref);
     }, 10000);
 
     return () => {
       window.clearInterval(countdownInterval);
       window.clearTimeout(redirectTimeout);
     };
-  }, [router, savedRecord]);
+  }, [router, statusModalRedirectHref, statusModalType]);
 
   function toggleSecondaryEmotion(optionId: string) {
     const hasOption = selectedSecondaryEmotionIds.includes(optionId);
@@ -115,7 +180,7 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
     const record = createDailyCheckInRecord(data);
 
     saveDailyCheckIn(record);
-    setHomeCountdown(10);
+    setModalCountdown(10);
     setSavedRecord(record);
     reset({
       ...data,
@@ -408,45 +473,63 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
         </div>
       </div>
 
-      {savedRecord ? (
+      {statusModalType ? (
         <div
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-end justify-center bg-title/35 px-4 pb-4 pt-12 backdrop-blur-sm md:items-center md:p-8"
           role="dialog"
         >
           <div className="w-full max-w-[27rem] rounded-[2rem] bg-background px-6 py-6 shadow-[0_28px_80px_rgb(57_55_56_/_0.24)] ring-1 ring-white/80 md:px-7">
-            <span className="grid size-14 place-items-center rounded-full bg-success/10 text-success ring-1 ring-success/20">
-              <Save aria-hidden size={24} strokeWidth={2.4} />
+            <span
+              className={cn(
+                "grid size-14 place-items-center rounded-full ring-1",
+                statusModalIsExisting
+                  ? "bg-primary/10 text-primary ring-primary/20"
+                  : "bg-success/10 text-success ring-success/20"
+              )}
+            >
+              <StatusModalIcon aria-hidden size={24} strokeWidth={2.4} />
             </span>
             <h2 className="mt-5 font-title text-2xl font-extrabold leading-tight text-title">
-              Check-in salvo
+              {statusModalIsExisting ? "Check-in de hoje já existe" : "Check-in salvo"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-text">
-              Seu registro ficou salvo no histórico local. Você pode voltar para a Home agora ou
-              revisar seus registros.
+              {statusModalIsExisting
+                ? "Você já registrou seu check-in hoje. Para revisar ou editar esse registro, vá para o histórico."
+                : "Seu registro ficou salvo no histórico local. Você pode voltar para a Home agora ou revisar seus registros."}
             </p>
 
             <div className="mt-6 grid gap-3">
               <button
                 className="relative inline-flex min-h-[3.5rem] items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                onClick={() => router.push("/home")}
+                onClick={() => router.push(statusModalRedirectHref)}
                 type="button"
               >
                 <span
                   aria-hidden
                   className="absolute inset-y-0 left-0 bg-white/20 transition-[width]"
-                  style={{ width: `${(homeCountdown / 10) * 100}%` }}
+                  style={{ width: `${(modalCountdown / 10) * 100}%` }}
                 />
-                <Home aria-hidden className="relative" size={17} strokeWidth={2.4} />
-                <span className="relative">Home em {homeCountdown}s</span>
+                {statusModalIsExisting ? (
+                  <History aria-hidden className="relative" size={17} strokeWidth={2.4} />
+                ) : (
+                  <Home aria-hidden className="relative" size={17} strokeWidth={2.4} />
+                )}
+                <span className="relative">
+                  {statusModalIsExisting ? "Histórico" : "Home"} em {modalCountdown}s
+                </span>
               </button>
 
               <Link
                 className="inline-flex min-h-[3.5rem] items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-text ring-1 ring-border transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                href="/historico"
+                href={statusModalIsExisting ? "/home" : "/historico"}
               >
-                <History aria-hidden size={17} strokeWidth={2.3} />
-                Ir para histórico
+                {statusModalIsExisting ? (
+                  <Home aria-hidden size={17} strokeWidth={2.3} />
+                ) : (
+                  <History aria-hidden size={17} strokeWidth={2.3} />
+                )}
+                {statusModalIsExisting ? "Ir para home" : "Ir para histórico"}
               </Link>
             </div>
           </div>
