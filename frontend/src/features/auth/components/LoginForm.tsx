@@ -30,10 +30,10 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
 
   return (
     <form
-      className="mx-auto w-full max-w-94 rounded-[2rem] bg-white/80 px-6 py-7 backdrop-blur"
+      className="mx-auto w-full max-w-[calc(100vw-3rem)] min-w-0 rounded-[2rem] bg-white/80 px-4 py-7 backdrop-blur sm:max-w-94 sm:px-6"
       onSubmit={handleSubmit(onSubmit)}
     >
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <AuthInput
           error={errors.email}
           icon={<Mail size={16} strokeWidth={2.2} />}
