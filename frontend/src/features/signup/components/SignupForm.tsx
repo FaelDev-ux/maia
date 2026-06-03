@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { AuthInput } from "@/features/auth/components/AuthInput";
 import { saveRegisteredUserProfile } from "@/features/profile/data/profile-storage";
+import { markPwaInstallPromptPending } from "@/features/pwa/data/install-preferences";
 import { registerSchema, type RegisterFormData } from "@/schemas/auth.schema";
 import { signupFields } from "../data/signup-fields";
 
@@ -44,6 +45,7 @@ export function SignupForm({
 
   async function onSubmit(data: RegisterFormData) {
     saveRegisteredUserProfile(data);
+    markPwaInstallPromptPending();
     router.push("/auth/select-type");
   }
 
