@@ -305,3 +305,212 @@ No fluxo de seleção de tipo de usuário, clicar em "Sou mãe recente" ou conti
 A interação avançou a home autenticada do Maia de forma alinhada ao Figma e ao contexto do projeto. A implementação ficou revisável, componentizada e validada, mas ainda depende de integração futura com API e substituição dos mocks por dados e assets definitivos.
 
 ---
+
+## Interação 8 - Homes por perfil e correção do fluxo de seleção
+
+### 1. Objetivo da interação
+
+Criar variações da Home para todos os perfis principais selecionáveis no onboarding e corrigir o fluxo para que a Home apareça apenas após a finalização das etapas de boas-vindas de cada usuário.
+
+### 2. Prompt enviado
+
+> "Faça a mesma interface para o desejo ser mãe"
+>
+> "O print que estou enviando agora é da seleção da mãe experiente, com relação ao q vc já fez só muda umas coisinhas, lembre de fazer a versão desktop"
+>
+> "Por ultimo a home da profissional de saude, o print q lhe enviei é do profissional de saúde"
+>
+> "N deve haver redirecionamento ao selecionar, o fluxo funciona ao usuario selecionar e apertar no botão de continuar e temos as paginas de welcomestep de cada, logo, as homes só devem aparecer após a finalização de todas as steps do welcome de cada usuario"
+
+### 3. Resposta da IA
+
+A IA leu `context.md`, `AGENTS.md`, inspecionou a feature `home`, o fluxo `SelectTypeFlow` e as steps finais de cada perfil. Em seguida, transformou a Home em uma tela parametrizada por perfil via query string:
+
+- `/home`: mãe recente;
+- `/home?profile=future-mother`: deseja ser mãe/futura mãe;
+- `/home?profile=experienced-mother`: mãe experiente/mentora;
+- `/home?profile=health-professional`: profissional de saúde.
+
+Também criou componentes reutilizáveis para a variação de mentoria/profissional, como card de impacto, badge de perfil e cards de pedidos de ajuda.
+
+Por fim, corrigiu o fluxo de seleção: clicar em um card passou a apenas selecionar o perfil; o botão "Continuar" leva à primeira step daquele perfil; a Home só é aberta no botão final da última step.
+
+### 4. Resultado obtido
+
+O projeto passou a ter quatro variações de Home com a mesma base visual, responsivas e alinhadas aos prints:
+
+- mãe recente: check-in emocional, insight, recomendações e comunidade;
+- deseja ser mãe: check-in emocional adaptado, recomendações e comunidade para futura mãe;
+- mãe experiente: badge "Mentora da comunidade", impacto, pedidos de ajuda urgentes e comunidade;
+- profissional de saúde: badge "Especialista verificada", especialidade "Pediatra", impacto, pedidos de ajuda urgentes e comunidade.
+
+Os fluxos finais ficaram:
+
+- mãe recente: `welcome -> baby-info -> support -> /home`;
+- deseja ser mãe: `welcome -> support -> /home?profile=future-mother`;
+- mãe experiente: `welcome -> /home?profile=experienced-mother`;
+- profissional de saúde: `data -> welcome -> /home?profile=health-professional`.
+
+### 5. Acertos
+
+- Reaproveitou a rota `/home` sem criar rotas duplicadas para cada perfil.
+- Tipou os perfis em `HomeProfile` e os conteúdos em estruturas específicas.
+- Isolou mocks em `frontend/src/features/home/data/home-content.ts`.
+- Criou componentes reutilizáveis para impacto, badge e pedidos de ajuda.
+- Manteve mobile-first e adicionou adaptação desktop.
+- Preservou linguagem acolhedora, sem diagnóstico clínico.
+- Corrigiu a navegação para respeitar as steps de onboarding antes da Home.
+- Validou com `npm run lint` e `npm run build`, ambos passando.
+- Testou no navegador que selecionar um card não redireciona e que a step final da profissional leva à Home correta.
+
+### 6. Falhas ou limitações
+
+- As imagens de avatar, recomendações e participantes continuam como mocks remotos temporários.
+- Os dados de impacto, pedidos de ajuda e comunidade ainda não vêm de API real.
+- Algumas telas foram implementadas a partir de prints enviados, não por leitura direta de todos os frames via MCP.
+- O `context.md` ainda precisa ser atualizado em tarefa separada para refletir que `/home` e as variações por perfil já existem.
+
+### 7. Conclusão
+
+A interação consolidou a Home como uma experiência inicial personalizada por perfil, mantendo coerência visual e respeitando o fluxo correto de onboarding. A implementação está adequada para revisão e validação de produto, mas ainda depende de integração futura com backend Django REST e assets definitivos.
+
+---
+
+## Interação 9 - Recomendações, artigos e check-in emocional
+
+### 1. Objetivo da interação
+
+Implementar a área de recomendações da Home, criar a biblioteca de conteúdos, abrir artigos individuais, tornar o registro emocional clicável e validar o fluxo completo sem introduzir problemas novos.
+
+### 2. Prompt enviado
+
+> "Vamos fazer a parte de recomendações, ok? como q funciona, ali vai ter um slide onde posso passar pro lado e no ver tudo vai mostrar os conteudos, apertando em algum desses conteudos vai abrir o artigo desse conteudo"
+>
+> "Vamos trabalhar nos registros de emoções na parte do feliz, cansada, sobrecarregada e assim por diante, deve ser clicavel e qnd clicar vai mostrar alguma coisa no lugar e esses botões vão sumir"
+>
+> "Esse botão ele é flutuante e fica fixo sempre a mostra e ao apertar nele ele vai para o /check-in onde posso registrar os sentimentos."
+>
+> "Faça validação, teste cada componente desde o começo, verifique se tem algo de errado, n crie problemas, após isso atualize o interacoes-ia"
+
+### 3. Resposta da IA
+
+A IA leu o contexto do projeto, inspecionou os componentes existentes da Home, comunidade e navegação, e criou a feature `contents` para a biblioteca e artigos. Também criou a rota `/check-in`, reaproveitando os chips de emoção e um card de feedback acolhedor.
+
+Durante a validação, foi identificado que o arquivo `CheckInPage.tsx` estava reduzido a um fragmento de teste com o texto "Eu gosto de check-in". A IA corrigiu a tela para a implementação completa antes de concluir a validação.
+
+### 4. Resultado obtido
+
+Foram adicionados ou ajustados:
+
+- `/conteudos`: biblioteca com todos os artigos recomendados;
+- `/conteudos/[contentId]`: página de artigo com layout inspirado no Figma, badges, imagem, conteúdo, quote e feedback;
+- botão "Ver tudo" da Home navegando para `/conteudos`;
+- cards de recomendação clicáveis navegando para o artigo correspondente;
+- botão de voltar na lista de artigos e no artigo individual;
+- chips de emoção clicáveis na Home;
+- card de confirmação substituindo os chips após a seleção;
+- `/check-in`: tela dedicada para registrar sentimentos;
+- botão flutuante fixo da Home apontando para `/check-in`.
+
+### 5. Validação executada
+
+Comandos executados:
+
+- `npm run lint`: passou;
+- `npm run build`: passou;
+- `npm run format:check`: falhou por pendências amplas de formatação já existentes no projeto, envolvendo 73 arquivos. Não foi executada formatação global.
+
+Rotas validadas com resposta `200`:
+
+- `/`;
+- `/auth?mode=login`;
+- `/auth?mode=register`;
+- `/auth/forgot-password`;
+- `/auth/select-type`;
+- `/home`;
+- `/home?profile=future-mother`;
+- `/home?profile=experienced-mother`;
+- `/home?profile=health-professional`;
+- `/check-in`;
+- `/conteudos`;
+- `/conteudos/navegando-nas-emocoes`;
+- `/conteudos/alongamento-leve`;
+- `/conteudos/preparando-sua-jornada`;
+- `/conteudos/respiracao-para-ansiedade`;
+- `/comunidade`;
+- `/comunidade/post-sono-madrugada`;
+- `/comunidade/post-rede-apoio`;
+- `/comunidade/post-respirar`.
+
+Também foram verificados textos e links essenciais em `/home`, `/check-in`, `/conteudos` e no artigo `navegando-nas-emocoes`.
+
+### 6. Acertos
+
+- A implementação manteve mobile-first e versão desktop responsiva.
+- Os conteúdos e feedbacks ficaram isolados em dados tipados.
+- Os componentes criados são reutilizáveis: card de artigo, página de artigo, header de conteúdo, feedback emocional e check-in.
+- A linguagem dos registros emocionais evita diagnóstico e usa tom acolhedor.
+- O botão flutuante agora tem destino real em `/check-in`.
+- A página de artigos possui navegação de volta consistente com o padrão da comunidade.
+
+### 7. Falhas ou limitações
+
+- A bottom navigation ainda aponta para `/historico`, `/perfil` e `/mais`, mas essas rotas retornam `404` porque ainda não foram implementadas. Isso foi identificado como pendência existente do produto, não corrigida nesta interação para evitar criação de telas falsas fora do escopo.
+- `npm run format:check` segue falhando por formatação global do repositório. A correção exigiria uma tarefa específica de formatação para não misturar feature e churn amplo.
+- Os dados de artigos, recomendações e check-in ainda são mocks locais, sem integração com backend Django REST.
+
+### 8. Conclusão
+
+A interação consolidou o fluxo Home -> recomendações -> biblioteca -> artigo e Home -> check-in emocional. A validação técnica principal passou em lint, build e rotas críticas, com pendências conhecidas registradas para evolução futura.
+
+---
+
+## Interação 10 - Insight semanal conectado ao check-in
+
+### 1. Objetivo da interação
+
+Conectar o card "Insight da semana" da Home aos registros emocionais do usuário e criar variações de insight conforme o sentimento registrado.
+
+### 2. Prompt enviado
+
+> "Na home, preciso q vc conecte o insight da semana com o registro emocional do usuario, também crie varios insights da semana pq dependendo de como o usuario está se sentindo vc mostra um Diferente"
+
+### 3. Resposta da IA
+
+A IA inspecionou a Home, o armazenamento local de check-ins e os tipos de registro emocional. Depois criou um hook para a Home acompanhar `maia-daily-check-ins`, adicionou um evento local quando check-ins são salvos ou atualizados, e implementou uma tabela de insights semanais por emoção/perfil.
+
+### 4. Resultado obtido
+
+O card "Insight da semana" passou a usar os dados reais mockados do `localStorage`:
+
+- se houver check-in nas últimas 24 horas, o insight prioriza o sentimento mais recente;
+- se não houver registro recente, usa o sentimento dominante/intenso dos últimos 7 dias;
+- se houver pouco sono ou pouco apoio repetido na semana, mostra um insight específico para esse padrão;
+- se não houver check-ins, preserva o insight padrão do conteúdo da Home.
+
+Arquivos principais envolvidos:
+
+- `frontend/src/features/check-in/data/check-in-storage.ts`;
+- `frontend/src/features/check-in/hooks/useStoredDailyCheckIns.ts`;
+- `frontend/src/features/home/data/weekly-insights.ts`;
+- `frontend/src/features/home/components/HomePage.tsx`.
+
+### 5. Acertos
+
+- Manteve o mock isolado em `localStorage`, facilitando troca futura por API Django REST.
+- Evitou linguagem diagnóstica e manteve tom acolhedor.
+- Criou regras simples, compatíveis com o MVP descrito no `context.md`.
+- Separou a lógica de escolha do insight em arquivo próprio.
+- Validou com `npm run lint` e `npm run build`, ambos passando.
+
+### 6. Falhas ou limitações
+
+- A escolha do insight ainda é baseada em regras simples no frontend, não em motor de recomendação real.
+- Os registros continuam locais no navegador e não são sincronizados com backend.
+- A validação visual automatizada ficou limitada pelo ambiente do navegador interno; a rota foi conferida por carregamento da Home e checks de build/lint.
+
+### 7. Conclusão
+
+A interação tornou a Home mais personalizada e conectada ao check-in emocional, sem ampliar demais o escopo. A solução é adequada para o MVP e pode evoluir para um serviço de recomendação quando houver backend.
+
+---

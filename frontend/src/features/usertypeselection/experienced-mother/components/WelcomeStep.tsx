@@ -5,9 +5,13 @@ import HeaderOnboarding from "@/features/onboarding/components/HeaderOnboarding"
 
 type ExperiencedMotherWelcomeStepProps = {
   onBack: () => void;
+  onContinue: () => void;
 };
 
-export function ExperiencedMotherWelcomeStep({ onBack }: ExperiencedMotherWelcomeStepProps) {
+export function ExperiencedMotherWelcomeStep({
+  onBack,
+  onContinue,
+}: ExperiencedMotherWelcomeStepProps) {
   return (
     <main className="min-h-dvh overflow-hidden bg-background text-text">
       <div className="mx-auto flex min-h-dvh w-full max-w-107.5 flex-col px-6 pb-7 pt-6 md:max-w-[56rem] md:px-10 md:pb-10 md:pt-8">
@@ -38,6 +42,7 @@ export function ExperiencedMotherWelcomeStep({ onBack }: ExperiencedMotherWelcom
 
         <button
           className="mx-auto flex h-14 w-full max-w-84 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-16 sm:max-w-92"
+          onClick={onContinue}
           type="button"
         >
           <span className="font-extrabold">Continuar</span> <ArrowRight size={18} />
