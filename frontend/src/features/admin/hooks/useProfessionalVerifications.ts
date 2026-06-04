@@ -2,7 +2,8 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import {
-  getProfessionalVerificationActions,
+  getProfessionalVerificationActionsServerSnapshot,
+  getProfessionalVerificationActionsSnapshot,
   getProfessionalVerificationsServerSnapshot,
   getProfessionalVerificationsSnapshot,
   PROFESSIONAL_VERIFICATIONS_UPDATED_EVENT,
@@ -38,6 +39,18 @@ function parseVerifications(snapshot: string) {
   }
 }
 
+function parseActions(snapshot: string) {
+  try {
+    const parsedActions = JSON.parse(snapshot) as unknown;
+
+    return Array.isArray(parsedActions)
+      ? (parsedActions as ProfessionalVerificationAction[])
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useProfessionalVerifications() {
   const verificationsSnapshot = useSyncExternalStore(
     subscribeToProfessionalVerifications,
@@ -49,15 +62,14 @@ export function useProfessionalVerifications() {
 }
 
 export function useProfessionalVerificationActions() {
-  const verificationsSnapshot = useSyncExternalStore(
+  const actionsSnapshot = useSyncExternalStore(
     subscribeToProfessionalVerifications,
-    getProfessionalVerificationsSnapshot,
-    getProfessionalVerificationsServerSnapshot
+    getProfessionalVerificationActionsSnapshot,
+    getProfessionalVerificationActionsServerSnapshot
   );
 
-  return useMemo<ProfessionalVerificationAction[]>(() => {
-    void verificationsSnapshot;
-
-    return getProfessionalVerificationActions();
-  }, [verificationsSnapshot]);
+  return useMemo<ProfessionalVerificationAction[]>(
+    () => parseActions(actionsSnapshot),
+    [actionsSnapshot]
+  );
 }

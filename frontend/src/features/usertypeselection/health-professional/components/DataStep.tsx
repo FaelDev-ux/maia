@@ -4,6 +4,7 @@ import { ArrowRight, Check, ChevronDown, Mail, Search } from "lucide-react";
 import { useState } from "react";
 import HeaderOnboarding from "@/features/onboarding/components/HeaderOnboarding";
 import { getStoredProfileValues, saveProfileValues } from "@/features/profile/data/profile-storage";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import cn from "@/lib/utils";
 import {
   type ProfessionalOption,
@@ -205,25 +206,30 @@ export function HealthProfessionalDataStep({
   onBack,
   onContinue,
 }: HealthProfessionalDataStepProps) {
-  const [initialProfileValues] = useState(() => getStoredProfileValues("health-professional"));
+  const storedProfileValues = useStoredProfileValues("health-professional");
   const [openSelectId, setOpenSelectId] = useState<ProfessionalSelectId | null>(null);
-  const [registrationNumber, setRegistrationNumber] = useState(
-    initialProfileValues.registrationNumber
-  );
-  const [selectedState, setSelectedState] = useState(() =>
-    getProfileStateValue(initialProfileValues.state)
-  );
-  const [selectedSpecialty, setSelectedSpecialty] = useState(() =>
-    getProfileSpecialtyValue(initialProfileValues.specialty)
-  );
-  const [customSpecialty, setCustomSpecialty] = useState(() =>
-    getProfileSpecialtyValue(initialProfileValues.specialty) === "other"
-      ? initialProfileValues.specialty
-      : ""
-  );
+  const [registrationNumberDraft, setRegistrationNumberDraft] = useState<string | null>(null);
+  const [selectedStateDraft, setSelectedStateDraft] = useState<string | null>(null);
+  const [selectedSpecialtyDraft, setSelectedSpecialtyDraft] = useState<string | null>(null);
+  const [customSpecialtyDraft, setCustomSpecialtyDraft] = useState<string | null>(null);
+  const storedState = getProfileStateValue(storedProfileValues.state);
+  const storedSpecialty = getProfileSpecialtyValue(storedProfileValues.specialty);
+  const registrationNumber = registrationNumberDraft ?? storedProfileValues.registrationNumber;
+  const selectedState = selectedStateDraft ?? storedState;
+  const selectedSpecialty = selectedSpecialtyDraft ?? storedSpecialty;
+  const customSpecialty =
+    customSpecialtyDraft ?? (storedSpecialty === "other" ? storedProfileValues.specialty : "");
 
   function handleSelectOpenChange(selectId: ProfessionalSelectId, isOpen: boolean) {
     setOpenSelectId(isOpen ? selectId : null);
+  }
+
+  function handleSpecialtyChange(value: string) {
+    setSelectedSpecialtyDraft(value);
+
+    if (value !== "other") {
+      setCustomSpecialtyDraft("");
+    }
   }
 
   function handleContinue() {
@@ -275,7 +281,7 @@ export function HealthProfessionalDataStep({
                   <input
                     className="min-w-0 flex-1 bg-transparent text-sm font-medium text-title outline-none placeholder:text-text/40 sm:text-base"
                     id="professional-register"
-                    onChange={(event) => setRegistrationNumber(event.target.value)}
+                    onChange={(event) => setRegistrationNumberDraft(event.target.value)}
                     placeholder="123456"
                     type="text"
                     value={registrationNumber}
@@ -287,7 +293,7 @@ export function HealthProfessionalDataStep({
                 id="professional-state"
                 isOpen={openSelectId === "professional-state"}
                 label="Estado (UF)"
-                onChange={setSelectedState}
+                onChange={setSelectedStateDraft}
                 onOpenChange={(isOpen) => handleSelectOpenChange("professional-state", isOpen)}
                 options={professionalStateOptions}
                 required
@@ -298,7 +304,7 @@ export function HealthProfessionalDataStep({
                 id="professional-specialty"
                 isOpen={openSelectId === "professional-specialty"}
                 label="Especialidade"
-                onChange={setSelectedSpecialty}
+                onChange={handleSpecialtyChange}
                 onOpenChange={(isOpen) => handleSelectOpenChange("professional-specialty", isOpen)}
                 options={professionalSpecialtyOptions}
                 value={selectedSpecialty}
@@ -317,7 +323,7 @@ export function HealthProfessionalDataStep({
                     <input
                       className="min-w-0 flex-1 bg-transparent text-sm font-medium text-title outline-none placeholder:text-text/40 sm:text-base"
                       id="professional-custom-specialty"
-                      onChange={(event) => setCustomSpecialty(event.target.value)}
+                      onChange={(event) => setCustomSpecialtyDraft(event.target.value)}
                       placeholder="Ex.: consultoria em amamentação"
                       type="text"
                       value={customSpecialty}

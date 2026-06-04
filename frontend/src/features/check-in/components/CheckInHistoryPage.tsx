@@ -26,10 +26,10 @@ import {
 } from "@/features/check-in/data/check-in-options";
 import {
   getDailyCheckInDateKey,
-  getStoredDailyCheckIns,
   getTodayDateKey,
   updateDailyCheckIn,
 } from "@/features/check-in/data/check-in-storage";
+import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -359,7 +359,7 @@ function CheckInEditForm({ onCancel, onSave, record }: CheckInEditFormProps) {
 export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
   const storedProfile = useStoredProfileValues(profile);
   const [todayKey] = useState(getTodayDateKey);
-  const [records, setRecords] = useState(() => getStoredDailyCheckIns());
+  const records = useStoredDailyCheckIns();
   const [monthDate, setMonthDate] = useState(getInitialMonthDate);
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
   const [isEditing, setIsEditing] = useState(false);
@@ -404,7 +404,6 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
 
   function handleSaveEdit(record: DailyCheckInRecord) {
     updateDailyCheckIn(record);
-    setRecords(getStoredDailyCheckIns());
     setIsEditing(false);
     setLockedNotice(false);
   }

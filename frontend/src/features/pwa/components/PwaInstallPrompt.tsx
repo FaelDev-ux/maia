@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, Home, Share, Smartphone, Sparkles, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -54,17 +54,35 @@ function isIosInstallCapable() {
   return (isIosDevice || isIpadLikeMac) && isSafari;
 }
 
+function subscribeToMountedState() {
+  return () => {};
+}
+
+function getMountedSnapshot() {
+  return true;
+}
+
+function getMountedServerSnapshot() {
+  return false;
+}
+
 export function PwaInstallPrompt() {
   const pathname = usePathname();
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
     null
   );
+  const hasMounted = useSyncExternalStore(
+    subscribeToMountedState,
+    getMountedSnapshot,
+    getMountedServerSnapshot
+  );
   const [isHiddenForSession, setIsHiddenForSession] = useState(false);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
   const isHomeRoute = pathname === "/home";
   const canUseNativePrompt = Boolean(installPromptEvent);
-  const canShowIosInstructions = !canUseNativePrompt && isIosInstallCapable();
+  const canShowIosInstructions = hasMounted && !canUseNativePrompt && isIosInstallCapable();
   const isOpen =
+    hasMounted &&
     isHomeRoute &&
     (canUseNativePrompt || canShowIosInstructions) &&
     !isHiddenForSession &&

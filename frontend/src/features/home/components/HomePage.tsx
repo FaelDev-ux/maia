@@ -9,6 +9,7 @@ import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import { communityPosts } from "@/features/community/data/community-posts";
 import {
+  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
   COMMUNITY_CREATED_POSTS_STORAGE_KEY,
   COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY,
   COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT,
@@ -53,10 +54,12 @@ function subscribeToCommunityActivityChanges(onStoreChange: () => void) {
   }
 
   window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
   window.addEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
     window.removeEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
   };
 }

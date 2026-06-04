@@ -1,31 +1,17 @@
 import { communityPosts } from "@/features/community/data/community-posts";
 import {
-  COMMUNITY_CREATED_POSTS_STORAGE_KEY,
+  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
   COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
+  getStoredCreatedCommunityPosts,
   getStoredRemovedPostIds,
   saveStoredRemovedPostIds,
 } from "@/features/community/data/community-storage";
 import type { CommunityPost } from "@/features/community/types";
 
 function parseCreatedCommunityPosts() {
-  if (typeof window === "undefined") {
-    return [];
-  }
+  const fixedPostIds = new Set(communityPosts.map((post) => post.id));
 
-  try {
-    const storedPosts = window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
-    const parsedPosts = storedPosts ? (JSON.parse(storedPosts) as unknown) : [];
-    const fixedPostIds = new Set(communityPosts.map((post) => post.id));
-
-    return Array.isArray(parsedPosts)
-      ? (parsedPosts as CommunityPost[]).filter(
-          (post) => typeof post.id === "string" && !fixedPostIds.has(post.id)
-        )
-      : [];
-  } catch {
-    window.localStorage.removeItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
-    return [];
-  }
+  return getStoredCreatedCommunityPosts().filter((post) => !fixedPostIds.has(post.id));
 }
 
 function sortPostsByMockRecency(posts: CommunityPost[]) {
@@ -37,7 +23,12 @@ function sortPostsByMockRecency(posts: CommunityPost[]) {
       return firstIsCreated ? -1 : 1;
     }
 
-    return secondPost.supportCount + secondPost.repliesCount - firstPost.supportCount - firstPost.repliesCount;
+    return (
+      secondPost.supportCount +
+      secondPost.repliesCount -
+      firstPost.supportCount -
+      firstPost.repliesCount
+    );
   });
 }
 
@@ -70,10 +61,12 @@ export function subscribeToAdminCommunityPosts(onStoreChange: () => void) {
   }
 
   window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
   window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
     window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
   };
 }

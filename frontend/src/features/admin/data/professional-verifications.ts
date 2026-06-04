@@ -316,6 +316,14 @@ export function getProfessionalVerificationActions() {
   }
 }
 
+export function getProfessionalVerificationActionsSnapshot() {
+  return JSON.stringify(getProfessionalVerificationActions());
+}
+
+export function getProfessionalVerificationActionsServerSnapshot() {
+  return "[]";
+}
+
 function saveProfessionalVerificationAction(action: ProfessionalVerificationAction) {
   if (typeof window === "undefined") {
     return;

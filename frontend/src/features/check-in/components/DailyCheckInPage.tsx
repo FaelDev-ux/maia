@@ -20,6 +20,7 @@ import {
 } from "@/features/check-in/data/check-in-options";
 import {
   DAILY_CHECK_INS_STORAGE_KEY,
+  DAILY_CHECK_INS_UPDATED_EVENT,
   getDailyCheckInDateKey,
   getTodayDateKey,
   saveDailyCheckIn,
@@ -64,9 +65,11 @@ function subscribeToStoredCheckIns(onStoreChange: () => void) {
   }
 
   window.addEventListener("storage", onStoreChange);
+  window.addEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
   };
 }
 

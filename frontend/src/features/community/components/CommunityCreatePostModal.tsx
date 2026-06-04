@@ -6,9 +6,14 @@ type CommunityCreatePostModalProps = {
   authorInitials: string;
   authorName: string;
   authorRole: string;
+  defaultCategory?: CommunityPostCategory;
   isOpen: boolean;
+  messagePlaceholder?: string;
+  modalEyebrow?: string;
   onClose: () => void;
   onCreatePost: (post: CommunityPost) => void;
+  submitLabel?: string;
+  titlePlaceholder?: string;
 };
 
 type CommunityPostCategoryOption = {
@@ -60,14 +65,19 @@ export function CommunityCreatePostModal({
   authorInitials,
   authorName,
   authorRole,
+  defaultCategory = "apoio",
   isOpen,
+  messagePlaceholder = "Escreva com calma. Você pode pedir apoio, dividir uma experiência ou abrir uma conversa.",
+  modalEyebrow = "Nova publicação",
   onClose,
   onCreatePost,
+  submitLabel = "Publicar",
+  titlePlaceholder = "O que você quer compartilhar?",
 }: CommunityCreatePostModalProps) {
   const titleId = useId();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<CommunityPostCategory>("apoio");
+  const [category, setCategory] = useState<CommunityPostCategory>(defaultCategory);
   const [tags, setTags] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -127,7 +137,7 @@ export function CommunityCreatePostModal({
 
     setTitle("");
     setMessage("");
-    setCategory("apoio");
+    setCategory(defaultCategory);
     setTags("");
     setIsAnonymous(false);
     setHasSubmitted(false);
@@ -150,7 +160,7 @@ export function CommunityCreatePostModal({
               </span>
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">
-                  Nova publicação
+                  {modalEyebrow}
                 </p>
                 <h2
                   className="mt-2 font-title text-xl font-extrabold leading-tight text-title"
@@ -178,7 +188,7 @@ export function CommunityCreatePostModal({
                 className="mt-2 h-13 w-full rounded-[1.25rem] border border-border bg-white px-4 text-base text-title shadow-[0_8px_22px_rgb(140_64_84_/_0.06)] outline-none transition placeholder:text-text/45 focus:border-primary focus:ring-4 focus:ring-primary/15"
                 maxLength={90}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="O que você quer compartilhar?"
+                placeholder={titlePlaceholder}
                 value={title}
               />
               {hasSubmitted && titleError ? (
@@ -220,7 +230,7 @@ export function CommunityCreatePostModal({
                 className="mt-2 min-h-36 w-full resize-none rounded-[1.35rem] border border-border bg-white px-4 py-4 text-base leading-7 text-title shadow-[0_8px_22px_rgb(140_64_84_/_0.06)] outline-none transition placeholder:text-text/45 focus:border-primary focus:ring-4 focus:ring-primary/15"
                 maxLength={520}
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="Escreva com calma. Você pode pedir apoio, dividir uma experiência ou abrir uma conversa."
+                placeholder={messagePlaceholder}
                 value={message}
               />
               <div className="mt-2 flex items-center justify-between gap-3">
@@ -280,7 +290,7 @@ export function CommunityCreatePostModal({
               type="submit"
             >
               <Send aria-hidden size={17} strokeWidth={2.3} />
-              Publicar
+              {submitLabel}
             </button>
           </footer>
         </form>

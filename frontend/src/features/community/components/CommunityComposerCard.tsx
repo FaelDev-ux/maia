@@ -1,10 +1,20 @@
 import { PenLine } from "lucide-react";
 
 type CommunityComposerCardProps = {
+  buttonLabel?: string;
+  description?: string;
+  eyebrow?: string;
   onCreatePost: () => void;
+  title?: string;
 };
 
-export function CommunityComposerCard({ onCreatePost }: CommunityComposerCardProps) {
+export function CommunityComposerCard({
+  buttonLabel = "Criar publicação",
+  description = "Publique uma dúvida, pedido de apoio ou experiência. Você pode preservar sua identidade quando preferir.",
+  eyebrow = "Compartilhe com cuidado",
+  onCreatePost,
+  title = "Como podemos te apoiar hoje?",
+}: CommunityComposerCardProps) {
   return (
     <section
       aria-labelledby="community-composer-title"
@@ -17,17 +27,16 @@ export function CommunityComposerCard({ onCreatePost }: CommunityComposerCardPro
 
         <div className="min-w-0 flex-1">
           <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">
-            Compartilhe com cuidado
+            {eyebrow}
           </p>
           <h2
             className="mt-2 font-title text-xl font-extrabold leading-tight text-title"
             id="community-composer-title"
           >
-            Como podemos te apoiar hoje?
+            {title}
           </h2>
           <p className="mt-3 text-sm leading-6 text-text">
-            Publique uma dúvida, pedido de apoio ou experiência. Você pode preservar sua identidade
-            quando preferir.
+            {description}
           </p>
         </div>
       </div>
@@ -37,7 +46,7 @@ export function CommunityComposerCard({ onCreatePost }: CommunityComposerCardPro
         onClick={onCreatePost}
         type="button"
       >
-        Criar publicação
+        {buttonLabel}
       </button>
     </section>
   );
