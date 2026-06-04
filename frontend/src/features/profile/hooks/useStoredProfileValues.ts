@@ -2,10 +2,12 @@ import { useSyncExternalStore } from "react";
 import type { HomeProfile } from "@/features/home/types";
 import {
   getDefaultProfileValues,
+  getDefaultUserProfile,
+  getUserProfileFromSnapshot,
   PROFILE_STORAGE_KEY,
   PROFILE_UPDATED_EVENT,
+  userProfileToFormValues,
 } from "@/features/profile/data/profile-storage";
-import type { ProfileFormValues } from "@/features/profile/types";
 
 function subscribeToProfileChanges(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -44,12 +46,19 @@ export function useStoredProfileValues(profile: HomeProfile) {
     return getDefaultProfileValues(profile);
   }
 
-  try {
-    return {
-      ...getDefaultProfileValues(profile),
-      ...(JSON.parse(snapshot) as Partial<ProfileFormValues>),
-    };
-  } catch {
-    return getDefaultProfileValues(profile);
+  return userProfileToFormValues(getUserProfileFromSnapshot(snapshot, profile), profile);
+}
+
+export function useStoredUserProfile(profile: HomeProfile) {
+  const snapshot = useSyncExternalStore(
+    subscribeToProfileChanges,
+    getProfileSnapshot,
+    getProfileServerSnapshot
+  );
+
+  if (!snapshot) {
+    return getDefaultUserProfile(profile);
   }
+
+  return getUserProfileFromSnapshot(snapshot, profile);
 }

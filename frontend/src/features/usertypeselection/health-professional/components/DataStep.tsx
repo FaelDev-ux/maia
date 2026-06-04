@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowRight, Check, ChevronDown, Mail } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Mail, Search } from "lucide-react";
 import { useState } from "react";
 import HeaderOnboarding from "@/features/onboarding/components/HeaderOnboarding";
+import { getStoredProfileValues, saveProfileValues } from "@/features/profile/data/profile-storage";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import cn from "@/lib/utils";
 import {
   type ProfessionalOption,
@@ -12,20 +14,84 @@ import {
 
 type ProfessionalSelectFieldProps = {
   id: string;
+  isOpen: boolean;
   label: string;
+  onChange?: (value: string) => void;
+  onOpenChange: (isOpen: boolean) => void;
   options: ProfessionalOption[];
   required?: boolean;
+  value?: string;
 };
+
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
+function getProfileStateValue(state: string) {
+  return (
+    professionalStateOptions.find((option) => option.value === state || option.label === state)
+      ?.value ?? ""
+  );
+}
+
+function getProfileSpecialtyValue(specialty: string) {
+  if (!specialty) {
+    return "";
+  }
+
+  return (
+    professionalSpecialtyOptions.find(
+      (option) => option.value === specialty || option.label === specialty
+    )?.value ?? "other"
+  );
+}
+
+function getSpecialtyLabel(value: string, customSpecialty: string) {
+  if (value === "other") {
+    return customSpecialty.trim();
+  }
+
+  return professionalSpecialtyOptions.find((option) => option.value === value)?.label ?? "";
+}
 
 function ProfessionalSelectField({
   id,
+  isOpen,
   label,
+  onChange,
+  onOpenChange,
   options,
   required = false,
+  value,
 }: ProfessionalSelectFieldProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedValue, setSelectedValue] = useState("");
+  const [internalSelectedValue, setInternalSelectedValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const selectedValue = value ?? internalSelectedValue;
   const selectedOption = options.find((option) => option.value === selectedValue);
+  const normalizedSearchQuery = normalizeSearchValue(searchQuery.trim());
+  const filteredOptions = normalizedSearchQuery
+    ? options.filter((option) => normalizeSearchValue(option.label).includes(normalizedSearchQuery))
+    : options;
+
+  function handleSelect(value: string) {
+    setInternalSelectedValue(value);
+    onChange?.(value);
+    onOpenChange(false);
+    setSearchQuery("");
+  }
+
+  function handleToggleOptions() {
+    setSearchQuery("");
+    onOpenChange(!isOpen);
+  }
+
+  function handleCloseOptions() {
+    setSearchQuery("");
+    onOpenChange(false);
+  }
 
   return (
     <div className="relative">
@@ -41,7 +107,7 @@ function ProfessionalSelectField({
         aria-haspopup="listbox"
         className="group flex h-13 w-full items-center gap-4 rounded-full border border-transparent bg-surface px-5 text-sm font-medium transition hover:bg-primary/10 focus-visible:border-primary focus-visible:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-14 sm:text-base"
         id={id}
-        onClick={() => setIsOpen((isDropdownOpen) => !isDropdownOpen)}
+        onClick={handleToggleOptions}
         type="button"
       >
         <ChevronDown
@@ -62,34 +128,68 @@ function ProfessionalSelectField({
       </button>
 
       {isOpen && (
-        <div
-          className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-[1.45rem] border border-border bg-white p-1.5 shadow-[0_18px_44px_rgba(140,64,84,0.14)]"
-          role="listbox"
-        >
-          {options.map((option) => {
-            const isSelected = option.value === selectedValue;
+        <>
+          <button
+            aria-label={`Fechar seleção de ${label.toLowerCase()}`}
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            onClick={handleCloseOptions}
+            type="button"
+          />
 
-            return (
-              <button
-                aria-selected={isSelected}
-                className={cn(
-                  "flex h-11 w-full items-center justify-between rounded-full px-4 text-sm font-semibold text-text transition hover:bg-primary/10 hover:text-title",
-                  isSelected && "bg-primary/15 text-title"
-                )}
-                key={option.value}
-                onClick={() => {
-                  setSelectedValue(option.value);
-                  setIsOpen(false);
-                }}
-                role="option"
-                type="button"
-              >
-                <span>{option.label}</span>
-                {isSelected && <Check className="text-primary" size={16} />}
-              </button>
-            );
-          })}
-        </div>
+          <div className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-3rem),22rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.45rem] border border-border bg-white p-1.5 shadow-[0_18px_44px_rgba(140,64,84,0.14)]">
+            <label
+              className="relative block border-b border-border/70 px-3 py-3"
+              htmlFor={`${id}-search`}
+            >
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 text-title/55"
+                size={16}
+                strokeWidth={2.3}
+              />
+              <input
+                autoComplete="off"
+                className="h-11 w-full rounded-full bg-surface pl-10 pr-4 text-sm font-semibold text-title outline-none transition placeholder:text-text/45 focus:bg-white focus:ring-2 focus:ring-primary/30"
+                id={`${id}-search`}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={`Buscar ${label.toLowerCase()}`}
+                type="search"
+                value={searchQuery}
+              />
+            </label>
+
+            <div className="h-[20rem] max-h-[calc(100dvh-8.5rem)] overflow-y-auto" role="listbox">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
+                  const isSelected = option.value === selectedValue;
+
+                  return (
+                    <button
+                      aria-selected={isSelected}
+                      className={cn(
+                        "flex h-16 w-full items-center justify-between gap-4 border-b border-border/70 px-4 text-left text-sm font-semibold leading-5 text-text transition last:border-b-0 hover:bg-primary/10 hover:text-title focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary",
+                        isSelected && "bg-primary/15 text-title"
+                      )}
+                      key={option.value}
+                      onClick={() => handleSelect(option.value)}
+                      role="option"
+                      type="button"
+                    >
+                      <span className="min-w-0 flex-1 whitespace-normal break-words">
+                        {option.label}
+                      </span>
+                      {isSelected ? <Check className="shrink-0 text-primary" size={16} /> : null}
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="flex h-full items-center justify-center px-5 text-center text-sm font-semibold leading-6 text-text">
+                  Nenhuma opção encontrada.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -100,10 +200,53 @@ type HealthProfessionalDataStepProps = {
   onContinue: () => void;
 };
 
+type ProfessionalSelectId = "professional-specialty" | "professional-state";
+
 export function HealthProfessionalDataStep({
   onBack,
   onContinue,
 }: HealthProfessionalDataStepProps) {
+  const storedProfileValues = useStoredProfileValues("health-professional");
+  const [openSelectId, setOpenSelectId] = useState<ProfessionalSelectId | null>(null);
+  const [registrationNumberDraft, setRegistrationNumberDraft] = useState<string | null>(null);
+  const [selectedStateDraft, setSelectedStateDraft] = useState<string | null>(null);
+  const [selectedSpecialtyDraft, setSelectedSpecialtyDraft] = useState<string | null>(null);
+  const [customSpecialtyDraft, setCustomSpecialtyDraft] = useState<string | null>(null);
+  const storedState = getProfileStateValue(storedProfileValues.state);
+  const storedSpecialty = getProfileSpecialtyValue(storedProfileValues.specialty);
+  const registrationNumber = registrationNumberDraft ?? storedProfileValues.registrationNumber;
+  const selectedState = selectedStateDraft ?? storedState;
+  const selectedSpecialty = selectedSpecialtyDraft ?? storedSpecialty;
+  const customSpecialty =
+    customSpecialtyDraft ?? (storedSpecialty === "other" ? storedProfileValues.specialty : "");
+
+  function handleSelectOpenChange(selectId: ProfessionalSelectId, isOpen: boolean) {
+    setOpenSelectId(isOpen ? selectId : null);
+  }
+
+  function handleSpecialtyChange(value: string) {
+    setSelectedSpecialtyDraft(value);
+
+    if (value !== "other") {
+      setCustomSpecialtyDraft("");
+    }
+  }
+
+  function handleContinue() {
+    const currentProfileValues = getStoredProfileValues("health-professional");
+
+    saveProfileValues(
+      {
+        ...currentProfileValues,
+        registrationNumber: registrationNumber.trim(),
+        specialty: getSpecialtyLabel(selectedSpecialty, customSpecialty),
+        state: selectedState,
+      },
+      "health-professional"
+    );
+    onContinue();
+  }
+
   return (
     <main className="min-h-dvh overflow-hidden bg-background text-text">
       <div className="mx-auto flex min-h-dvh w-full max-w-107.5 flex-col px-6 pb-7 pt-6 md:max-w-[64rem] md:px-10 md:pb-10 md:pt-8">
@@ -138,31 +281,63 @@ export function HealthProfessionalDataStep({
                   <input
                     className="min-w-0 flex-1 bg-transparent text-sm font-medium text-title outline-none placeholder:text-text/40 sm:text-base"
                     id="professional-register"
+                    onChange={(event) => setRegistrationNumberDraft(event.target.value)}
                     placeholder="123456"
                     type="text"
+                    value={registrationNumber}
                   />
                 </div>
               </div>
 
               <ProfessionalSelectField
                 id="professional-state"
+                isOpen={openSelectId === "professional-state"}
                 label="Estado (UF)"
+                onChange={setSelectedStateDraft}
+                onOpenChange={(isOpen) => handleSelectOpenChange("professional-state", isOpen)}
                 options={professionalStateOptions}
                 required
+                value={selectedState}
               />
 
               <ProfessionalSelectField
                 id="professional-specialty"
+                isOpen={openSelectId === "professional-specialty"}
                 label="Especialidade"
+                onChange={handleSpecialtyChange}
+                onOpenChange={(isOpen) => handleSelectOpenChange("professional-specialty", isOpen)}
                 options={professionalSpecialtyOptions}
+                value={selectedSpecialty}
               />
+
+              {selectedSpecialty === "other" ? (
+                <div>
+                  <label
+                    className="mb-3 block text-[0.68rem] font-extrabold uppercase leading-4 tracking-[0.22em] text-text"
+                    htmlFor="professional-custom-specialty"
+                  >
+                    Escreva sua especialidade
+                  </label>
+
+                  <div className="flex h-13 items-center gap-4 rounded-full border border-transparent bg-surface px-5 transition focus-within:border-primary focus-within:bg-white sm:h-14">
+                    <input
+                      className="min-w-0 flex-1 bg-transparent text-sm font-medium text-title outline-none placeholder:text-text/40 sm:text-base"
+                      id="professional-custom-specialty"
+                      onChange={(event) => setCustomSpecialtyDraft(event.target.value)}
+                      placeholder="Ex.: consultoria em amamentação"
+                      type="text"
+                      value={customSpecialty}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </form>
           </section>
         </div>
 
         <button
           className="mx-auto flex h-14 w-full max-w-84 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-16 sm:max-w-92 sm:text-base"
-          onClick={onContinue}
+          onClick={handleContinue}
           type="button"
         >
           <span className="font-extrabold">Continuar</span> <ArrowRight size={18} />

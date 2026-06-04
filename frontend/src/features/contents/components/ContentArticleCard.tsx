@@ -1,15 +1,18 @@
 import Link from "next/link";
+import type { HomeProfile } from "@/features/home/types";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import type { ContentArticle } from "@/features/contents/types";
 
 type ContentArticleCardProps = {
   article: ContentArticle;
+  profile: HomeProfile;
 };
 
-export function ContentArticleCard({ article }: ContentArticleCardProps) {
+export function ContentArticleCard({ article, profile }: ContentArticleCardProps) {
   return (
     <Link
       className="group block rounded-[2rem] bg-white p-4 shadow-[0_16px_44px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65 transition hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
-      href={`/conteudos/${article.id}`}
+      href={getProfileScopedHref(`/conteudos/${article.id}`, profile)}
     >
       <div
         className="relative h-44 overflow-hidden rounded-[1.55rem] bg-cover bg-center md:h-52"

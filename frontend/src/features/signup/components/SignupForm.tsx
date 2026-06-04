@@ -50,8 +50,8 @@ export function SignupForm({
   }
 
   const formCard = (
-    <div className="w-full">
-      <div className="rounded-[1.75rem] bg-white/90 px-5 py-6 backdrop-blur sm:px-6">
+    <div className="w-full min-w-0">
+      <div className="w-full min-w-0 rounded-[1.75rem] bg-white/90 px-4 py-6 backdrop-blur sm:px-6">
         <form className="flex flex-col gap-3.5" onSubmit={handleSubmit(onSubmit)}>
           {signupFields.map((field) => {
             const Icon = field.icon;
@@ -102,7 +102,11 @@ export function SignupForm({
   );
 
   if (variant === "card") {
-    return <section className="w-full max-w-[25rem]">{formCard}</section>;
+    return (
+      <section className="w-full max-w-[calc(100vw-3rem)] min-w-0 sm:max-w-[25rem]">
+        {formCard}
+      </section>
+    );
   }
 
   return (
@@ -116,8 +120,10 @@ export function SignupForm({
       }}
     >
       <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-sm flex-col justify-center sm:max-w-md md:max-w-none md:flex-row md:items-center md:justify-center md:gap-16 lg:gap-24">
-        <section className="order-2 w-full md:order-1 md:flex md:w-1/2 md:justify-center">
-          <div className="w-full md:max-w-94">{formCard}</div>
+        <section className="order-2 min-w-0 w-full md:order-1 md:flex md:w-1/2 md:justify-center">
+          <div className="w-full min-w-0 max-w-[calc(100vw-3rem)] sm:max-w-md md:max-w-94">
+            {formCard}
+          </div>
         </section>
 
         <section className="order-1 mb-7 md:order-2 md:mb-0 md:flex md:w-1/2 md:flex-col md:items-start">

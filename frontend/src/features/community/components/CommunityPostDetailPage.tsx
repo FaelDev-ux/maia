@@ -2,15 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityComments } from "@/features/community/data/community-comments";
-import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
+import {
+  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
+  COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
+  getStoredCreatedCommunityPosts,
+  getStoredRemovedPostIds,
+} from "@/features/community/data/community-storage";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -23,18 +27,56 @@ type CommunityPostDetailPageProps = {
   profile: HomeProfile;
 };
 
-function getStoredPost(postId: string) {
+function subscribeToPostDetailStorage(onStoreChange: () => void) {
   if (typeof window === "undefined") {
-    return null;
+    return () => {};
   }
 
-  try {
-    const storedPosts = window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
-    const parsedPosts = storedPosts ? (JSON.parse(storedPosts) as CommunityPost[]) : [];
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
+  window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
 
-    return parsedPosts.find((currentPost) => currentPost.id === postId) ?? null;
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
+    window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
+  };
+}
+
+function getPostDetailStorageSnapshot() {
+  return JSON.stringify({
+    createdPosts: getStoredCreatedCommunityPosts(),
+    removedPostIds: getStoredRemovedPostIds(),
+  });
+}
+
+function getPostDetailServerSnapshot() {
+  return JSON.stringify({
+    createdPosts: [],
+    removedPostIds: [],
+  });
+}
+
+function parsePostDetailStorageSnapshot(snapshot: string) {
+  try {
+    const parsedSnapshot = JSON.parse(snapshot) as {
+      createdPosts?: CommunityPost[];
+      removedPostIds?: string[];
+    };
+
+    return {
+      createdPosts: Array.isArray(parsedSnapshot.createdPosts)
+        ? parsedSnapshot.createdPosts.filter((post) => typeof post.id === "string")
+        : [],
+      removedPostIds: Array.isArray(parsedSnapshot.removedPostIds)
+        ? parsedSnapshot.removedPostIds.filter((postId): postId is string => typeof postId === "string")
+        : [],
+    };
   } catch {
-    return null;
+    return {
+      createdPosts: [],
+      removedPostIds: [],
+    };
   }
 }
 
@@ -67,7 +109,22 @@ export function CommunityPostDetailPage({
   const router = useRouter();
   const commentsSectionRef = useRef<HTMLElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
-  const [post] = useState<CommunityPost | null>(() => initialPost ?? getStoredPost(postId));
+  const postDetailStorageSnapshot = useSyncExternalStore(
+    subscribeToPostDetailStorage,
+    getPostDetailStorageSnapshot,
+    getPostDetailServerSnapshot
+  );
+  const { createdPosts, removedPostIds } = useMemo(
+    () => parsePostDetailStorageSnapshot(postDetailStorageSnapshot),
+    [postDetailStorageSnapshot]
+  );
+  const post = useMemo<CommunityPost | null>(() => {
+    if (removedPostIds.includes(postId)) {
+      return null;
+    }
+
+    return initialPost ?? createdPosts.find((currentPost) => currentPost.id === postId) ?? null;
+  }, [createdPosts, initialPost, postId, removedPostIds]);
   const [comments, setComments] = useState(() =>
     initialPost || post ? communityComments.filter((comment) => comment.postId === postId) : []
   );
@@ -125,7 +182,7 @@ export function CommunityPostDetailPage({
       {
         id: `mock-comment-${Date.now()}`,
         postId,
-        authorName: storedProfile.fullName || mockAuthenticatedUser.fullName,
+        authorName: storedProfile.fullName || "Usuária Maia",
         authorRole: "Mãe no puerpério",
         avatarInitials: initials || avatarInitial,
         message: trimmedMessage,

@@ -26,10 +26,13 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   const firstName = values.fullName.split(" ")[0] ?? "Maia";
 
   function updateValue(fieldId: keyof ProfileFormValues, value: string) {
-    saveProfileValues({
-      ...values,
-      [fieldId]: value,
-    });
+    saveProfileValues(
+      {
+        ...values,
+        [fieldId]: value,
+      },
+      profile
+    );
     setIsSaved(false);
   }
 

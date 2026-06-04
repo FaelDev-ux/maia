@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   CalendarDays,
   HeartHandshake,
-  Lock,
   Mail,
   MapPin,
   Phone,
@@ -46,14 +45,6 @@ const baseBirthDateField = {
   type: "text" as const,
 };
 
-const basePasswordField = {
-  id: "password",
-  icon: Lock,
-  label: "Senha",
-  placeholder: "********",
-  type: "password" as const,
-};
-
 export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
   "recent-mother": {
     profile: "recent-mother",
@@ -64,7 +55,6 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
       baseEmailField,
       basePhoneField,
       baseBirthDateField,
-      basePasswordField,
       {
         id: "babyBirthDate",
         icon: CalendarDays,
@@ -90,7 +80,6 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
       baseEmailField,
       basePhoneField,
       baseBirthDateField,
-      basePasswordField,
       {
         id: "journeyMoment",
         icon: Baby,
@@ -116,7 +105,6 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
       baseEmailField,
       basePhoneField,
       baseBirthDateField,
-      basePasswordField,
       {
         id: "motherhoodExperience",
         icon: UsersRound,
@@ -143,7 +131,6 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
       baseEmailField,
       basePhoneField,
       baseBirthDateField,
-      basePasswordField,
       {
         id: "registrationNumber",
         icon: BadgeCheck,

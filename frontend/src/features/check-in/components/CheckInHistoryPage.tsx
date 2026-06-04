@@ -16,7 +16,6 @@ import {
 import { Controller, useForm, useWatch } from "react-hook-form";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import {
   checkInEmotionOptions,
   checkInIntensityOptions,
@@ -27,11 +26,14 @@ import {
 } from "@/features/check-in/data/check-in-options";
 import {
   getDailyCheckInDateKey,
-  getStoredDailyCheckIns,
   getTodayDateKey,
   updateDailyCheckIn,
 } from "@/features/check-in/data/check-in-storage";
+import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
+import type { HomeProfile } from "@/features/home/types";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import { checkInSchema, type CheckInFormData } from "@/schemas/check-in.schema";
 import cn from "@/lib/utils";
 
@@ -46,6 +48,10 @@ type CheckInEditFormProps = {
   onCancel: () => void;
   onSave: (record: DailyCheckInRecord) => void;
   record: DailyCheckInRecord;
+};
+
+type CheckInHistoryPageProps = {
+  profile: HomeProfile;
 };
 
 const selectedPillClasses =
@@ -350,16 +356,17 @@ function CheckInEditForm({ onCancel, onSave, record }: CheckInEditFormProps) {
   );
 }
 
-export function CheckInHistoryPage() {
+export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
+  const storedProfile = useStoredProfileValues(profile);
   const [todayKey] = useState(getTodayDateKey);
-  const [records, setRecords] = useState(() => getStoredDailyCheckIns());
+  const records = useStoredDailyCheckIns();
   const [monthDate, setMonthDate] = useState(getInitialMonthDate);
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
   const [isEditing, setIsEditing] = useState(false);
   const [lockedNotice, setLockedNotice] = useState(false);
-  const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
+  const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
-  const avatarUrl = mockAuthenticatedUser.avatarUrl;
+  const avatarUrl = storedProfile.avatarUrl;
   const recordMap = getRecordMap(records);
   const selectedRecord = recordMap.get(selectedDateKey);
   const selectedDayIsToday = selectedDateKey === todayKey;
@@ -397,7 +404,6 @@ export function CheckInHistoryPage() {
 
   function handleSaveEdit(record: DailyCheckInRecord) {
     updateDailyCheckIn(record);
-    setRecords(getStoredDailyCheckIns());
     setIsEditing(false);
     setLockedNotice(false);
   }
@@ -409,7 +415,7 @@ export function CheckInHistoryPage() {
           <Link
             aria-label="Voltar para home"
             className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            href="/home"
+            href={getProfileScopedHref("/home", profile)}
           >
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
           </Link>
@@ -622,7 +628,7 @@ export function CheckInHistoryPage() {
                 {selectedDayIsToday ? (
                   <Link
                     className="mt-5 inline-flex min-h-[3.25rem] items-center justify-center rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    href="/check-in"
+                    href={getProfileScopedHref("/check-in", profile)}
                   >
                     Registrar hoje
                   </Link>

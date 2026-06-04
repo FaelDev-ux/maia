@@ -4,36 +4,46 @@ export type ProfessionalOption = {
 };
 
 export const professionalStateOptions: ProfessionalOption[] = [
-  {
-    label: "Bicicleta sem freio",
-    value: "option-1",
-  },
-  {
-    label: "i donti spiki inglishi",
-    value: "option-2",
-  },
-  {
-    label: "O que é isso, um teste de QI?",
-    value: "option-3",
-  },
-  { label: "A vida é um sanduíche", value: "option-4" },
+  { label: "Acre (AC)", value: "AC" },
+  { label: "Alagoas (AL)", value: "AL" },
+  { label: "Amapá (AP)", value: "AP" },
+  { label: "Amazonas (AM)", value: "AM" },
+  { label: "Bahia (BA)", value: "BA" },
+  { label: "Ceará (CE)", value: "CE" },
+  { label: "Distrito Federal (DF)", value: "DF" },
+  { label: "Espírito Santo (ES)", value: "ES" },
+  { label: "Goiás (GO)", value: "GO" },
+  { label: "Maranhão (MA)", value: "MA" },
+  { label: "Mato Grosso (MT)", value: "MT" },
+  { label: "Mato Grosso do Sul (MS)", value: "MS" },
+  { label: "Minas Gerais (MG)", value: "MG" },
+  { label: "Pará (PA)", value: "PA" },
+  { label: "Paraíba (PB)", value: "PB" },
+  { label: "Paraná (PR)", value: "PR" },
+  { label: "Pernambuco (PE)", value: "PE" },
+  { label: "Piauí (PI)", value: "PI" },
+  { label: "Rio de Janeiro (RJ)", value: "RJ" },
+  { label: "Rio Grande do Norte (RN)", value: "RN" },
+  { label: "Rio Grande do Sul (RS)", value: "RS" },
+  { label: "Rondônia (RO)", value: "RO" },
+  { label: "Roraima (RR)", value: "RR" },
+  { label: "Santa Catarina (SC)", value: "SC" },
+  { label: "São Paulo (SP)", value: "SP" },
+  { label: "Sergipe (SE)", value: "SE" },
+  { label: "Tocantins (TO)", value: "TO" },
 ];
 
 export const professionalSpecialtyOptions: ProfessionalOption[] = [
-  {
-    label: "Tudo deles e nada nosso",
-    value: "option-1",
-  },
-  {
-    label: "Daqui pra frente é só pra trás",
-    value: "option-2",
-  },
-  {
-    label: "A vida não é um morango",
-    value: "option-3",
-  },
-  {
-    label: "Geral gosta de pão",
-    value: "option-4",
-  },
+  { label: "Nenhuma", value: "none" },
+  { label: "Enfermagem obstétrica", value: "obstetric-nursing" },
+  { label: "Enfermagem neonatal", value: "neonatal-nursing" },
+  { label: "Enfermagem materno-infantil", value: "maternal-child-nursing" },
+  { label: "Enfermagem pediátrica", value: "pediatric-nursing" },
+  { label: "Ginecologia e obstetrícia", value: "gynecology-obstetrics" },
+  { label: "Obstetrícia", value: "obstetrics" },
+  { label: "Pediatria", value: "pediatrics" },
+  { label: "Neonatologia", value: "neonatology" },
+  { label: "Medicina de família e comunidade", value: "family-community-medicine" },
+  { label: "Psiquiatria perinatal", value: "perinatal-psychiatry" },
+  { label: "Outra", value: "other" },
 ];

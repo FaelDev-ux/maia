@@ -39,7 +39,7 @@ export function AuthInput({
     "h-full min-w-0 flex-1 bg-transparent text-sm text-title outline-none placeholder:text-text/45 autofill:bg-transparent autofill:transition-colors autofill:duration-[50000s]";
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <label
         className="block text-[0.68rem] font-bold uppercase tracking-[0.16em] text-title"
         htmlFor={id}
@@ -48,13 +48,13 @@ export function AuthInput({
       </label>
 
       <div
-        className={`flex h-12 items-center gap-3 rounded-full border px-4 transition ${
+        className={`flex h-12 w-full min-w-0 items-center gap-3 rounded-full border py-0 pl-5 pr-4 transition sm:gap-3.5 sm:pl-5 sm:pr-4 ${
           error
             ? "border-danger bg-danger/5"
             : "border-transparent bg-neutral/70 focus-within:border-primary focus-within:bg-white"
         }`}
       >
-        {icon && <span className="text-text/70">{icon}</span>}
+        {icon && <span className="ml-2 shrink-0 text-text/70 sm:ml-1">{icon}</span>}
 
         {mask ? (
           <InputMask
@@ -85,7 +85,7 @@ export function AuthInput({
         {isPassword && (
           <button
             aria-label={isPasswordVisible ? "Ocultar senha" : "Exibir senha"}
-            className="grid size-8 shrink-0 place-items-center rounded-full text-text/65 transition hover:bg-white/70 hover:text-title focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="mr-1 grid size-8 shrink-0 place-items-center rounded-full text-text/65 transition hover:bg-white/70 hover:text-title focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             onClick={() => setIsPasswordVisible((isVisible) => !isVisible)}
             type="button"
           >

@@ -25,9 +25,9 @@ export function ForgotPasswordPage() {
   }
 
   const recoveryForm = (
-    <section className="w-full max-w-94">
+    <section className="w-full max-w-[calc(100vw-3rem)] min-w-0 sm:max-w-94">
       <form
-        className="rounded-[1.75rem] bg-white/90 px-5 py-6 backdrop-blur sm:px-6"
+        className="w-full min-w-0 rounded-[1.75rem] bg-white/90 px-4 py-6 backdrop-blur sm:px-6"
         onSubmit={handleSubmit(onSubmit)}
       >
         <AuthInput
@@ -60,10 +60,10 @@ export function ForgotPasswordPage() {
 
   return (
     <main className="min-h-dvh bg-background text-text">
-      <div className="mx-auto flex min-h-dvh w-full max-w-107.5 flex-col justify-center px-5 py-8 md:max-w-[78rem] md:flex-row md:items-center md:gap-16 md:px-10 md:py-10 lg:gap-24">
+      <div className="mx-auto flex min-h-dvh w-full max-w-none flex-col justify-center overflow-x-hidden px-6 py-8 md:max-w-[78rem] md:flex-row md:items-center md:gap-16 md:px-10 md:py-10 lg:gap-24">
         <ForgotPasswordCopy />
 
-        <div className="mt-7 flex w-full justify-center md:mt-0 md:max-w-[25rem]">
+        <div className="mt-7 flex w-full min-w-0 justify-center md:mt-0 md:max-w-[25rem]">
           {recoveryForm}
         </div>
       </div>
@@ -88,7 +88,7 @@ function ForgotPasswordCopy() {
       </header>
 
       <h1 className="font-title text-[2rem] font-extrabold leading-tight text-title md:text-5xl">
-        Recupere o acesso do<span className="text-primary">seu espaço.</span>
+        Recupere o acesso do <span className="text-primary">seu espaço.</span>
       </h1>
 
       <p className="mt-4 max-w-96 text-sm leading-6 text-text md:text-base">

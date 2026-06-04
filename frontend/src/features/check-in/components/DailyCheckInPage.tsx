@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import {
   checkInEmotionOptions,
   checkInIntensityOptions,
@@ -21,16 +20,21 @@ import {
 } from "@/features/check-in/data/check-in-options";
 import {
   DAILY_CHECK_INS_STORAGE_KEY,
+  DAILY_CHECK_INS_UPDATED_EVENT,
   getDailyCheckInDateKey,
   getTodayDateKey,
   saveDailyCheckIn,
 } from "@/features/check-in/data/check-in-storage";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
+import type { HomeProfile } from "@/features/home/types";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import { checkInSchema, type CheckInFormData } from "@/schemas/check-in.schema";
 import cn from "@/lib/utils";
 
 type DailyCheckInPageProps = {
   initialEmotionId?: string;
+  profile: HomeProfile;
 };
 
 function getDefaultEmotionId(initialEmotionId?: string) {
@@ -61,9 +65,11 @@ function subscribeToStoredCheckIns(onStoreChange: () => void) {
   }
 
   window.addEventListener("storage", onStoreChange);
+  window.addEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
   };
 }
 
@@ -102,8 +108,9 @@ function getDailyCheckInByDateFromSnapshot(snapshot: string, dateKey: string) {
   }
 }
 
-export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
+export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPageProps) {
   const router = useRouter();
+  const storedProfile = useStoredProfileValues(profile);
   const [todayDateKey] = useState(getTodayDateKey);
   const [savedRecord, setSavedRecord] = useState<DailyCheckInRecord | null>(null);
   const [modalCountdown, setModalCountdown] = useState(10);
@@ -117,11 +124,14 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
     : getDailyCheckInByDateFromSnapshot(storedCheckInsSnapshot, todayDateKey);
   const statusModalType = existingTodayRecord ? "existing" : savedRecord ? "saved" : null;
   const statusModalIsExisting = statusModalType === "existing";
-  const statusModalRedirectHref = statusModalIsExisting ? "/historico" : "/home";
+  const statusModalRedirectHref = getProfileScopedHref(
+    statusModalIsExisting ? "/historico" : "/home",
+    profile
+  );
   const StatusModalIcon = statusModalIsExisting ? History : Save;
-  const firstName = mockAuthenticatedUser.fullName.split(" ")[0] ?? "Maia";
+  const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
-  const avatarUrl = mockAuthenticatedUser.avatarUrl;
+  const avatarUrl = storedProfile.avatarUrl;
   const {
     control,
     formState: { errors, isSubmitting },
@@ -195,7 +205,7 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
           <Link
             aria-label="Voltar para home"
             className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            href="/home"
+            href={getProfileScopedHref("/home", profile)}
           >
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
           </Link>
@@ -522,7 +532,7 @@ export function DailyCheckInPage({ initialEmotionId }: DailyCheckInPageProps) {
 
               <Link
                 className="inline-flex min-h-[3.5rem] items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-text ring-1 ring-border transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                href={statusModalIsExisting ? "/home" : "/historico"}
+                href={getProfileScopedHref(statusModalIsExisting ? "/home" : "/historico", profile)}
               >
                 {statusModalIsExisting ? (
                   <Home aria-hidden size={17} strokeWidth={2.3} />

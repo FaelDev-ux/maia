@@ -2,17 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useId, useState } from "react";
-import { Search, Sparkles, X } from "lucide-react";
+import { useId, useMemo, useState, useSyncExternalStore } from "react";
+import { Search, Sparkles, Trash2, X } from "lucide-react";
 import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import { CommunityComposerCard } from "@/features/community/components/CommunityComposerCard";
 import { CommunityCreatePostModal } from "@/features/community/components/CommunityCreatePostModal";
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
-import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
+import {
+  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
+  COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
+  getStoredCreatedCommunityPosts,
+  getStoredRemovedPostIds,
+  saveStoredCreatedCommunityPosts,
+} from "@/features/community/data/community-storage";
 import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -34,20 +39,61 @@ function getStoredCreatedPosts() {
     return [];
   }
 
+  const fixedPostIds = new Set(communityPosts.map((post) => post.id));
+
+  return getStoredCreatedCommunityPosts().filter((post) => !fixedPostIds.has(post.id));
+}
+
+function subscribeToCommunityPosts(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
+  window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
+    window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
+  };
+}
+
+function getCommunityPostsSnapshot() {
+  return JSON.stringify({
+    createdPosts: getStoredCreatedPosts(),
+    removedPostIds: getStoredRemovedPostIds(),
+  });
+}
+
+function getCommunityPostsServerSnapshot() {
+  return JSON.stringify({
+    createdPosts: [],
+    removedPostIds: [],
+  });
+}
+
+function parseCommunityPostsSnapshot(snapshot: string) {
   try {
-    const storedPosts = window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
+    const parsedSnapshot = JSON.parse(snapshot) as {
+      createdPosts?: CommunityPost[];
+      removedPostIds?: string[];
+    };
 
-    if (!storedPosts) {
-      return [];
-    }
-
-    const parsedPosts = JSON.parse(storedPosts) as CommunityPost[];
-    const fixedPostIds = new Set(communityPosts.map((post) => post.id));
-
-    return parsedPosts.filter((post) => !fixedPostIds.has(post.id));
+    return {
+      createdPosts: Array.isArray(parsedSnapshot.createdPosts)
+        ? parsedSnapshot.createdPosts.filter((post) => typeof post.id === "string")
+        : [],
+      removedPostIds: Array.isArray(parsedSnapshot.removedPostIds)
+        ? parsedSnapshot.removedPostIds.filter((postId): postId is string => typeof postId === "string")
+        : [],
+    };
   } catch {
-    window.localStorage.removeItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY);
-    return [];
+    return {
+      createdPosts: [],
+      removedPostIds: [],
+    };
   }
 }
 
@@ -74,16 +120,143 @@ function getPostSearchText(post: CommunityPost) {
   );
 }
 
+function getCommunityComposerCopy(profile: HomeProfile) {
+  if (profile === "health-professional") {
+    return {
+      buttonLabel: "Compartilhar orientação",
+      defaultCategory: "profissional" as CommunityPostCategory,
+      description:
+        "Publique uma orientação geral, segura e acolhedora para ajudar mães e famílias sem substituir atendimento individual.",
+      eyebrow: "Oriente com cuidado",
+      messagePlaceholder:
+        "Compartilhe uma orientação geral e cuidadosa. Evite diagnósticos e incentive busca de atendimento quando fizer sentido.",
+      modalEyebrow: "Orientação profissional",
+      submitLabel: "Publicar orientação",
+      title: "Tem uma orientação que pode apoiar alguém?",
+      titlePlaceholder: "Qual orientação pode ajudar a comunidade?",
+    };
+  }
+
+  if (profile === "experienced-mother") {
+    return {
+      buttonLabel: "Compartilhar apoio",
+      defaultCategory: "rede" as CommunityPostCategory,
+      description:
+        "Compartilhe uma vivência, uma ideia simples ou uma palavra de acolhimento para quem está atravessando uma fase parecida.",
+      eyebrow: "Apoie com experiência",
+      messagePlaceholder:
+        "Conte uma experiência, uma frase de acolhimento ou um cuidado simples que pode ajudar outra mãe.",
+      modalEyebrow: "Apoio da mentora",
+      submitLabel: "Publicar apoio",
+      title: "Pensou em algo que pode acolher alguém?",
+      titlePlaceholder: "Que apoio você quer compartilhar?",
+    };
+  }
+
+  return {
+    buttonLabel: "Criar publicação",
+    defaultCategory: "apoio" as CommunityPostCategory,
+    description:
+      "Publique uma dúvida, pedido de apoio ou experiência. Você pode preservar sua identidade quando preferir.",
+    eyebrow: "Compartilhe com cuidado",
+    messagePlaceholder:
+      "Escreva com calma. Você pode pedir apoio, dividir uma experiência ou abrir uma conversa.",
+    modalEyebrow: "Nova publicação",
+    submitLabel: "Publicar",
+    title: "Quer dividir o que está vivendo hoje?",
+    titlePlaceholder: "O que você quer compartilhar?",
+  };
+}
+
+function getCommunityAuthorRole(profile: HomeProfile) {
+  if (profile === "health-professional") {
+    return "Profissional de saúde";
+  }
+
+  if (profile === "experienced-mother") {
+    return "Mãe mentora";
+  }
+
+  if (profile === "future-mother") {
+    return "Futura mãe";
+  }
+
+  return "Mãe no puerpério";
+}
+
+function DeletePostConfirmationModal({
+  onCancel,
+  onConfirm,
+  postTitle,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  postTitle: string;
+}) {
+  return (
+    <div
+      aria-labelledby="delete-post-confirmation-title"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-title/35 px-4 py-4 backdrop-blur-sm md:items-center"
+      role="dialog"
+    >
+      <div className="w-full max-w-[24rem] rounded-[2rem] bg-background px-6 py-6 shadow-[0_24px_70px_rgb(57_55_56_/_0.22)] ring-1 ring-white/70">
+        <div className="grid size-12 place-items-center rounded-full bg-danger/[0.12] text-danger">
+          <Trash2 aria-hidden size={22} strokeWidth={2.3} />
+        </div>
+        <h2
+          className="mt-4 font-title text-xl font-extrabold leading-tight text-title"
+          id="delete-post-confirmation-title"
+        >
+          Excluir publicação?
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-text">
+          O post “{postTitle}” será removido do seu mural local e não aparecerá mais na comunidade.
+        </p>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button
+            className="h-12 rounded-full bg-white px-4 text-sm font-extrabold text-text shadow-[0_8px_22px_rgb(140_64_84_/_0.07)] ring-1 ring-border transition hover:bg-surface/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancelar
+          </button>
+          <button
+            className="h-12 rounded-full bg-danger px-4 text-sm font-extrabold text-white shadow-[0_10px_22px_rgb(248_113_113_/_0.22)] transition hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+            onClick={onConfirm}
+            type="button"
+          >
+            Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CommunityPage({ profile }: CommunityPageProps) {
   const searchInputId = useId();
-  const [posts, setPosts] = useState<CommunityPost[]>(() => [
-    ...getStoredCreatedPosts(),
-    ...communityPosts,
-  ]);
+  const communityPostsSnapshot = useSyncExternalStore(
+    subscribeToCommunityPosts,
+    getCommunityPostsSnapshot,
+    getCommunityPostsServerSnapshot
+  );
   const [activeFilterId, setActiveFilterId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [postPendingDeletion, setPostPendingDeletion] = useState<CommunityPost | null>(null);
+  const { createdPosts, removedPostIds } = useMemo(
+    () => parseCommunityPostsSnapshot(communityPostsSnapshot),
+    [communityPostsSnapshot]
+  );
+  const posts = useMemo(() => {
+    const removedPostIdsSet = new Set(removedPostIds);
+
+    return [...createdPosts, ...communityPosts].filter((post) => !removedPostIdsSet.has(post.id));
+  }, [createdPosts, removedPostIds]);
   const storedProfile = useStoredProfileValues(profile);
+  const composerCopy = getCommunityComposerCopy(profile);
+  const authorRole = getCommunityAuthorRole(profile);
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
@@ -95,6 +268,7 @@ export function CommunityPage({ profile }: CommunityPageProps) {
     .join("");
   const activeCategory = filterCategoryById[activeFilterId] ?? "all";
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
+  const userPosts = posts.filter((post) => post.id.startsWith("mock-post-"));
   const visiblePosts = posts.filter((post) => {
     const matchesFilter = activeCategory === "all" || post.category === activeCategory;
     const matchesSearch =
@@ -104,19 +278,21 @@ export function CommunityPage({ profile }: CommunityPageProps) {
   });
 
   function handleCreatePost(post: CommunityPost) {
-    setPosts((currentPosts) => {
-      const updatedPosts = [post, ...currentPosts];
-      const createdPosts = updatedPosts.filter((currentPost) =>
-        currentPost.id.startsWith("mock-post-")
-      );
+    saveStoredCreatedCommunityPosts([
+      post,
+      ...createdPosts.filter((currentPost) => currentPost.id !== post.id),
+    ]);
+  }
 
-      window.localStorage.setItem(
-        COMMUNITY_CREATED_POSTS_STORAGE_KEY,
-        JSON.stringify(createdPosts)
-      );
+  function handleConfirmDeletePost() {
+    if (!postPendingDeletion) {
+      return;
+    }
 
-      return updatedPosts;
-    });
+    saveStoredCreatedCommunityPosts(
+      createdPosts.filter((post) => post.id !== postPendingDeletion.id)
+    );
+    setPostPendingDeletion(null);
   }
 
   return (
@@ -162,12 +338,54 @@ export function CommunityPage({ profile }: CommunityPageProps) {
             </section>
 
             <section className="mt-8 md:mt-9" aria-label="Nova publicação na comunidade">
-              <CommunityComposerCard onCreatePost={() => setIsCreatePostModalOpen(true)} />
+              <CommunityComposerCard
+                buttonLabel={composerCopy.buttonLabel}
+                description={composerCopy.description}
+                eyebrow={composerCopy.eyebrow}
+                onCreatePost={() => setIsCreatePostModalOpen(true)}
+                title={composerCopy.title}
+              />
             </section>
           </div>
 
           <div className="md:min-w-0">
-            <section className="mt-8 md:mt-0" aria-labelledby="community-feed-heading">
+            <section className="mt-8 md:mt-0" aria-labelledby="my-community-posts-heading">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">
+                  Sua participação
+                </p>
+                <h2
+                  className="mt-2 font-title text-2xl font-extrabold leading-tight text-title"
+                  id="my-community-posts-heading"
+                >
+                  Meus posts
+                </h2>
+              </div>
+
+              <div className="mt-5 grid gap-5">
+                {userPosts.length > 0 ? (
+                  userPosts.map((post) => (
+                    <CommunityPostCard
+                      key={post.id}
+                      onDelete={() => setPostPendingDeletion(post)}
+                      post={post}
+                      profile={profile}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[2rem] bg-white px-6 py-7 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
+                    <p className="font-title text-xl font-extrabold text-title">
+                      Você ainda não publicou por aqui
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-text">
+                      Quando compartilhar algo na comunidade, seus posts aparecerão neste espaço.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="mt-9" aria-labelledby="community-feed-heading">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">
@@ -242,12 +460,24 @@ export function CommunityPage({ profile }: CommunityPageProps) {
       <BottomNavigation />
       <CommunityCreatePostModal
         authorInitials={authorInitials || avatarInitial}
-        authorName={storedProfile.fullName || mockAuthenticatedUser.fullName}
-        authorRole="Mãe no puerpério"
+        authorName={storedProfile.fullName || "Usuária Maia"}
+        authorRole={authorRole}
+        defaultCategory={composerCopy.defaultCategory}
         isOpen={isCreatePostModalOpen}
+        messagePlaceholder={composerCopy.messagePlaceholder}
+        modalEyebrow={composerCopy.modalEyebrow}
         onClose={() => setIsCreatePostModalOpen(false)}
         onCreatePost={handleCreatePost}
+        submitLabel={composerCopy.submitLabel}
+        titlePlaceholder={composerCopy.titlePlaceholder}
       />
+      {postPendingDeletion ? (
+        <DeletePostConfirmationModal
+          onCancel={() => setPostPendingDeletion(null)}
+          onConfirm={handleConfirmDeletePost}
+          postTitle={postPendingDeletion.title}
+        />
+      ) : null}
     </main>
   );
 }

@@ -1,22 +1,68 @@
 "use client";
 
-import { type KeyboardEvent, type MouseEvent, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, useMemo, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { EyeOff, Heart, MessageCircle, ShieldCheck } from "lucide-react";
+import { EyeOff, Heart, MessageCircle, ShieldCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HomeProfile } from "@/features/home/types";
+import {
+  COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY,
+  COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT,
+  getStoredSupportedPostIds,
+  saveStoredSupportedPostIds,
+} from "@/features/community/data/community-storage";
 import type { CommunityPost } from "@/features/community/types";
 import { getProfileQuery } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
 type CommunityPostCardProps = {
+  onDelete?: () => void;
   onReply?: () => void;
   post: CommunityPost;
   profile?: HomeProfile;
   variant?: "feed" | "detail";
 };
 
+function subscribeToSupportedPosts(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
+  };
+}
+
+function getSupportedPostsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY) ?? "[]";
+}
+
+function getSupportedPostsServerSnapshot() {
+  return "[]";
+}
+
+function parseSupportedPostIds(snapshot: string) {
+  try {
+    const parsedPostIds = JSON.parse(snapshot);
+
+    return Array.isArray(parsedPostIds)
+      ? parsedPostIds.filter((postId): postId is string => typeof postId === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function CommunityPostCard({
+  onDelete,
   onReply,
   post,
   profile = "recent-mother",
@@ -24,8 +70,17 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
   const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
-  const [isSupported, setIsSupported] = useState(false);
-  const [supportCount, setSupportCount] = useState(post.supportCount);
+  const supportedPostsSnapshot = useSyncExternalStore(
+    subscribeToSupportedPosts,
+    getSupportedPostsSnapshot,
+    getSupportedPostsServerSnapshot
+  );
+  const supportedPostIds = useMemo(
+    () => parseSupportedPostIds(supportedPostsSnapshot),
+    [supportedPostsSnapshot]
+  );
+  const isSupported = supportedPostIds.includes(post.id);
+  const supportCount = post.supportCount + (isSupported ? 1 : 0);
   const displayName = post.isAnonymous ? "Usuária" : post.authorName;
   const displayRole = post.isAnonymous ? "Publicação protegida" : post.authorRole;
   const isInteractive = variant === "feed";
@@ -51,9 +106,12 @@ export function CommunityPostCard({
   function handleSupportClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
     const nextSupportedValue = !isSupported;
+    const storedSupportedPostIds = getStoredSupportedPostIds();
+    const nextSupportedPostIds = nextSupportedValue
+      ? [post.id, ...storedSupportedPostIds.filter((postId) => postId !== post.id)]
+      : storedSupportedPostIds.filter((postId) => postId !== post.id);
 
-    setIsSupported(nextSupportedValue);
-    setSupportCount((currentCount) => currentCount + (nextSupportedValue ? 1 : -1));
+    saveStoredSupportedPostIds(nextSupportedPostIds);
   }
 
   function handleReplyClick(event: MouseEvent<HTMLButtonElement>) {
@@ -65,6 +123,11 @@ export function CommunityPostCard({
     }
 
     openPost(true);
+  }
+
+  function handleDeleteClick(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onDelete?.();
   }
 
   return (
@@ -193,6 +256,17 @@ export function CommunityPostCard({
             <MessageCircle aria-hidden size={23} strokeWidth={2.2} />
             <p>{post.repliesCount}</p>
           </button>
+
+          {onDelete ? (
+            <button
+              aria-label="Excluir publicação"
+              className="grid size-12 flex-1 place-items-center rounded-full bg-danger/[0.12] text-danger transition hover:bg-danger hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+              onClick={handleDeleteClick}
+              type="button"
+            >
+              <Trash2 aria-hidden size={22} strokeWidth={2.2} />
+            </button>
+          ) : null}
         </div>
       </footer>
     </article>
