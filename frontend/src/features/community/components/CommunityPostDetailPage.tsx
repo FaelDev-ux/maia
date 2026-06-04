@@ -9,7 +9,10 @@ import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityComments } from "@/features/community/data/community-comments";
-import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
+import {
+  COMMUNITY_CREATED_POSTS_STORAGE_KEY,
+  getStoredRemovedPostIds,
+} from "@/features/community/data/community-storage";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -66,7 +69,15 @@ export function CommunityPostDetailPage({
   const router = useRouter();
   const commentsSectionRef = useRef<HTMLElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
-  const [post] = useState<CommunityPost | null>(() => initialPost ?? getStoredPost(postId));
+  const [post] = useState<CommunityPost | null>(() => {
+    const removedPostIds = new Set(getStoredRemovedPostIds());
+
+    if (removedPostIds.has(postId)) {
+      return null;
+    }
+
+    return initialPost ?? getStoredPost(postId);
+  });
   const [comments, setComments] = useState(() =>
     initialPost || post ? communityComments.filter((comment) => comment.postId === postId) : []
   );

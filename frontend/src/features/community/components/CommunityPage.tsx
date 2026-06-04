@@ -11,7 +11,10 @@ import { CommunityCreatePostModal } from "@/features/community/components/Commun
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
-import { COMMUNITY_CREATED_POSTS_STORAGE_KEY } from "@/features/community/data/community-storage";
+import {
+  COMMUNITY_CREATED_POSTS_STORAGE_KEY,
+  getStoredRemovedPostIds,
+} from "@/features/community/data/community-storage";
 import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -75,10 +78,13 @@ function getPostSearchText(post: CommunityPost) {
 
 export function CommunityPage({ profile }: CommunityPageProps) {
   const searchInputId = useId();
-  const [posts, setPosts] = useState<CommunityPost[]>(() => [
-    ...getStoredCreatedPosts(),
-    ...communityPosts,
-  ]);
+  const [posts, setPosts] = useState<CommunityPost[]>(() => {
+    const removedPostIds = new Set(getStoredRemovedPostIds());
+
+    return [...getStoredCreatedPosts(), ...communityPosts].filter(
+      (post) => !removedPostIds.has(post.id)
+    );
+  });
   const [activeFilterId, setActiveFilterId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
