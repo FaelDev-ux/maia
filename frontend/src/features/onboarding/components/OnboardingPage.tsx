@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { onboardingSlides } from "../data/onboarding-slides";
 import { OnboardingVisual } from "./OnboardingVisual";
 import { SlideIndicators } from "./SlideIndicators";
@@ -37,13 +37,10 @@ export function OnboardingPage() {
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-5 pb-7 pt-4 sm:px-8 lg:px-10 lg:pb-10">
         <header className="flex items-start justify-between">
-          <Image
-            alt="Maia"
-            className="size-14 object-contain sm:size-16"
-            height={64}
-            priority
-            src="/images/logo-maia.png"
-            width={64}
+          <MaiaBrand
+            imageClassName="size-14 sm:size-16"
+            imageSize={64}
+            textClassName="text-3xl sm:text-4xl"
           />
 
           {!isLastSlide && (

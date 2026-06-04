@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Camera, CheckCircle2 } from "lucide-react";
-import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import type { HomeProfile } from "@/features/home/types";
 import { NotificationSettingsCard } from "@/features/notifications/components/NotificationSettingsCard";
 import { profileContentByProfile } from "@/features/profile/data/profile-content";
@@ -65,17 +64,10 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[56rem] md:overflow-visible md:px-8 md:pb-32">
         <header className="flex h-[4.4rem] items-center justify-between bg-white px-8 md:mt-6 md:h-20 md:rounded-[2rem] md:px-10 md:shadow-[0_12px_36px_rgb(140_64_84_/_0.08)]">
           <Link
-            className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+            className="inline-flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
             href={getProfileScopedHref("/home", profile)}
           >
-            <Image
-              src={logoMaia}
-              alt="Maia"
-              width={58}
-              height={58}
-              className="size-14 object-contain"
-              priority
-            />
+            <MaiaBrand imageClassName="size-14" imageSize={58} />
           </Link>
 
           <div

@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { communityComments } from "@/features/community/data/community-comments";
 import {
@@ -240,14 +239,7 @@ export function CommunityPostDetailPage({
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
           </button>
 
-          <Image
-            src={logoMaia}
-            alt="Maia"
-            width={54}
-            height={54}
-            className="size-13 object-contain"
-            priority
-          />
+          <MaiaBrand imageClassName="size-13" imageSize={54} textClassName="text-2xl" />
 
           <Link
             aria-label={`Perfil de ${firstName}`}

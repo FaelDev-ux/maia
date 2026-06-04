@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import logoMaia from "@/../public/images/logo-maia.png";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import type { HomeProfile } from "@/features/home/types";
@@ -25,14 +24,7 @@ export function SettingsHeader({ backHref = "/mais", profile }: SettingsHeaderPr
         <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
       </Link>
 
-      <Image
-        src={logoMaia}
-        alt="Maia"
-        width={54}
-        height={54}
-        className="size-13 object-contain"
-        priority
-      />
+      <MaiaBrand imageClassName="size-13" imageSize={54} textClassName="text-2xl" />
 
       <Link
         aria-label={`Perfil de ${firstName}`}

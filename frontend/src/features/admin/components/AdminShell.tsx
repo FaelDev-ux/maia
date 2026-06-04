@@ -2,10 +2,9 @@
 
 import type { ReactNode } from "react";
 import { ClipboardCheck, LayoutDashboard, MessageSquare, ShieldCheck } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import logoMaia from "@/../public/images/logo-maia.png";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import cn from "@/lib/utils";
 
 type AdminShellProps = {
@@ -86,14 +85,7 @@ export function AdminShell({
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[28rem] pb-[7.5rem] md:max-w-[76rem] md:px-8 md:pb-32 lg:px-10">
         <header className="flex h-[4.4rem] items-center justify-center bg-white px-8 md:mt-6 md:h-20 md:rounded-[2rem] md:px-10 md:shadow-[0_12px_36px_rgb(140_64_84_/_0.08)]">
-          <Image
-            alt="Maia"
-            className="size-14 object-contain"
-            height={58}
-            priority
-            src={logoMaia}
-            width={58}
-          />
+          <MaiaBrand imageClassName="size-14" imageSize={58} />
         </header>
 
         <section className="px-8 pb-2 pt-9 md:px-0 md:pt-10" aria-labelledby="admin-page-title">

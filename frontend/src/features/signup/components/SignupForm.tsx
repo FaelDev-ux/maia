@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { AuthInput } from "@/features/auth/components/AuthInput";
 import { saveRegisteredUserProfile } from "@/features/profile/data/profile-storage";
 import { markPwaInstallPromptPending } from "@/features/pwa/data/install-preferences";
@@ -128,15 +128,11 @@ export function SignupForm({
 
         <section className="order-1 mb-7 md:order-2 md:mb-0 md:flex md:w-1/2 md:flex-col md:items-start">
           <div className="mb-5 flex items-center gap-3 md:mb-7">
-            <Image
-              alt="Maia"
-              className="size-15 object-contain md:size-12"
-              height={48}
-              priority
-              src="/images/logo-maia.png"
-              width={48}
+            <MaiaBrand
+              imageClassName="size-15 md:size-12"
+              imageSize={48}
+              textClassName="text-3xl font-bold"
             />
-            <p className="font-title text-3xl font-bold text-primary">Maia</p>
           </div>
 
           <h1 className="max-w-80 font-title text-[2rem] font-extrabold leading-tight tracking-[-0.03em] text-title md:max-w-[27rem] md:text-5xl">

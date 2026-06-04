@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { HandHeart, Heart } from "lucide-react";
-import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import { communityPosts } from "@/features/community/data/community-posts";
 import {
@@ -170,14 +169,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[72rem] md:overflow-visible md:px-8 md:pb-32 lg:px-10">
         <header className="flex h-[4.4rem] items-center justify-between bg-white px-8 md:mt-6 md:h-20 md:rounded-[2rem] md:px-10 md:shadow-[0_12px_36px_rgb(140_64_84_/_0.08)]">
-          <Image
-            src={logoMaia}
-            alt="Maia"
-            width={58}
-            height={58}
-            className="size-14 object-contain"
-            priority
-          />
+          <MaiaBrand imageClassName="size-14" imageSize={58} />
           <Link
             aria-label={`Perfil de ${storedProfile.fullName}`}
             className="size-[3.25rem] rounded-full border-[3px] border-primary bg-cover bg-center shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"
