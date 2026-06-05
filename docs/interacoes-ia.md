@@ -724,3 +724,60 @@ Arquivos principais:
 A interação deixou a Home menos repetitiva e mais próxima do comportamento esperado para um app de uso diário. A lógica é suficiente para o MVP e pode evoluir futuramente para recomendações personalizadas com backend.
 
 ---
+
+## Interação 15 - Ajuste do swipe de cadastro
+
+### 1. Objetivo da interação
+
+Melhorar a indicação visual da tela inicial do cadastro que deve ser arrastada para cima, reduzindo a fricção do gesto e deixando claro que existe conteúdo por trás do swipe.
+
+### 2. Prompt enviado
+
+> "o swipe la da tela de cadastro, q vc arrasta pra cima pra começar o cadastro, eu quero q vc tire aquelas bolinhas e ponha uma seta pra cima animada..."
+>
+> "Ela tem que aparecer a parte de trás nesse pulinho, um preview do que tem atrás desse swipe"
+>
+> "A animação deve ser ativada a cada dois segundos, n pra ficar o tempo todo... ativa uma vez ele sobe e desce, espera dois segundos, sobe e desce"
+
+### 3. Resposta da IA
+
+A IA inspecionou `SignupIntroGate`, `SignupIntroCover`, `SignupPage` e `globals.css`. Depois removeu as bolinhas do indicador, adicionou uma seta para cima com animação, reduziu a distância necessária do arraste e mudou a animação para mover a camada inteira do cover, revelando um preview do cadastro por trás.
+
+### 4. Resultado obtido
+
+O swipe de cadastro passou a:
+
+- usar uma seta para cima em vez de bolinhas;
+- remover o círculo ao redor da seta;
+- exigir menos distância para liberar o cadastro;
+- mover a camada inteira da intro no pulinho, mostrando parte da tela de cadastro por trás;
+- executar um ciclo simples de sobe e desce, depois pausar antes de repetir;
+- pausar a animação quando a usuária começa a arrastar.
+
+Arquivos principais:
+
+- `frontend/src/features/signup/components/SignupIntroCover.tsx`;
+- `frontend/src/features/signup/components/SignupIntroGate.tsx`;
+- `frontend/src/features/signup/components/SignupPage.tsx`;
+- `frontend/src/app/globals.css`.
+
+### 5. Acertos
+
+- Melhorou a affordance do gesto de arrastar para cima.
+- Reduziu a exigência do swipe de 78% para 36% da distância calculada.
+- Evitou que a animação ficasse continuamente ativa, criando um pulinho com pausa.
+- Removeu o elemento visual que parecia uma bolha ao redor da seta.
+- Respeitou `prefers-reduced-motion` no CSS global.
+- Validou com `npm run lint` e `npm run build` durante os ajustes principais.
+
+### 6. Falhas ou limitações
+
+- O navegador interno mostrou cache antigo em alguns momentos, provavelmente por service worker ou bundle de desenvolvimento.
+- A validação visual final depende de recarregar/limpar cache quando o PWA estiver segurando arquivos antigos.
+- A animação ainda é uma solução visual local; pode precisar de refinamento fino após teste real no celular.
+
+### 7. Conclusão
+
+A interação refinou a entrada do cadastro e deixou o gesto mais intuitivo para mobile. A solução atende melhor ao comportamento esperado de swipe, mas deve ser testada em dispositivo real para ajustar intensidade e timing se necessário.
+
+---
