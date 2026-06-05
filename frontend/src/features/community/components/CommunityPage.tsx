@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId, useMemo, useState, useSyncExternalStore } from "react";
-import { Search, Sparkles, Trash2, X } from "lucide-react";
+import { PenLine, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
@@ -371,6 +371,14 @@ export function CommunityPage({ profile }: CommunityPageProps) {
           </div>
         </div>
       </div>
+
+      <Link
+        aria-label="Criar novo post"
+        className="fixed bottom-30 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
+        href={getProfileScopedHref("/comunidade/novo", profile)}
+      >
+        <PenLine aria-hidden size={30} strokeWidth={2.3} />
+      </Link>
 
       <BottomNavigation />
       {postPendingDeletion ? (
