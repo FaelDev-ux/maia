@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ArrowUp } from "lucide-react";
 import type { PointerEventHandler } from "react";
 
 type SignupIntroCoverProps = {
@@ -25,7 +26,7 @@ export function SignupIntroCover({
       aria-hidden={isRevealed}
       className={`absolute inset-0 z-10 flex touch-none select-none flex-col items-center justify-center overflow-hidden px-8 py-10 text-white transition-transform duration-500 ease-out ${
         isRevealed ? "pointer-events-none" : ""
-      }`}
+      } ${isDragging ? "" : "maia-swipe-cover-peek"}`}
       onPointerCancel={onPointerCancel}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -59,20 +60,13 @@ export function SignupIntroCover({
           onde seus sentimentos encontram acolhimento
         </p>
 
-        <div className="mt-16 flex flex-col items-center gap-3" aria-hidden="true">
-          <span
-            className="maia-swipe-dot size-1.5 rounded-full bg-white"
-            style={{ animationDelay: "240ms" }}
-          />
-          <span
-            className="maia-swipe-dot size-1.5 rounded-full bg-white"
-            style={{ animationDelay: "120ms" }}
-          />
-          <span className="maia-swipe-dot size-1.5 rounded-full bg-white" />
+        <div className="maia-swipe-hint mt-14 flex flex-col items-center gap-2" aria-hidden="true">
+          <ArrowUp className="maia-swipe-arrow text-white drop-shadow-[0_10px_18px_rgb(140_64_84_/_0.22)]" size={34} strokeWidth={2.7} />
+          <span className="h-8 w-px rounded-full bg-gradient-to-b from-white/85 to-white/10" />
         </div>
 
-        <p className="mt-8 text-center text-xs font-semibold uppercase tracking-[0.42em] text-white/90">
-          Sua jornada começa agora
+        <p className="mt-5 text-center text-xs font-semibold uppercase tracking-[0.34em] text-white/90">
+          Arraste para cima
         </p>
       </div>
     </section>

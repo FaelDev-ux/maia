@@ -5,8 +5,8 @@ import { SignupForm } from "./SignupForm";
 import { SignupIntroCover } from "./SignupIntroCover";
 
 const FALLBACK_VIEWPORT_HEIGHT = 720;
-const MIN_REVEAL_DISTANCE = 520;
-const REVEAL_THRESHOLD_RATIO = 0.78;
+const MIN_REVEAL_DISTANCE = 360;
+const REVEAL_THRESHOLD_RATIO = 0.36;
 
 export type SignupPageProps = {
   onLoginClick?: () => void;
