@@ -4,6 +4,7 @@ import type { ProfileFormValues } from "@/features/profile/types";
 import type { RegisterFormData } from "@/schemas/auth.schema";
 import {
   USER_PROFILES,
+  type ProfessionalCouncil,
   type ProfessionalVerificationStatus,
   type User,
   type UserProfileCode,
@@ -58,6 +59,21 @@ function getProfileCode(profile: HomeProfile) {
 
 function getProfileSlug(profile: HomeProfile) {
   return USER_PROFILES[getProfileCode(profile)].slug;
+}
+
+function getProfessionalCouncilValue(value?: string): ProfessionalCouncil {
+  if (
+    value === "CRM" ||
+    value === "CRP" ||
+    value === "COREN" ||
+    value === "CREFITO" ||
+    value === "CRN" ||
+    value === "OTHER"
+  ) {
+    return value;
+  }
+
+  return "OTHER";
 }
 
 function formatDateForProfile(value: string) {
@@ -157,7 +173,7 @@ function savePrimaryBabyBirthDate(user: User, babyBirthDate: string) {
 function getDefaultProfessionalVerificationStatus(
   profile: HomeProfile
 ): ProfessionalVerificationStatus {
-  return profile === "health-professional" ? "verified" : "not-required";
+  return profile === "health-professional" ? "pending" : "not-required";
 }
 
 export function getDefaultUserProfile(profile: HomeProfile): User {
@@ -184,12 +200,10 @@ export function getDefaultUserProfile(profile: HomeProfile): User {
     professional:
       profile === "health-professional"
         ? {
-            registrationNumber: "123456",
+            registrationNumber: "",
             council: "CRM",
-            state: "CE",
-            specialty: "Pediatria",
-            verifiedAt: now,
-            verifiedBy: "mock-admin-001",
+            state: "",
+            specialty: "",
           }
         : undefined,
     recentMother:
@@ -361,6 +375,7 @@ export function userProfileToFormValues(user: User, profile: HomeProfile): Profi
     babyBirthDate: getPrimaryBabyBirthDate(user, profile),
     bio: recentMother?.bio ?? "",
     birthDate: formatDateForProfile(user.birthDate),
+    council: professional?.council ?? "",
     email: user.email,
     fullName: user.fullName,
     interests: joinTextList(futureMother?.interests),
@@ -408,7 +423,9 @@ export function profileFormValuesToUser(
     professional:
       profile === "health-professional"
         ? {
-            council: currentUser.professional?.council ?? "CRM",
+            council: getProfessionalCouncilValue(
+              values.council.trim() || currentUser.professional?.council || "CRM"
+            ),
             registrationNumber: values.registrationNumber.trim(),
             state: values.state.trim(),
             specialty: values.specialty.trim(),

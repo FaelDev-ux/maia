@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import {
+  BookOpenText,
   ChartNoAxesColumnIncreasing,
   Home,
   MessageSquare,
@@ -30,6 +31,11 @@ const navigationItems = [
     icon: MessageSquare,
   },
   {
+    href: "/conteudos",
+    label: "Conteúdos",
+    icon: BookOpenText,
+  },
+  {
     href: "/perfil",
     label: "Perfil",
     icon: UserRound,
@@ -53,9 +59,9 @@ function BottomNavigationContent() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-40 px-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8"
     >
-      <ul className="mx-auto grid h-20 max-w-[22.4rem] grid-cols-5 items-center rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[30rem]">
+      <ul className="mx-auto grid h-20 max-w-[25.5rem] grid-cols-6 items-center rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[34rem]">
         {navigationItems.map((item) => {
           const isActive = isActiveRoute(pathname, item.href);
           const Icon = item.icon;

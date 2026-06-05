@@ -1,5 +1,6 @@
 import type { CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
+import type { ProfessionalVerificationStatus } from "@/types/user";
 
 export type CommunityComposerCopy = {
   buttonLabel: string;
@@ -61,9 +62,20 @@ export function getCommunityComposerCopy(profile: HomeProfile): CommunityCompose
   };
 }
 
-export function getCommunityAuthorRole(profile: HomeProfile) {
+export function getCommunityAuthorRole(
+  profile: HomeProfile,
+  professionalVerificationStatus?: ProfessionalVerificationStatus
+) {
   if (profile === "health-professional") {
-    return "Profissional de saúde";
+    if (professionalVerificationStatus === "verified") {
+      return "Profissional verificada";
+    }
+
+    if (professionalVerificationStatus === "rejected") {
+      return "Profissional não verificada";
+    }
+
+    return "Aguardando análise";
   }
 
   if (profile === "experienced-mother") {

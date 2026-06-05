@@ -22,6 +22,7 @@ import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadg
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
 import { WeeklyEmotionChartCard } from "@/features/home/components/WeeklyEmotionChartCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
+import { getDailyRecommendationsForProfile } from "@/features/home/data/daily-recommendations";
 import { homeContentByProfile } from "@/features/home/data/home-content";
 import {
   buildProfessionalDashboardData,
@@ -84,6 +85,37 @@ function getCommunityStorageServerSnapshot() {
   return "[]";
 }
 
+function subscribeToDailyRecommendationDate(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const intervalId = window.setInterval(onStoreChange, 60 * 1000);
+  window.addEventListener("focus", onStoreChange);
+
+  return () => {
+    window.clearInterval(intervalId);
+    window.removeEventListener("focus", onStoreChange);
+  };
+}
+
+function getDailyRecommendationDateSnapshot() {
+  if (typeof window === "undefined") {
+    return "1970-01-01";
+  }
+
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getDailyRecommendationDateServerSnapshot() {
+  return "1970-01-01";
+}
+
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
   const storedProfile = useStoredProfileValues(profile);
@@ -111,6 +143,11 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
     subscribeToCommunityActivityChanges,
     getSupportedCommunityPostsSnapshot,
     getCommunityStorageServerSnapshot
+  );
+  const dailyRecommendationDateKey = useSyncExternalStore(
+    subscribeToDailyRecommendationDate,
+    getDailyRecommendationDateSnapshot,
+    getDailyRecommendationDateServerSnapshot
   );
   const createdCommunityPosts = useMemo(
     () => parseCreatedCommunityPosts(createdCommunityPostsSnapshot),
@@ -143,6 +180,13 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
       storedUser.professionalVerificationStatus,
       supportedPostIds,
     ]
+  );
+  const dailyRecommendations = useMemo(
+    () =>
+      content.variant === "wellbeing"
+        ? getDailyRecommendationsForProfile(profile, dailyRecommendationDateKey)
+        : [],
+    [content.variant, dailyRecommendationDateKey, profile]
   );
   const professionalActivityHref = professionalDashboardData.recentPostId
     ? getProfileScopedHref(`/comunidade/${professionalDashboardData.recentPostId}`, profile)
@@ -320,8 +364,8 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 ))}
               </section>
 
-              {profile === "recent-mother" ? (
-                <section className="mt-7 md:mt-8" aria-label="Grafico emocional da semana">
+              {content.variant === "wellbeing" ? (
+                <section className="mt-7 md:mt-8" aria-label="Gráfico emocional da semana">
                   <WeeklyEmotionChartCard records={dailyCheckIns} />
                 </section>
               ) : null}
@@ -342,8 +386,12 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 </div>
 
                 <div className="-mx-8 mt-7 flex gap-6 overflow-x-auto px-8 pb-3 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
-                  {content.recommendations.map((recommendation) => (
-                    <RecommendationCard recommendation={recommendation} key={recommendation.id} />
+                  {dailyRecommendations.map((recommendation) => (
+                    <RecommendationCard
+                      key={recommendation.id}
+                      profile={profile}
+                      recommendation={recommendation}
+                    />
                   ))}
                 </div>
               </section>

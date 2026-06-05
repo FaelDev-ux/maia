@@ -9,6 +9,8 @@ type ContentsPageProps = {
 };
 
 export function ContentsPage({ profile }: ContentsPageProps) {
+  const isHealthProfessional = profile === "health-professional";
+
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[72rem] md:overflow-visible md:px-8 md:pb-32 lg:px-10">
@@ -17,17 +19,26 @@ export function ContentsPage({ profile }: ContentsPageProps) {
         <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
           <section aria-labelledby="contents-title">
             <p className="inline-flex rounded-full bg-primary/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
-              Biblioteca Maia
+              {isHealthProfessional ? "Referências Maia" : "Biblioteca Maia"}
             </p>
             <h1
               className="mt-5 max-w-[22rem] font-title text-[2.12rem] font-extrabold leading-[1.12] text-title md:max-w-[24rem] md:text-[2.55rem] md:leading-[1.08]"
               id="contents-title"
             >
-              Conteúdos para cuidar de <span className="text-primary">você.</span>
+              {isHealthProfessional ? (
+                <>
+                  Conteúdos para orientar com <span className="text-primary">cuidado.</span>
+                </>
+              ) : (
+                <>
+                  Conteúdos para cuidar de <span className="text-primary">você.</span>
+                </>
+              )}
             </h1>
             <p className="mt-6 max-w-[20rem] text-[1.06rem] leading-8 text-text md:max-w-[23rem] md:text-lg">
-              Leituras acolhedoras para apoiar sua jornada, com práticas simples e linguagem
-              cuidadosa.
+              {isHealthProfessional
+                ? "Use estas leituras como apoio para publicar orientações gerais, acolhedoras e sem diagnóstico na comunidade."
+                : "Leituras acolhedoras para apoiar sua jornada, com práticas simples e linguagem cuidadosa."}
             </p>
           </section>
 

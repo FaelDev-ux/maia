@@ -514,3 +514,270 @@ Arquivos principais envolvidos:
 A interação tornou a Home mais personalizada e conectada ao check-in emocional, sem ampliar demais o escopo. A solução é adequada para o MVP e pode evoluir para um serviço de recomendação quando houver backend.
 
 ---
+
+## Interação 11 - Perfil, notificações e páginas de suporte
+
+### 1. Objetivo da interação
+
+Criar perfis separados por tipo de usuário, conectar dados mockados ao cadastro/localStorage, permitir edição de foto e adicionar controles de notificações, privacidade e suporte.
+
+### 2. Prompt enviado
+
+> "Vamos fazer a parte do perfil"
+>
+> "Conecte o header, o header da comunidade n está conseguindo entrar no perfil e adicione um campo pra poder editar a foto de perfil..."
+>
+> "Toda vez que o usuario entrar no app e chegar na home na primeira vez do dia, exiba uma modal solicitando uma permissão para notificações..."
+>
+> "Crie essas pags: privacidade e dados; Ajuda e suporte"
+
+### 3. Resposta da IA
+
+A IA inspecionou os fluxos de perfil, Home, Comunidade e navegação. Foram criadas variações de perfil por usuário, conexão do avatar/header com `/perfil`, armazenamento mockado de dados no `localStorage`, upload local de imagem de perfil, preferências de notificações e páginas internas de privacidade e ajuda.
+
+### 4. Resultado obtido
+
+O app passou a ter:
+
+- página `/perfil` conectada ao perfil selecionado;
+- dados de usuário mockados no `localStorage`;
+- seleção/upload de foto de perfil pelo dispositivo;
+- header da Home e da Comunidade navegando para o perfil;
+- modal diária de permissão de notificações na Home;
+- card de notificações no perfil com switch responsivo e estado imediato;
+- páginas `/privacidade-e-dados` e `/ajuda-e-suporte`.
+
+### 5. Acertos
+
+- Separou perfis por tipo de usuário sem misturar dados entre jornadas.
+- Usou `localStorage` como mock temporário, coerente com o estágio atual do frontend.
+- Atualizou o status visual do switch imediatamente.
+- Aplicou animação com Framer Motion no switch quando solicitado.
+- Manteve linguagem de privacidade, LGPD e suporte alinhada ao Maia.
+- Validou mudanças com lint/build nas etapas principais.
+
+### 6. Falhas ou limitações
+
+- O armazenamento ainda é local e não substitui backend real.
+- Upload de imagem usa base64/localStorage, adequado para mock, mas não para produção.
+- Permissões de notificação dependem do suporte real do navegador e do contexto PWA/HTTPS.
+
+### 7. Conclusão
+
+A interação deixou o perfil mais conectado ao fluxo real do app e adicionou controles importantes de consentimento e suporte. A base é útil para MVP, mas deve ser substituída por API e armazenamento seguro no backend.
+
+---
+
+## Interação 12 - Suporte PWA e ajustes de autenticação mobile
+
+### 1. Objetivo da interação
+
+Configurar o web app como PWA instalável e corrigir problemas de responsividade nas telas de cadastro, login e recuperação de senha.
+
+### 2. Prompt enviado
+
+> "Implemente suporte a PWA no web app para permitir que o usuário instale o site como um aplicativo no celular."
+>
+> "Faça uma verificação mais profunda no pwa, pois n está instalando no celular"
+>
+> "Na aba de cadastro ajeite a responsividade para o mobile, pois está saindo da tela"
+>
+> "Faça o mesmo ajuste na responsividade do login e da recuperação de senha"
+
+### 3. Resposta da IA
+
+A IA configurou manifest, service worker, ícones PWA e modal de instalação após cadastro/Home. Depois revisou a instalação em celular e ajustou ícones, metadados e fallback para navegadores compatíveis. Também corrigiu largura, espaçamento e alinhamento dos SVGs nos campos de autenticação.
+
+### 4. Resultado obtido
+
+Foram adicionados:
+
+- `manifest.json`;
+- `sw.js`;
+- ícones PWA em `public/icons`;
+- componente de prompt de instalação;
+- captura do evento `beforeinstallprompt`;
+- preferência de instalação/recusa recente no `localStorage`;
+- ajustes responsivos em cadastro, login e recuperação de senha.
+
+### 5. Acertos
+
+- O app passou a atender os requisitos básicos de instalabilidade PWA.
+- O modal só aparece quando o usuário está elegível.
+- A recusa recente evita popup repetitivo.
+- Login, cadastro e recuperação ficaram mais adequados ao mobile.
+- Validação com `npm run lint` e `npm run build` passou após os ajustes.
+
+### 6. Falhas ou limitações
+
+- A instalação real no celular depende de HTTPS, navegador compatível e critérios próprios do sistema.
+- Em iOS, o fluxo depende do menu de compartilhamento do Safari, não do mesmo prompt nativo usado por Chrome/Android.
+- O service worker pode manter cache antigo durante desenvolvimento, exigindo reload/limpeza em alguns testes.
+
+### 7. Conclusão
+
+A interação avançou o Maia como PWA e melhorou a experiência mobile nos formulários principais. A validação técnica passou, mas testes em dispositivo real continuam necessários por diferenças entre navegadores.
+
+---
+
+## Interação 13 - Gráfico semanal, navegação de conteúdos e ações no artigo
+
+### 1. Objetivo da interação
+
+Adicionar um gráfico semanal baseado no registro de sentimentos, facilitar o acesso à biblioteca de conteúdos pela navegação inferior e tornar funcionais as ações no final de cada artigo.
+
+### 2. Prompt enviado
+
+> "Na home, adiciona um grafico q é puxado do registro de sentimentos aonde mostra os sentimentos q a usuaria marcou durante a semana..."
+>
+> "no bottomNavigator, adicione mais um botão para entrar na pagina de conteudos"
+>
+> "Nos conteudos ao acessar um conteudo, no final da pag pergunta se ajudou, la temos botoes, aqueles botoes devem funcionar..."
+>
+> "faça uma função para poder compartilhar o post tambem com aplicativos que estão no celular, ou ent pegar o link q leva direto pra esse post"
+
+### 3. Resposta da IA
+
+A IA conectou a Home aos registros semanais de check-in, adicionou um card de gráfico para perfis de bem-estar, incluiu o botão de conteúdos na bottom navigation e criou um componente client para ações do artigo.
+
+### 4. Resultado obtido
+
+O app passou a ter:
+
+- gráfico emocional semanal na Home;
+- reset natural do gráfico por semana;
+- botão `Conteúdos` na bottom navigation;
+- botões `Sim`, `Não` e `Amei!` funcionais no artigo;
+- persistência de feedback por artigo no `localStorage`;
+- ação `Salvar/Salvo`;
+- compartilhamento via Web Share API quando disponível;
+- fallback para copiar link direto do artigo.
+
+### 5. Acertos
+
+- Usou dados já existentes do check-in.
+- Manteve o gráfico limitado à semana atual.
+- Criou componente reutilizável para ações de artigo.
+- Usou `useSyncExternalStore` para leitura de localStorage sem conflito com React Compiler.
+- Preservou acessibilidade com `aria-pressed` e mensagens com `aria-live`.
+- Validou com `npm run lint` e `npm run build`.
+
+### 6. Falhas ou limitações
+
+- Feedback, salvar e histórico semanal ainda são mocks locais.
+- Compartilhamento nativo depende do suporte do navegador/dispositivo.
+- O navegador interno em desenvolvimento mostrou cache antigo em alguns momentos por causa de service worker/bundle, embora o código-fonte e o build estivessem corretos.
+
+### 7. Conclusão
+
+A interação tornou os conteúdos mais interativos e conectou a Home ao comportamento real de registro emocional. A solução segue adequada ao MVP, com dados locais substituíveis por API futura.
+
+---
+
+## Interação 14 - Recomendações diárias aleatórias na Home
+
+### 1. Objetivo da interação
+
+Fazer as recomendações da Home mudarem diariamente, usando os conteúdos já cadastrados, para evitar que a tela fique fixa todos os dias.
+
+### 2. Prompt enviado
+
+> "as recomendações na home tem q ser aleatorias, pra n ficar aquela coisa fixa todo dia, ent oq vc vai fazer, todo dia a recomendação vai ser diferente, isso baseado nos conteudos q já estão criados"
+
+### 3. Resposta da IA
+
+A IA inspecionou `home-content.ts`, `HomePage.tsx`, `RecommendationCard.tsx` e `content-articles.ts`. Em seguida criou um helper de recomendação diária que usa os artigos existentes, perfil do usuário e data local como semente estável.
+
+### 4. Resultado obtido
+
+As recomendações da Home passaram a ser calculadas por dia:
+
+- mudam quando o dia local muda;
+- permanecem estáveis durante o mesmo dia;
+- usam `contentArticles` como fonte única de conteúdos;
+- preservam o perfil na URL ao abrir um artigo;
+- mantêm a quantidade atual de cards na Home.
+
+Arquivos principais:
+
+- `frontend/src/features/home/data/daily-recommendations.ts`;
+- `frontend/src/features/home/components/HomePage.tsx`;
+- `frontend/src/features/home/components/RecommendationCard.tsx`.
+
+### 5. Acertos
+
+- Evitou aleatoriedade a cada render, usando rotação diária determinística.
+- Reaproveitou o catálogo real de conteúdos do frontend.
+- Separou a regra em arquivo próprio de dados da Home.
+- Manteve recomendações específicas para futura mãe quando possível.
+- Validou com `npm run lint` e `npm run build`.
+- Conferiu no navegador interno que a Home exibiu artigos do catálogo e links corretos.
+
+### 6. Falhas ou limitações
+
+- A regra ainda é local e simples; não considera histórico emocional, conteúdo salvo ou feedback do artigo.
+- A seleção por perfil é baseada em tags/categorias mockadas.
+- Ainda não há API ou motor real de recomendação.
+
+### 7. Conclusão
+
+A interação deixou a Home menos repetitiva e mais próxima do comportamento esperado para um app de uso diário. A lógica é suficiente para o MVP e pode evoluir futuramente para recomendações personalizadas com backend.
+
+---
+
+## Interação 15 - Ajuste do swipe de cadastro
+
+### 1. Objetivo da interação
+
+Melhorar a indicação visual da tela inicial do cadastro que deve ser arrastada para cima, reduzindo a fricção do gesto e deixando claro que existe conteúdo por trás do swipe.
+
+### 2. Prompt enviado
+
+> "o swipe la da tela de cadastro, q vc arrasta pra cima pra começar o cadastro, eu quero q vc tire aquelas bolinhas e ponha uma seta pra cima animada..."
+>
+> "Ela tem que aparecer a parte de trás nesse pulinho, um preview do que tem atrás desse swipe"
+>
+> "A animação deve ser ativada a cada dois segundos, n pra ficar o tempo todo... ativa uma vez ele sobe e desce, espera dois segundos, sobe e desce"
+
+### 3. Resposta da IA
+
+A IA inspecionou `SignupIntroGate`, `SignupIntroCover`, `SignupPage` e `globals.css`. Depois removeu as bolinhas do indicador, adicionou uma seta para cima com animação, reduziu a distância necessária do arraste e mudou a animação para mover a camada inteira do cover, revelando um preview do cadastro por trás.
+
+### 4. Resultado obtido
+
+O swipe de cadastro passou a:
+
+- usar uma seta para cima em vez de bolinhas;
+- remover o círculo ao redor da seta;
+- exigir menos distância para liberar o cadastro;
+- mover a camada inteira da intro no pulinho, mostrando parte da tela de cadastro por trás;
+- executar um ciclo simples de sobe e desce, depois pausar antes de repetir;
+- pausar a animação quando a usuária começa a arrastar.
+
+Arquivos principais:
+
+- `frontend/src/features/signup/components/SignupIntroCover.tsx`;
+- `frontend/src/features/signup/components/SignupIntroGate.tsx`;
+- `frontend/src/features/signup/components/SignupPage.tsx`;
+- `frontend/src/app/globals.css`.
+
+### 5. Acertos
+
+- Melhorou a affordance do gesto de arrastar para cima.
+- Reduziu a exigência do swipe de 78% para 36% da distância calculada.
+- Evitou que a animação ficasse continuamente ativa, criando um pulinho com pausa.
+- Removeu o elemento visual que parecia uma bolha ao redor da seta.
+- Respeitou `prefers-reduced-motion` no CSS global.
+- Validou com `npm run lint` e `npm run build` durante os ajustes principais.
+
+### 6. Falhas ou limitações
+
+- O navegador interno mostrou cache antigo em alguns momentos, provavelmente por service worker ou bundle de desenvolvimento.
+- A validação visual final depende de recarregar/limpar cache quando o PWA estiver segurando arquivos antigos.
+- A animação ainda é uma solução visual local; pode precisar de refinamento fino após teste real no celular.
+
+### 7. Conclusão
+
+A interação refinou a entrada do cadastro e deixou o gesto mais intuitivo para mobile. A solução atende melhor ao comportamento esperado de swipe, mas deve ser testada em dispositivo real para ajustar intensidade e timing se necessário.
+
+---

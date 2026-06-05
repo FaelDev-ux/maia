@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { SignupIntroCover } from "./SignupIntroCover";
 
 const FALLBACK_VIEWPORT_HEIGHT = 720;
-const MIN_REVEAL_DISTANCE = 520;
-const REVEAL_THRESHOLD_RATIO = 0.78;
+const MIN_REVEAL_DISTANCE = 360;
+const REVEAL_THRESHOLD_RATIO = 0.36;
 const INTRO_BACKGROUND = "linear-gradient(155deg, #f97f9f 0%, #ee7ea8 48%, #cf79c6 100%)";
 
 type SignupIntroGateProps = {

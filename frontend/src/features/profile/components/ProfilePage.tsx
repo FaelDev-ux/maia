@@ -10,19 +10,83 @@ import { NotificationSettingsCard } from "@/features/notifications/components/No
 import { profileContentByProfile } from "@/features/profile/data/profile-content";
 import { saveProfileValues } from "@/features/profile/data/profile-storage";
 import { ProfileFieldControl } from "@/features/profile/components/ProfileFieldControl";
-import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import {
+  useStoredProfileValues,
+  useStoredUserProfile,
+} from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import type { ProfileFormValues } from "@/features/profile/types";
+import { ProfessionalSelectField } from "@/features/usertypeselection/health-professional/components/ProfessionalSelectField";
+import {
+  professionalCouncilOptions,
+  professionalSpecialtyOptions,
+  professionalStateOptions,
+  type ProfessionalOption,
+} from "@/features/usertypeselection/health-professional/data/professional-options";
 
 type ProfilePageProps = {
   profile: HomeProfile;
 };
 
+type ProfessionalProfileSelectId = "council" | "specialty" | "state";
+
+function getOptionValue(options: ProfessionalOption[], value: string, fallback = "") {
+  return options.find((option) => option.value === value || option.label === value)?.value ?? fallback;
+}
+
+function getSpecialtySelectValue(specialty: string) {
+  if (!specialty) {
+    return "";
+  }
+
+  return getOptionValue(professionalSpecialtyOptions, specialty, "other");
+}
+
+function getSpecialtyLabel(value: string, customSpecialty: string) {
+  if (value === "other") {
+    return customSpecialty.trim();
+  }
+
+  return professionalSpecialtyOptions.find((option) => option.value === value)?.label ?? "";
+}
+
+function getProfessionalProfileBadge(status: string) {
+  if (status === "verified") {
+    return "Profissional verificada";
+  }
+
+  if (status === "rejected") {
+    return "Profissional não verificada";
+  }
+
+  return "Aguardando análise";
+}
+
 export function ProfilePage({ profile }: ProfilePageProps) {
   const content = profileContentByProfile[profile];
   const values = useStoredProfileValues(profile);
+  const storedUser = useStoredUserProfile(profile);
   const [isSaved, setIsSaved] = useState(false);
+  const [openProfessionalSelectId, setOpenProfessionalSelectId] =
+    useState<ProfessionalProfileSelectId | null>(null);
+  const [professionalSelectDrafts, setProfessionalSelectDrafts] = useState<
+    Partial<Record<ProfessionalProfileSelectId, string>>
+  >({});
+  const [customSpecialtyDraft, setCustomSpecialtyDraft] = useState<string | null>(null);
   const firstName = values.fullName.split(" ")[0] ?? "Maia";
+  const storedSpecialtySelectValue = getSpecialtySelectValue(values.specialty);
+  const selectedCouncil =
+    professionalSelectDrafts.council ??
+    getOptionValue(professionalCouncilOptions, values.council, "CRM");
+  const selectedState =
+    professionalSelectDrafts.state ?? getOptionValue(professionalStateOptions, values.state);
+  const selectedSpecialty = professionalSelectDrafts.specialty ?? storedSpecialtySelectValue;
+  const customSpecialty =
+    customSpecialtyDraft ?? (storedSpecialtySelectValue === "other" ? values.specialty : "");
+  const profileBadge =
+    profile === "health-professional"
+      ? getProfessionalProfileBadge(storedUser.professionalVerificationStatus)
+      : content.badge;
 
   function updateValue(fieldId: keyof ProfileFormValues, value: string) {
     saveProfileValues(
@@ -33,6 +97,101 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       profile
     );
     setIsSaved(false);
+  }
+
+  function handleProfessionalSelectOpenChange(
+    selectId: ProfessionalProfileSelectId,
+    isOpen: boolean
+  ) {
+    setOpenProfessionalSelectId(isOpen ? selectId : null);
+  }
+
+  function updateProfessionalSelectValue(fieldId: ProfessionalProfileSelectId, value: string) {
+    setProfessionalSelectDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [fieldId]: value,
+    }));
+
+    if (fieldId === "council" || fieldId === "state") {
+      updateValue(fieldId, value);
+      return;
+    }
+
+    if (value !== "other") {
+      setCustomSpecialtyDraft(null);
+      updateValue("specialty", getSpecialtyLabel(value, ""));
+      return;
+    }
+
+    updateValue("specialty", customSpecialty);
+  }
+
+  function updateCustomSpecialty(value: string) {
+    setCustomSpecialtyDraft(value);
+    updateValue("specialty", value);
+  }
+
+  function renderProfessionalField(fieldId: ProfessionalProfileSelectId) {
+    if (fieldId === "council") {
+      return (
+        <ProfessionalSelectField
+          id="profile-council"
+          isOpen={openProfessionalSelectId === "council"}
+          label="Conselho profissional"
+          onChange={(value) => updateProfessionalSelectValue("council", value)}
+          onOpenChange={(isOpen) => handleProfessionalSelectOpenChange("council", isOpen)}
+          options={professionalCouncilOptions}
+          triggerClassName="bg-neutral/75"
+          value={selectedCouncil}
+        />
+      );
+    }
+
+    if (fieldId === "state") {
+      return (
+        <ProfessionalSelectField
+          id="profile-state"
+          isOpen={openProfessionalSelectId === "state"}
+          label="Estado (UF)"
+          onChange={(value) => updateProfessionalSelectValue("state", value)}
+          onOpenChange={(isOpen) => handleProfessionalSelectOpenChange("state", isOpen)}
+          options={professionalStateOptions}
+          triggerClassName="bg-neutral/75"
+          value={selectedState}
+        />
+      );
+    }
+
+    return (
+      <div className="grid gap-4">
+        <ProfessionalSelectField
+          id="profile-specialty"
+          isOpen={openProfessionalSelectId === "specialty"}
+          label="Especialidade"
+          onChange={(value) => updateProfessionalSelectValue("specialty", value)}
+          onOpenChange={(isOpen) => handleProfessionalSelectOpenChange("specialty", isOpen)}
+          options={professionalSpecialtyOptions}
+          triggerClassName="bg-neutral/75"
+          value={selectedSpecialty}
+        />
+
+        {selectedSpecialty === "other" ? (
+          <label className="block" htmlFor="profile-custom-specialty">
+            <span className="block px-2 text-[0.78rem] font-extrabold uppercase tracking-[0.14em] text-title/75">
+              Especialidade personalizada
+            </span>
+            <input
+              className="mt-3 w-full rounded-full border-0 bg-neutral/75 px-5 py-4 text-base font-medium text-title outline-none ring-1 ring-transparent transition placeholder:text-text/40 focus:bg-white focus:ring-primary/35"
+              id="profile-custom-specialty"
+              onChange={(event) => updateCustomSpecialty(event.target.value)}
+              placeholder="Ex.: consultoria em amamentação"
+              type="text"
+              value={customSpecialty}
+            />
+          </label>
+        ) : null}
+      </div>
+    );
   }
 
   function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -80,9 +239,9 @@ export function ProfilePage({ profile }: ProfilePageProps) {
 
         <div className="px-8 pb-8 pt-9 md:grid md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10">
           <section aria-labelledby="profile-title">
-            {content.badge ? (
+            {profileBadge ? (
               <p className="inline-flex rounded-full bg-primary/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
-                {content.badge}
+                {profileBadge}
               </p>
             ) : null}
 
@@ -139,14 +298,24 @@ export function ProfilePage({ profile }: ProfilePageProps) {
               </label>
 
               <div className="grid gap-6">
-                {content.fields.map((field) => (
-                  <ProfileFieldControl
-                    field={field}
-                    key={field.id}
-                    onChange={updateValue}
-                    value={values[field.id as keyof ProfileFormValues] ?? ""}
-                  />
-                ))}
+                {content.fields.map((field) => {
+                  const isProfessionalSelectField =
+                    profile === "health-professional" &&
+                    (field.id === "council" || field.id === "state" || field.id === "specialty");
+
+                  return isProfessionalSelectField ? (
+                    <div key={field.id}>
+                      {renderProfessionalField(field.id as ProfessionalProfileSelectId)}
+                    </div>
+                  ) : (
+                    <ProfileFieldControl
+                      field={field}
+                      key={field.id}
+                      onChange={updateValue}
+                      value={values[field.id as keyof ProfileFormValues] ?? ""}
+                    />
+                  );
+                })}
               </div>
 
               <button
