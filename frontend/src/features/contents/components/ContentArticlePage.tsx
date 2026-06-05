@@ -1,7 +1,9 @@
-import { Bookmark, CheckCircle2, Clock3, Heart, Share2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CheckCircle2, Clock3, Sparkles } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { ContentArticleActions } from "@/features/contents/components/ContentArticleActions";
 import { ContentHeader } from "@/features/contents/components/ContentHeader";
 import type { HomeProfile } from "@/features/home/types";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import type { ContentArticle } from "@/features/contents/types";
 
 type ContentArticlePageProps = {
@@ -105,46 +107,11 @@ export function ContentArticlePage({ article, profile }: ContentArticlePageProps
             </section>
           ))}
 
-          <section className="mt-10 rounded-[2.5rem] bg-white px-8 py-10 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
-            <h2 className="font-title text-2xl font-extrabold text-title">Isso te ajudou?</h2>
-            <p className="mx-auto mt-3 max-w-[17rem] text-base leading-6 text-text">
-              Sua reação nos ajuda a criar conteúdos mais acolhedores.
-            </p>
-            <div className="mt-8 grid gap-4 sm:mx-auto sm:max-w-[15rem]">
-              <button
-                className="flex h-13 items-center justify-center gap-3 rounded-full bg-surface px-6 font-extrabold text-title transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                type="button"
-              >
-                <ThumbsUp aria-hidden className="text-primary" size={20} strokeWidth={2.2} />
-                Sim
-              </button>
-              <button
-                className="flex h-13 items-center justify-center gap-3 rounded-full bg-surface px-6 font-extrabold text-title transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                type="button"
-              >
-                <ThumbsDown aria-hidden className="text-text/70" size={20} strokeWidth={2.2} />
-                Não
-              </button>
-              <button
-                className="flex h-13 items-center justify-center gap-3 rounded-full bg-primary px-6 font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
-                type="button"
-              >
-                <Heart aria-hidden className="fill-white" size={20} strokeWidth={0} />
-                Amei!
-              </button>
-            </div>
-          </section>
-
-          <footer className="mt-8 flex items-center justify-between border-t border-border pt-7 text-xs font-extrabold uppercase tracking-[0.16em] text-text">
-            <button className="flex items-center gap-2 transition hover:text-primary" type="button">
-              <Share2 aria-hidden size={18} strokeWidth={2.3} />
-              Compartilhar
-            </button>
-            <button className="flex items-center gap-2 transition hover:text-primary" type="button">
-              <Bookmark aria-hidden size={18} strokeWidth={2.3} />
-              Salvar
-            </button>
-          </footer>
+          <ContentArticleActions
+            articleId={article.id}
+            articleTitle={article.title}
+            sharePath={getProfileScopedHref(`/conteudos/${article.id}`, profile)}
+          />
         </article>
       </div>
       <BottomNavigation />
