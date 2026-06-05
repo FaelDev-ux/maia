@@ -227,7 +227,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
               <button
                 aria-pressed={isSelected}
                 className={`flex h-13 items-center justify-center gap-3 rounded-full px-6 font-extrabold transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary ${
-                  isSelected || isLove
+                  isSelected
                     ? "bg-primary text-white shadow-button hover:bg-primary/90"
                     : "bg-surface text-title hover:bg-primary/10"
                 }`}
@@ -237,7 +237,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
               >
                 <Icon
                   aria-hidden
-                  className={isSelected || isLove ? "text-white" : "text-primary"}
+                  className={isSelected ? "text-white" : "text-primary"}
                   fill={value === "love" && (isSelected || isLove) ? "currentColor" : "none"}
                   size={20}
                   strokeWidth={value === "love" && (isSelected || isLove) ? 0 : 2.2}

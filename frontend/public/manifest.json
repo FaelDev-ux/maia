@@ -3,7 +3,7 @@
   "short_name": "Maia",
   "description": "Onde seus sentimentos encontram acolhimento.",
   "id": "/",
-  "start_url": "/home",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
