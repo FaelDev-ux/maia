@@ -20,6 +20,7 @@ import { HomeSectionHeader } from "@/features/home/components/HomeSectionHeader"
 import { MentorImpactCard } from "@/features/home/components/MentorImpactCard";
 import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadge";
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
+import { WeeklyEmotionChartCard } from "@/features/home/components/WeeklyEmotionChartCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
 import { homeContentByProfile } from "@/features/home/data/home-content";
 import {
@@ -318,6 +319,12 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                   <EmotionChip emotion={emotion} key={emotion.id} />
                 ))}
               </section>
+
+              {profile === "recent-mother" ? (
+                <section className="mt-7 md:mt-8" aria-label="Grafico emocional da semana">
+                  <WeeklyEmotionChartCard records={dailyCheckIns} />
+                </section>
+              ) : null}
 
               <section className="mt-10 md:mt-9">
                 <WeeklyInsightCard insight={weeklyInsight ?? content.insight} />
