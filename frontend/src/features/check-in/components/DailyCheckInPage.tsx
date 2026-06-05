@@ -1,14 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ClipboardList, History, Home, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import logoMaia from "@/../public/images/logo-maia.png";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import {
   checkInEmotionOptions,
   checkInIntensityOptions,
@@ -210,14 +209,7 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
           </Link>
 
-          <Image
-            src={logoMaia}
-            alt="Maia"
-            width={54}
-            height={54}
-            className="size-13 object-contain"
-            priority
-          />
+          <MaiaBrand imageClassName="size-13" imageSize={54} textClassName="text-2xl" />
 
           <div
             aria-label={`Perfil de ${firstName}`}

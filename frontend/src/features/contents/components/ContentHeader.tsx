@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import logoMaia from "@/../public/images/logo-maia.png";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
@@ -30,14 +29,7 @@ export function ContentHeader({ backHref, backLabel = "Voltar", profile }: Conte
         </Link>
       ) : null}
 
-      <Image
-        src={logoMaia}
-        alt="Maia"
-        width={58}
-        height={58}
-        className="size-14 object-contain"
-        priority
-      />
+      <MaiaBrand imageClassName="size-14" imageSize={58} />
       <div
         aria-label={`Perfil de ${firstName}`}
         className="size-[3.25rem] rounded-full border-[3px] border-primary bg-primary/10 bg-cover bg-center shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"

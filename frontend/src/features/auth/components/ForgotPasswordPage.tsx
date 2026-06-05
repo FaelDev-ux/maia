@@ -2,9 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
+import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/schemas/auth.schema";
 import { AuthInput } from "./AuthInput";
 
@@ -75,16 +75,11 @@ function ForgotPasswordCopy() {
   return (
     <section className="w-full max-w-[28rem]">
       <header className="mb-7 flex items-center gap-4 md:mb-6">
-        <Image
-          alt="Maia"
-          className="size-12 object-contain"
-          height={48}
-          priority
-          src="/images/logo-maia.png"
-          width={48}
+        <MaiaBrand
+          imageClassName="size-12"
+          imageSize={48}
+          textClassName="text-3xl font-bold"
         />
-
-        <span className="font-title text-3xl font-bold text-primary">Maia</span>
       </header>
 
       <h1 className="font-title text-[2rem] font-extrabold leading-tight text-title md:text-5xl">

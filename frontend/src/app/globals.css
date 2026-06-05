@@ -113,6 +113,13 @@ canvas {
   color: var(--maia-title);
 }
 
+.maia-brand-text {
+  background-image: linear-gradient(121deg, #F894B1, #F894B1, #B17BCF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 @keyframes maia-slide-visual-in {
   from {
     opacity: 0;
