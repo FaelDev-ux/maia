@@ -3,6 +3,15 @@ export type ProfessionalOption = {
   value: string;
 };
 
+export const professionalCouncilOptions: ProfessionalOption[] = [
+  { label: "CRM - Conselho Regional de Medicina", value: "CRM" },
+  { label: "COREN - Conselho Regional de Enfermagem", value: "COREN" },
+  { label: "CRP - Conselho Regional de Psicologia", value: "CRP" },
+  { label: "CREFITO - Conselho Regional de Fisioterapia e Terapia Ocupacional", value: "CREFITO" },
+  { label: "CRN - Conselho Regional de Nutricionistas", value: "CRN" },
+  { label: "Outro conselho", value: "OTHER" },
+];
+
 export const professionalStateOptions: ProfessionalOption[] = [
   { label: "Acre (AC)", value: "AC" },
   { label: "Alagoas (AL)", value: "AL" },

@@ -9,7 +9,7 @@ type PrivacyDataPageProps = {
   profile: HomeProfile;
 };
 
-const privacyItems = [
+const motherPrivacyItems = [
   {
     icon: Database,
     title: "Dados armazenados localmente",
@@ -36,7 +36,37 @@ const privacyItems = [
   },
 ] as const;
 
+const professionalPrivacyItems = [
+  {
+    icon: Database,
+    title: "Dados profissionais locais",
+    description:
+      "Nome, contato, conselho, registro, UF, especialidade e publicações mockadas ficam salvos neste navegador durante o protótipo.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Status de verificação",
+    description:
+      "Enquanto o backend não estiver conectado, a análise do registro é simulada localmente e aparece como uma flag na comunidade.",
+  },
+  {
+    icon: EyeOff,
+    title: "Orientações responsáveis",
+    description:
+      "Posts profissionais devem ser gerais, cuidadosos e sem diagnóstico individual. Dados sensíveis de mães devem ser preservados.",
+  },
+  {
+    icon: Trash2,
+    title: "Remoção de dados",
+    description:
+      "Na versão com backend, alterações, remoção e auditoria de dados profissionais deverão seguir LGPD e regras administrativas.",
+  },
+] as const;
+
 export function PrivacyDataPage({ profile }: PrivacyDataPageProps) {
+  const isHealthProfessional = profile === "health-professional";
+  const privacyItems = isHealthProfessional ? professionalPrivacyItems : motherPrivacyItems;
+
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[48rem] md:overflow-visible md:px-8 md:pb-32">
@@ -55,8 +85,9 @@ export function PrivacyDataPage({ profile }: PrivacyDataPageProps) {
               Privacidade e <span className="text-primary">dados</span>
             </h1>
             <p className="mt-6 max-w-[22rem] text-[1.06rem] leading-8 text-text md:max-w-[32rem] md:text-lg">
-              Entenda como suas informações são tratadas neste protótipo e quais cuidados devem
-              existir na versão com backend.
+              {isHealthProfessional
+                ? "Entenda como seus dados profissionais e sua participação na comunidade são tratados neste protótipo."
+                : "Entenda como suas informações são tratadas neste protótipo e quais cuidados devem existir na versão com backend."}
             </p>
           </section>
 

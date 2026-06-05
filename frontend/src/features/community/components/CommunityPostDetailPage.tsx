@@ -7,16 +7,23 @@ import { useRouter } from "next/navigation";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
+import { getCommunityAuthorRole } from "@/features/community/data/community-composer";
 import { communityComments } from "@/features/community/data/community-comments";
 import {
+  COMMUNITY_COMMENTS_UPDATED_EVENT,
   COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
   COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
+  getStoredCommunityComments,
   getStoredCreatedCommunityPosts,
   getStoredRemovedPostIds,
+  saveStoredCommunityComments,
 } from "@/features/community/data/community-storage";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
-import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import {
+  useStoredProfileValues,
+  useStoredUserProfile,
+} from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
@@ -32,11 +39,13 @@ function subscribeToPostDetailStorage(onStoreChange: () => void) {
   }
 
   window.addEventListener("storage", onStoreChange);
+  window.addEventListener(COMMUNITY_COMMENTS_UPDATED_EVENT, onStoreChange);
   window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
   window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(COMMUNITY_COMMENTS_UPDATED_EVENT, onStoreChange);
     window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
     window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
   };
@@ -46,6 +55,7 @@ function getPostDetailStorageSnapshot() {
   return JSON.stringify({
     createdPosts: getStoredCreatedCommunityPosts(),
     removedPostIds: getStoredRemovedPostIds(),
+    storedComments: getStoredCommunityComments(),
   });
 }
 
@@ -53,6 +63,7 @@ function getPostDetailServerSnapshot() {
   return JSON.stringify({
     createdPosts: [],
     removedPostIds: [],
+    storedComments: [],
   });
 }
 
@@ -61,6 +72,7 @@ function parsePostDetailStorageSnapshot(snapshot: string) {
     const parsedSnapshot = JSON.parse(snapshot) as {
       createdPosts?: CommunityPost[];
       removedPostIds?: string[];
+      storedComments?: CommunityComment[];
     };
 
     return {
@@ -70,11 +82,15 @@ function parsePostDetailStorageSnapshot(snapshot: string) {
       removedPostIds: Array.isArray(parsedSnapshot.removedPostIds)
         ? parsedSnapshot.removedPostIds.filter((postId): postId is string => typeof postId === "string")
         : [],
+      storedComments: Array.isArray(parsedSnapshot.storedComments)
+        ? parsedSnapshot.storedComments.filter((comment) => typeof comment.id === "string")
+        : [],
     };
   } catch {
     return {
       createdPosts: [],
       removedPostIds: [],
+      storedComments: [],
     };
   }
 }
@@ -113,7 +129,7 @@ export function CommunityPostDetailPage({
     getPostDetailStorageSnapshot,
     getPostDetailServerSnapshot
   );
-  const { createdPosts, removedPostIds } = useMemo(
+  const { createdPosts, removedPostIds, storedComments } = useMemo(
     () => parsePostDetailStorageSnapshot(postDetailStorageSnapshot),
     [postDetailStorageSnapshot]
   );
@@ -124,14 +140,21 @@ export function CommunityPostDetailPage({
 
     return initialPost ?? createdPosts.find((currentPost) => currentPost.id === postId) ?? null;
   }, [createdPosts, initialPost, postId, removedPostIds]);
-  const [comments, setComments] = useState(() =>
-    initialPost || post ? communityComments.filter((comment) => comment.postId === postId) : []
-  );
   const [message, setMessage] = useState("");
   const storedProfile = useStoredProfileValues(profile);
+  const storedUser = useStoredUserProfile(profile);
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
+  const fixedPostComments = useMemo(
+    () => communityComments.filter((comment) => comment.postId === postId),
+    [postId]
+  );
+  const storedPostComments = useMemo(
+    () => storedComments.filter((comment) => comment.postId === postId),
+    [postId, storedComments]
+  );
+  const comments = storedPostComments.length > 0 ? storedPostComments : fixedPostComments;
   const sortedComments = sortCommentsBySupport(comments);
   const highlightedComment = sortedComments[0];
   const highlightedPost = post
@@ -148,6 +171,13 @@ export function CommunityPostDetailPage({
           : post.highlightedReply,
       }
     : null;
+
+  function savePostComments(nextPostComments: CommunityComment[]) {
+    saveStoredCommunityComments([
+      ...nextPostComments,
+      ...storedComments.filter((comment) => comment.postId !== postId),
+    ]);
+  }
 
   const focusComments = useCallback(() => {
     commentsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -177,26 +207,26 @@ export function CommunityPostDetailPage({
       .map((name) => name.charAt(0).toUpperCase())
       .join("");
 
-    setComments((currentComments) => [
+    savePostComments([
       {
         id: `mock-comment-${Date.now()}`,
         postId,
         authorName: storedProfile.fullName || "Usuária Maia",
-        authorRole: "Mãe no puerpério",
+        authorRole: getCommunityAuthorRole(profile, storedUser.professionalVerificationStatus),
         avatarInitials: initials || avatarInitial,
         message: trimmedMessage,
         timeAgo: "agora",
         helpfulCount: 0,
         notHelpfulCount: 0,
       },
-      ...currentComments,
+      ...comments,
     ]);
     setMessage("");
   }
 
   function handleCommentVote(commentId: string, vote: NonNullable<CommunityComment["userVote"]>) {
-    setComments((currentComments) =>
-      currentComments.map((comment) => {
+    savePostComments(
+      comments.map((comment) => {
         if (comment.id !== commentId) {
           return comment;
         }

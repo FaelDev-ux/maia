@@ -17,6 +17,7 @@ export type ProfileFormValues = {
   babyBirthDate: string;
   bio: string;
   birthDate: string;
+  council: string;
   email: string;
   fullName: string;
   interests: string;
