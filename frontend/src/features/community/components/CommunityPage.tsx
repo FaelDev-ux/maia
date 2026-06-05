@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useId, useMemo, useState, useSyncExternalStore } from "react";
 import { Search, Sparkles, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { CommunityComposerCard } from "@/features/community/components/CommunityComposerCard";
-import { CommunityCreatePostModal } from "@/features/community/components/CommunityCreatePostModal";
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
+import { getCommunityComposerCopy } from "@/features/community/data/community-composer";
 import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
 import {
   COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
@@ -119,70 +120,6 @@ function getPostSearchText(post: CommunityPost) {
   );
 }
 
-function getCommunityComposerCopy(profile: HomeProfile) {
-  if (profile === "health-professional") {
-    return {
-      buttonLabel: "Compartilhar orientação",
-      defaultCategory: "profissional" as CommunityPostCategory,
-      description:
-        "Publique uma orientação geral, segura e acolhedora para ajudar mães e famílias sem substituir atendimento individual.",
-      eyebrow: "Oriente com cuidado",
-      messagePlaceholder:
-        "Compartilhe uma orientação geral e cuidadosa. Evite diagnósticos e incentive busca de atendimento quando fizer sentido.",
-      modalEyebrow: "Orientação profissional",
-      submitLabel: "Publicar orientação",
-      title: "Tem uma orientação que pode apoiar alguém?",
-      titlePlaceholder: "Qual orientação pode ajudar a comunidade?",
-    };
-  }
-
-  if (profile === "experienced-mother") {
-    return {
-      buttonLabel: "Compartilhar apoio",
-      defaultCategory: "rede" as CommunityPostCategory,
-      description:
-        "Compartilhe uma vivência, uma ideia simples ou uma palavra de acolhimento para quem está atravessando uma fase parecida.",
-      eyebrow: "Apoie com experiência",
-      messagePlaceholder:
-        "Conte uma experiência, uma frase de acolhimento ou um cuidado simples que pode ajudar outra mãe.",
-      modalEyebrow: "Apoio da mentora",
-      submitLabel: "Publicar apoio",
-      title: "Pensou em algo que pode acolher alguém?",
-      titlePlaceholder: "Que apoio você quer compartilhar?",
-    };
-  }
-
-  return {
-    buttonLabel: "Criar publicação",
-    defaultCategory: "apoio" as CommunityPostCategory,
-    description:
-      "Publique uma dúvida, pedido de apoio ou experiência. Você pode preservar sua identidade quando preferir.",
-    eyebrow: "Compartilhe com cuidado",
-    messagePlaceholder:
-      "Escreva com calma. Você pode pedir apoio, dividir uma experiência ou abrir uma conversa.",
-    modalEyebrow: "Nova publicação",
-    submitLabel: "Publicar",
-    title: "Quer dividir o que está vivendo hoje?",
-    titlePlaceholder: "O que você quer compartilhar?",
-  };
-}
-
-function getCommunityAuthorRole(profile: HomeProfile) {
-  if (profile === "health-professional") {
-    return "Profissional de saúde";
-  }
-
-  if (profile === "experienced-mother") {
-    return "Mãe mentora";
-  }
-
-  if (profile === "future-mother") {
-    return "Futura mãe";
-  }
-
-  return "Mãe no puerpério";
-}
-
 function DeletePostConfirmationModal({
   onCancel,
   onConfirm,
@@ -234,6 +171,7 @@ function DeletePostConfirmationModal({
 }
 
 export function CommunityPage({ profile }: CommunityPageProps) {
+  const router = useRouter();
   const searchInputId = useId();
   const communityPostsSnapshot = useSyncExternalStore(
     subscribeToCommunityPosts,
@@ -242,7 +180,6 @@ export function CommunityPage({ profile }: CommunityPageProps) {
   );
   const [activeFilterId, setActiveFilterId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [postPendingDeletion, setPostPendingDeletion] = useState<CommunityPost | null>(null);
   const { createdPosts, removedPostIds } = useMemo(
     () => parseCommunityPostsSnapshot(communityPostsSnapshot),
@@ -255,16 +192,9 @@ export function CommunityPage({ profile }: CommunityPageProps) {
   }, [createdPosts, removedPostIds]);
   const storedProfile = useStoredProfileValues(profile);
   const composerCopy = getCommunityComposerCopy(profile);
-  const authorRole = getCommunityAuthorRole(profile);
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
-  const authorInitials = storedProfile.fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((name) => name.charAt(0).toUpperCase())
-    .join("");
   const activeCategory = filterCategoryById[activeFilterId] ?? "all";
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
   const userPosts = posts.filter((post) => post.id.startsWith("mock-post-"));
@@ -275,13 +205,6 @@ export function CommunityPage({ profile }: CommunityPageProps) {
 
     return matchesFilter && matchesSearch;
   });
-
-  function handleCreatePost(post: CommunityPost) {
-    saveStoredCreatedCommunityPosts([
-      post,
-      ...createdPosts.filter((currentPost) => currentPost.id !== post.id),
-    ]);
-  }
 
   function handleConfirmDeletePost() {
     if (!postPendingDeletion) {
@@ -334,7 +257,7 @@ export function CommunityPage({ profile }: CommunityPageProps) {
                 buttonLabel={composerCopy.buttonLabel}
                 description={composerCopy.description}
                 eyebrow={composerCopy.eyebrow}
-                onCreatePost={() => setIsCreatePostModalOpen(true)}
+                onCreatePost={() => router.push(getProfileScopedHref("/comunidade/novo", profile))}
                 title={composerCopy.title}
               />
             </section>
@@ -450,19 +373,6 @@ export function CommunityPage({ profile }: CommunityPageProps) {
       </div>
 
       <BottomNavigation />
-      <CommunityCreatePostModal
-        authorInitials={authorInitials || avatarInitial}
-        authorName={storedProfile.fullName || "Usuária Maia"}
-        authorRole={authorRole}
-        defaultCategory={composerCopy.defaultCategory}
-        isOpen={isCreatePostModalOpen}
-        messagePlaceholder={composerCopy.messagePlaceholder}
-        modalEyebrow={composerCopy.modalEyebrow}
-        onClose={() => setIsCreatePostModalOpen(false)}
-        onCreatePost={handleCreatePost}
-        submitLabel={composerCopy.submitLabel}
-        titlePlaceholder={composerCopy.titlePlaceholder}
-      />
       {postPendingDeletion ? (
         <DeletePostConfirmationModal
           onCancel={() => setPostPendingDeletion(null)}
