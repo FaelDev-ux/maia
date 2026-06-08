@@ -538,7 +538,7 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
         </div>
       ) : null}
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

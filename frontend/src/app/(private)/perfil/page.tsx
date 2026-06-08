@@ -1,5 +1,6 @@
 import { ProfilePage } from "@/features/profile/components/ProfilePage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type ProfileRouteProps = {
   searchParams?: Promise<{
@@ -9,7 +10,8 @@ type ProfileRouteProps = {
 
 export default async function ProfileRoute({ searchParams }: ProfileRouteProps) {
   const params = await searchParams;
-  const profile = resolveProfile(params?.profile);
+  const user = await getServerAuthenticatedUser();
+  const profile = resolveRouteProfile(params?.profile, user);
 
   return <ProfilePage key={profile} profile={profile} />;
 }

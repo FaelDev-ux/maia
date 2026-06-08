@@ -1,5 +1,6 @@
 import { MorePage } from "@/features/settings/components/MorePage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type MoreRouteProps = {
   searchParams?: Promise<{
@@ -9,6 +10,7 @@ type MoreRouteProps = {
 
 export default async function MoreRoute({ searchParams }: MoreRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <MorePage profile={resolveProfile(params?.profile)} />;
+  return <MorePage profile={resolveRouteProfile(params?.profile, user)} />;
 }

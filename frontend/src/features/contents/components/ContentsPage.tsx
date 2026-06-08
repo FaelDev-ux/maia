@@ -51,7 +51,7 @@ export function ContentsPage({ profile }: ContentsPageProps) {
           </section>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

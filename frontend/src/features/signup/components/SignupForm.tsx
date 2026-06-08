@@ -7,10 +7,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { AuthInput } from "@/features/auth/components/AuthInput";
-import { saveRegisteredUserProfile } from "@/features/profile/data/profile-storage";
-import { markPwaInstallPromptPending } from "@/features/pwa/data/install-preferences";
 import { registerSchema, type RegisterFormData } from "@/schemas/auth.schema";
 import { signupFields } from "../data/signup-fields";
+import { useRegistrationDraft } from "./RegistrationDraftProvider";
 
 type SignupFormProps = {
   isDragging?: boolean;
@@ -28,6 +27,7 @@ export function SignupForm({
   variant = "page",
 }: SignupFormProps) {
   const router = useRouter();
+  const { setRegistrationDraft } = useRegistrationDraft();
   const [submitError, setSubmitError] = useState("");
   const {
     formState: { errors, isSubmitting },
@@ -47,25 +47,8 @@ export function SignupForm({
 
   async function onSubmit(data: RegisterFormData) {
     setSubmitError("");
-
-    const response = await fetch("/api/auth/register", {
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      const result = (await response.json().catch(() => ({}))) as { erro?: string };
-      setSubmitError(result.erro ?? "Nao foi possivel criar sua conta agora.");
-      return;
-    }
-
-    saveRegisteredUserProfile(data);
-    markPwaInstallPromptPending();
+    setRegistrationDraft(data);
     router.replace("/auth/select-type");
-    router.refresh();
   }
 
   const formCard = (

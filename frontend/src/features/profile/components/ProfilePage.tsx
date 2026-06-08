@@ -337,7 +337,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           </div>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

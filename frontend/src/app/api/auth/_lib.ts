@@ -17,6 +17,19 @@ export function getBackendUrl() {
   return process.env.MAIA_BACKEND_URL ?? "http://127.0.0.1:8000";
 }
 
+export async function requestBackendTokenRefresh(refreshToken: string) {
+  const response = await fetch(`${getBackendUrl()}/api/refresh/`, {
+    body: JSON.stringify({ refreshToken }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const data = await parseBackendResponse(response);
+
+  return { data, response };
+}
+
 export async function parseBackendResponse(response: Response): Promise<BackendAuthResponse> {
   try {
     return (await response.json()) as BackendAuthResponse;

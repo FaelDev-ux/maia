@@ -1,5 +1,6 @@
 import { HomePage } from "@/features/home/components/HomePage";
-import type { HomeProfile } from "@/features/home/types";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type HomeRouteProps = {
   searchParams?: Promise<{
@@ -7,24 +8,9 @@ type HomeRouteProps = {
   }>;
 };
 
-function resolveHomeProfile(profile?: string): HomeProfile {
-  if (profile === "health-professional") {
-    return "health-professional";
-  }
-
-  if (profile === "experienced-mother") {
-    return "experienced-mother";
-  }
-
-  if (profile === "future-mother") {
-    return "future-mother";
-  }
-
-  return "recent-mother";
-}
-
 export default async function HomeRoute({ searchParams }: HomeRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <HomePage profile={resolveHomeProfile(params?.profile)} />;
+  return <HomePage profile={resolveRouteProfile(params?.profile, user)} />;
 }

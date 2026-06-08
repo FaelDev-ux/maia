@@ -422,7 +422,7 @@ export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProp
         </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

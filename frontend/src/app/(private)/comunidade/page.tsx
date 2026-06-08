@@ -1,5 +1,6 @@
 import { CommunityPage } from "@/features/community/components/CommunityPage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type CommunityRouteProps = {
   searchParams?: Promise<{
@@ -9,6 +10,7 @@ type CommunityRouteProps = {
 
 export default async function CommunityRoute({ searchParams }: CommunityRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <CommunityPage profile={resolveProfile(params?.profile)} />;
+  return <CommunityPage profile={resolveRouteProfile(params?.profile, user)} />;
 }

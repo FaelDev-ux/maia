@@ -9,6 +9,7 @@ from .firebase import (
     FirebaseNotConfiguredError,
     get_firebase_auth,
     get_firestore_client,
+    refresh_id_token,
     server_timestamp,
     sign_in_with_password,
 )
@@ -114,6 +115,7 @@ class CadastroUsuarioView(APIView):
         phone = get_value(data, "phone", "telefone")
         birth_date = get_value(data, "birthDate", "data_nascimento")
         profile_code = get_value(data, "profileCode", "perfil") or "PUE"
+        professional = data.get("professional") if isinstance(data.get("professional"), dict) else {}
 
         if not email or not password:
             return error_response("E-mail e senha sao obrigatorios.")
@@ -152,7 +154,7 @@ class CadastroUsuarioView(APIView):
                 "profileSlug": PROFILE_SLUGS[profile_code],
                 "roles": [profile_code],
                 "status": "active",
-                "professionalVerificationStatus": "not-required",
+                "professionalVerificationStatus": "pending" if profile_code == "PRO" else "not-required",
                 "privacy": {
                     "defaultAnonymousCommunityPost": True,
                     "showAvatarInCommunity": True,
@@ -172,14 +174,22 @@ class CadastroUsuarioView(APIView):
                     "supportsReceivedCount": 0,
                 },
                 "onboarding": {
-                    "completed": False,
-                    "completedSteps": [],
+                    "completed": True,
+                    "completedSteps": ["select-type"],
                 },
                 "acceptedTermsVersion": "pending",
                 "acceptedPrivacyVersion": "pending",
                 "createdAt": timestamp,
                 "updatedAt": timestamp,
             }
+
+            if profile_code == "PRO":
+                user_data["professional"] = {
+                    "registrationNumber": get_value(professional, "registrationNumber") or "",
+                    "council": get_value(professional, "council") or "",
+                    "state": get_value(professional, "state") or "",
+                    "specialty": get_value(professional, "specialty") or "",
+                }
 
             db.collection("users").document(user_record.uid).set(user_data)
             token_data = sign_in_with_password(email, password)
@@ -244,6 +254,35 @@ class LoginUsuarioView(APIView):
             return firebase_error_response(exc)
         except Exception:
             return error_response("Nao foi possivel realizar o login.")
+
+
+class RefreshUsuarioView(APIView):
+    def post(self, request):
+        refresh_token = get_value(request.data, "refreshToken", "refresh_token")
+
+        if not refresh_token:
+            return error_response("Refresh token e obrigatorio.", status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            token_data = refresh_id_token(refresh_token)
+            uid = token_data.get("user_id")
+            user = get_user_payload(uid) if uid else None
+
+            return Response(
+                {
+                    "mensagem": "Sessao renovada com sucesso.",
+                    "accessToken": token_data.get("id_token"),
+                    "refreshToken": token_data.get("refresh_token") or refresh_token,
+                    "expiresIn": token_data.get("expires_in"),
+                    "uid": uid,
+                    "user": user,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (FirebaseNotConfiguredError, FirebaseAuthRequestError) as exc:
+            return firebase_error_response(exc)
+        except Exception:
+            return error_response("Nao foi possivel renovar a sessao.")
 
 
 class UsuarioDetailView(APIView):

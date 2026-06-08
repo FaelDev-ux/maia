@@ -1,5 +1,6 @@
 import { ContentsPage } from "@/features/contents/components/ContentsPage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type ContentsRouteProps = {
   searchParams?: Promise<{
@@ -9,6 +10,7 @@ type ContentsRouteProps = {
 
 export default async function ContentsRoute({ searchParams }: ContentsRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <ContentsPage profile={resolveProfile(params?.profile)} />;
+  return <ContentsPage profile={resolveRouteProfile(params?.profile, user)} />;
 }

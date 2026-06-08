@@ -1,5 +1,6 @@
 import { DailyCheckInPage } from "@/features/check-in/components/DailyCheckInPage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type CheckInRouteProps = {
   searchParams?: Promise<{
@@ -10,6 +11,12 @@ type CheckInRouteProps = {
 
 export default async function CheckInRoute({ searchParams }: CheckInRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <DailyCheckInPage initialEmotionId={params?.emotion} profile={resolveProfile(params?.profile)} />;
+  return (
+    <DailyCheckInPage
+      initialEmotionId={params?.emotion}
+      profile={resolveRouteProfile(params?.profile, user)}
+    />
+  );
 }

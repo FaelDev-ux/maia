@@ -1,6 +1,7 @@
 import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import type { HomeProfile } from "@/features/home/types";
 import type { ProfileFormValues } from "@/features/profile/types";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
 import type { RegisterFormData } from "@/schemas/auth.schema";
 import {
   USER_PROFILES,
@@ -526,6 +527,14 @@ export function saveUserProfile(user: User) {
 
   window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(user));
   emitProfileUpdated();
+}
+
+export function saveAuthenticatedUserProfile(user: unknown) {
+  if (typeof window === "undefined" || !isStoredUserProfile(user)) {
+    return;
+  }
+
+  saveUserProfile(mergeUserWithProfileDefaults(user, resolveUserProfile(user)));
 }
 
 export function saveProfileValues(values: ProfileFormValues, profile: HomeProfile = "recent-mother") {

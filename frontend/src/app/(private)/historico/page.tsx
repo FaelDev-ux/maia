@@ -1,5 +1,6 @@
 import { CheckInHistoryPage } from "@/features/check-in/components/CheckInHistoryPage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { resolveRouteProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type HistoryRouteProps = {
   searchParams?: Promise<{
@@ -9,6 +10,7 @@ type HistoryRouteProps = {
 
 export default async function HistoryRoute({ searchParams }: HistoryRouteProps) {
   const params = await searchParams;
+  const user = await getServerAuthenticatedUser();
 
-  return <CheckInHistoryPage profile={resolveProfile(params?.profile)} />;
+  return <CheckInHistoryPage profile={resolveRouteProfile(params?.profile, user)} />;
 }

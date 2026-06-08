@@ -111,7 +111,7 @@ export function HelpSupportPage({ profile }: HelpSupportPageProps) {
           </section>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

@@ -410,7 +410,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
           </div>
         )}
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
       {isNotificationPromptOpen ? (
         <DailyCheckInNotificationModal
           onAllow={handleAllowNotifications}

@@ -488,7 +488,7 @@ export function CommunityPostDetailPage({
         </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }
