@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { BellRing, ChevronRight, HelpCircle, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import type { HomeProfile } from "@/features/home/types";
@@ -39,6 +41,16 @@ const moreItems = [
 ] as const;
 
 export function MorePage({ profile }: MorePageProps) {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    router.replace("/auth?mode=login");
+    router.refresh();
+  }
+
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[48rem] md:overflow-visible md:px-8 md:pb-32">
@@ -86,13 +98,17 @@ export function MorePage({ profile }: MorePageProps) {
 
             <button
               className="flex items-center gap-4 rounded-[1.75rem] bg-white px-5 py-5 text-left shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65 transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+              disabled={isLoggingOut}
+              onClick={handleLogout}
               type="button"
             >
               <span className="grid size-12 shrink-0 place-items-center rounded-full bg-surface text-text">
                 <LogOut aria-hidden size={22} strokeWidth={2.3} />
               </span>
               <span>
-                <span className="block font-title text-lg font-extrabold text-title">Sair</span>
+                <span className="block font-title text-lg font-extrabold text-title">
+                  {isLoggingOut ? "Saindo..." : "Sair"}
+                </span>
                 <span className="mt-1 block text-sm leading-6 text-text">
                   Encerrar sessão neste dispositivo.
                 </span>

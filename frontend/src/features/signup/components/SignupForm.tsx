@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { AuthInput } from "@/features/auth/components/AuthInput";
@@ -27,6 +28,7 @@ export function SignupForm({
   variant = "page",
 }: SignupFormProps) {
   const router = useRouter();
+  const [submitError, setSubmitError] = useState("");
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -44,9 +46,26 @@ export function SignupForm({
   });
 
   async function onSubmit(data: RegisterFormData) {
+    setSubmitError("");
+
+    const response = await fetch("/api/auth/register", {
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const result = (await response.json().catch(() => ({}))) as { erro?: string };
+      setSubmitError(result.erro ?? "Nao foi possivel criar sua conta agora.");
+      return;
+    }
+
     saveRegisteredUserProfile(data);
     markPwaInstallPromptPending();
-    router.push("/auth/select-type");
+    router.replace("/auth/select-type");
+    router.refresh();
   }
 
   const formCard = (
@@ -83,6 +102,12 @@ export function SignupForm({
           >
             {isSubmitting ? "Cadastrando..." : "Cadastrar"}
           </button>
+
+          {submitError ? (
+            <p className="rounded-2xl bg-primary/10 px-4 py-3 text-center text-xs font-semibold leading-5 text-primary">
+              {submitError}
+            </p>
+          ) : null}
         </form>
       </div>
 
