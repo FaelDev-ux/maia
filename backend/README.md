@@ -64,3 +64,33 @@ O backend aceita o contrato atual do frontend:
 ```
 
 Tambem aceita temporariamente aliases antigos em portugues, como `senha`, `nome_completo`, `telefone` e `data_nascimento`.
+
+## Deploy no Google Cloud Run
+
+Configuracao recomendada:
+
+- Projeto: `maia-86c23`
+- Regiao: `southamerica-east1`
+- Servico: `maia-backend`
+- Porta do container: `8080`
+- Min instances: `0`
+- Max instances: `3`
+- Secrets no Secret Manager:
+  - `maia-firebase-service-account`
+  - `maia-django-secret-key`
+  - `maia-firebase-web-api-key`
+
+O deploy pode ser iniciado com:
+
+```powershell
+.\scripts\deploy-cloud-run.ps1
+```
+
+Antes do deploy, faca login no Google Cloud:
+
+```powershell
+gcloud auth login
+gcloud config set project maia-86c23
+```
+
+O script usa `backend/firebase.json` e `backend/.env` locais para criar ou atualizar secrets no Secret Manager. Esses arquivos continuam ignorados pelo Git.

@@ -78,6 +78,18 @@ def get_user_payload(uid):
     return serialize_firestore_value(user_doc.to_dict())
 
 
+def cleanup_created_user(uid):
+    try:
+        get_firestore_client().collection("users").document(uid).delete()
+    except Exception:
+        pass
+
+    try:
+        get_firebase_auth().delete_user(uid)
+    except Exception:
+        pass
+
+
 def user_is_admin(firebase_user):
     claims = getattr(firebase_user, "decoded_token", {}) or {}
     return bool(claims.get("admin") or claims.get("role") == "ADM")
@@ -112,6 +124,8 @@ class CadastroUsuarioView(APIView):
         if profile_code not in PROFILE_SLUGS:
             return error_response("Perfil de usuario invalido.")
 
+        created_uid = None
+
         try:
             firebase_auth = get_firebase_auth()
             db = get_firestore_client()
@@ -121,6 +135,7 @@ class CadastroUsuarioView(APIView):
                 password=password,
                 display_name=full_name,
             )
+            created_uid = user_record.uid
 
             timestamp = server_timestamp()
             user_data = {
@@ -187,10 +202,16 @@ class CadastroUsuarioView(APIView):
                 status=status.HTTP_201_CREATED,
             )
         except FirebaseNotConfiguredError as exc:
+            if created_uid:
+                cleanup_created_user(created_uid)
             return firebase_error_response(exc)
         except FirebaseAuthRequestError as exc:
+            if created_uid:
+                cleanup_created_user(created_uid)
             return firebase_error_response(exc)
         except Exception:
+            if created_uid:
+                cleanup_created_user(created_uid)
             return error_response("Nao foi possivel criar o usuario.")
 
 
