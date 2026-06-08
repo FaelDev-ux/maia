@@ -98,7 +98,7 @@ Este arquivo funciona como memória operacional e guia de contexto do projeto Ma
 - Preferir linguagem: “identificamos um padrão”, “isso tem aparecido com frequência”, “considere buscar apoio profissional se persistir”.
 - Dados emocionais são sensíveis e devem ser tratados com privacidade, segurança e transparência.
 - Comunidade deve permitir anonimato ou identidade protegida quando possível.
-- Profissionais de saúde precisam de verificação de registro antes de acessar recursos exclusivos.
+- No mock local atual, profissionais de saúde iniciam com status em análise e não são bloqueadas; o status aparece como flag na comunidade e no painel. Na versão com backend, a validação administrativa deve continuar registrada.
 - O app depende de internet para sincronização, conteúdos e comunidade.
 - Há conflito no Documento de Visão ao citar dispositivos móveis/desktop e “não versão web”, enquanto o projeto atual usa Next.js. Decisão prática atual: tratar como aplicação web responsiva/mobile-first, com possibilidade futura de PWA ou empacotamento mobile.
 
@@ -267,7 +267,7 @@ Dados desejados no registro:
 ## 21. Conteúdos
 
 - Conteúdos devem ter título, resumo, categoria, tags, tempo de leitura e corpo.
-- Profissionais verificados poderão publicar artigos/vídeos educativos.
+- No escopo atual do frontend/local, conteúdos técnicos de profissionais são posts de orientação na comunidade; a biblioteca segue como conteúdo editorial/mockado.
 - Usuárias recebem conteúdos com base no check-in, perfil e padrões.
 - Tela de artigo deve ser confortável para leitura mobile.
 
@@ -275,7 +275,7 @@ Dados desejados no registro:
 
 - Comunidade é espaço de apoio, troca de experiências e pedidos de ajuda.
 - PUE, DSM e MMT participam diretamente.
-- PRO pode responder dúvidas técnicas e validar orientações.
+- PRO pode publicar posts de orientação geral e responder dúvidas técnicas na comunidade, sempre sem diagnóstico individual.
 - ADM modera fórum e usuários.
 - Deve haver cuidado contra exposição indevida, julgamento, spam e conselhos perigosos.
 

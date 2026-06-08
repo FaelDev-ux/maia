@@ -1,5 +1,7 @@
-import type { CommunityPost } from "@/features/community/types";
+import type { CommunityComment, CommunityPost } from "@/features/community/types";
 
+export const COMMUNITY_COMMENTS_STORAGE_KEY = "maia-community-comments";
+export const COMMUNITY_COMMENTS_UPDATED_EVENT = "maia-community-comments-updated";
 export const COMMUNITY_CREATED_POSTS_STORAGE_KEY = "maia-community-created-posts";
 export const COMMUNITY_CREATED_POSTS_UPDATED_EVENT = "maia-community-created-posts-updated";
 export const COMMUNITY_REMOVED_POSTS_STORAGE_KEY = "maia-community-removed-posts";
@@ -13,6 +15,14 @@ function emitSupportedPostsUpdated() {
   }
 
   window.dispatchEvent(new Event(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT));
+}
+
+function emitCommentsUpdated() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(COMMUNITY_COMMENTS_UPDATED_EVENT));
 }
 
 function emitCreatedPostsUpdated() {
@@ -29,6 +39,38 @@ function emitRemovedPostsUpdated() {
   }
 
   window.dispatchEvent(new Event(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT));
+}
+
+export function getStoredCommunityComments() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const storedComments = window.localStorage.getItem(COMMUNITY_COMMENTS_STORAGE_KEY);
+
+    if (!storedComments) {
+      return [];
+    }
+
+    const parsedComments = JSON.parse(storedComments);
+
+    return Array.isArray(parsedComments)
+      ? (parsedComments as CommunityComment[]).filter((comment) => typeof comment.id === "string")
+      : [];
+  } catch {
+    window.localStorage.removeItem(COMMUNITY_COMMENTS_STORAGE_KEY);
+    return [];
+  }
+}
+
+export function saveStoredCommunityComments(comments: CommunityComment[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(COMMUNITY_COMMENTS_STORAGE_KEY, JSON.stringify(comments));
+  emitCommentsUpdated();
 }
 
 export function getStoredCreatedCommunityPosts() {

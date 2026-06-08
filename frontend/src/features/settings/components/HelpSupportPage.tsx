@@ -9,7 +9,7 @@ type HelpSupportPageProps = {
   profile: HomeProfile;
 };
 
-const supportItems = [
+const motherSupportItems = [
   {
     icon: MessageCircle,
     title: "Dúvidas sobre o app",
@@ -35,7 +35,36 @@ const supportItems = [
   },
 ] as const;
 
+const professionalSupportItems = [
+  {
+    icon: MessageCircle,
+    title: "Atuação na comunidade",
+    description:
+      "Publique orientações gerais e responda dúvidas com linguagem acolhedora, evitando diagnóstico ou conduta individualizada.",
+  },
+  {
+    icon: ShieldAlert,
+    title: "Limites da orientação",
+    description:
+      "Quando houver sinais de risco ou necessidade de avaliação, oriente a busca por atendimento presencial ou serviço de saúde adequado.",
+  },
+  {
+    icon: LifeBuoy,
+    title: "Suporte do protótipo",
+    description:
+      "Se algo não funcionar, registre o caminho usado, o perfil profissional e a ação esperada para facilitar a correção.",
+  },
+  {
+    icon: Mail,
+    title: "Contato",
+    description: "Canal mockado: suporte@maia.app. Na versão real, este contato deve ir para atendimento.",
+  },
+] as const;
+
 export function HelpSupportPage({ profile }: HelpSupportPageProps) {
+  const isHealthProfessional = profile === "health-professional";
+  const supportItems = isHealthProfessional ? professionalSupportItems : motherSupportItems;
+
   return (
     <main className="min-h-dvh bg-background text-text">
       <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[48rem] md:overflow-visible md:px-8 md:pb-32">
@@ -54,7 +83,9 @@ export function HelpSupportPage({ profile }: HelpSupportPageProps) {
               Ajuda e <span className="text-primary">suporte</span>
             </h1>
             <p className="mt-6 max-w-[22rem] text-[1.06rem] leading-8 text-text md:max-w-[32rem] md:text-lg">
-              Encontre respostas rápidas e caminhos de apoio para usar o Maia com mais tranquilidade.
+              {isHealthProfessional
+                ? "Encontre orientações rápidas para testar o fluxo profissional e participar da comunidade com segurança."
+                : "Encontre respostas rápidas e caminhos de apoio para usar o Maia com mais tranquilidade."}
             </p>
           </section>
 

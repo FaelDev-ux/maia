@@ -124,8 +124,8 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
   "health-professional": {
     profile: "health-professional",
     title: "Meu perfil",
-    intro: "Revise seus dados e mantenha sua conta sempre atualizada",
-    badge: "Profissional verificada",
+    intro: "Revise seus dados profissionais e mantenha sua identificação na comunidade atualizada",
+    badge: "Profissional em análise",
     fields: [
       baseNameField,
       baseEmailField,
@@ -134,9 +134,16 @@ export const profileContentByProfile: Record<HomeProfile, ProfileContent> = {
       {
         id: "registrationNumber",
         icon: BadgeCheck,
-        label: "Número do registro (CRM/CRP/COREN)",
+        label: "Número do registro",
         placeholder: "123456",
         type: "text",
+      },
+      {
+        id: "council",
+        icon: BadgeCheck,
+        label: "Conselho profissional",
+        placeholder: "Selecione uma opção",
+        type: "select",
       },
       {
         id: "state",

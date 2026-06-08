@@ -27,7 +27,10 @@ import {
 } from "@/features/community/data/community-storage";
 import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
-import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
+import {
+  useStoredProfileValues,
+  useStoredUserProfile,
+} from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
@@ -131,8 +134,9 @@ function focusInvalidField(field: HTMLInputElement | HTMLTextAreaElement | null)
 export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProps) {
   const router = useRouter();
   const storedProfile = useStoredProfileValues(profile);
+  const storedUser = useStoredUserProfile(profile);
   const composerCopy = getCommunityComposerCopy(profile);
-  const authorRole = getCommunityAuthorRole(profile);
+  const authorRole = getCommunityAuthorRole(profile, storedUser.professionalVerificationStatus);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState("");
