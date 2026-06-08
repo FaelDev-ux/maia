@@ -96,12 +96,11 @@ export function MorePage({ profile }: MorePageProps) {
               );
             })}
 
-            <Link
-              className="flex items-center gap-4 rounded-[1.75rem] bg-white px-5 py-5 text-left shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65 transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+            <button
+              className="flex items-center gap-4 rounded-[1.75rem] bg-white px-5 py-5 text-left shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65 transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
               disabled={isLoggingOut}
               onClick={handleLogout}
               type="button"
-              href={"/"}
             >
               <span className="grid size-12 shrink-0 place-items-center rounded-full bg-surface text-text">
                 <LogOut aria-hidden size={22} strokeWidth={2.3} />
@@ -114,7 +113,7 @@ export function MorePage({ profile }: MorePageProps) {
                   Encerrar sessão neste dispositivo.
                 </span>
               </span>
-            </Link>
+            </button>
           </section>
         </div>
       </div>
