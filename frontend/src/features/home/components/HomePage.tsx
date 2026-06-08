@@ -118,11 +118,13 @@ function getDailyRecommendationDateServerSnapshot() {
 
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
+  const canUseCheckInRoutes = profile === "recent-mother";
   const storedProfile = useStoredProfileValues(profile);
   const storedUser = useStoredUserProfile(profile);
   const dailyCheckIns = useStoredDailyCheckIns();
   const { permission, preferences } = useNotificationPreferences();
   const isNotificationPromptOpen =
+    canUseCheckInRoutes &&
     permission !== "unsupported" &&
     permission !== "denied" &&
     !preferences.dailyCheckInEnabled &&
@@ -355,6 +357,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                 </p>
               </section>
 
+              {canUseCheckInRoutes ? (
               <section
                 className="mt-7 flex flex-wrap gap-4 md:mt-8"
                 aria-label="Check-in emocional rápido"
@@ -363,8 +366,9 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
                   <EmotionChip emotion={emotion} key={emotion.id} />
                 ))}
               </section>
+              ) : null}
 
-              {content.variant === "wellbeing" ? (
+              {content.variant === "wellbeing" && canUseCheckInRoutes ? (
                 <section className="mt-7 md:mt-8" aria-label="Gráfico emocional da semana">
                   <WeeklyEmotionChartCard records={dailyCheckIns} />
                 </section>
@@ -398,13 +402,15 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
 
               <section className="relative mt-5 md:mt-8">
                 <CommunityPreviewCard onClick={onRedirectCommunity} community={content.community} />
-                <Link
-                  aria-label="Registrar sentimentos"
-                  className="fixed bottom-30 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
-                  href="/check-in"
-                >
-                  <Heart aria-hidden className="fill-white" size={31} strokeWidth={0} />
-                </Link>
+                {canUseCheckInRoutes ? (
+                  <Link
+                    aria-label="Registrar sentimentos"
+                    className="fixed bottom-30 right-6 z-30 grid size-16 place-items-center rounded-full bg-primary text-white shadow-[0_18px_38px_rgb(216_116_140_/_0.34)] transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary md:right-6"
+                    href="/check-in"
+                  >
+                    <Heart aria-hidden className="fill-white" size={31} strokeWidth={0} />
+                  </Link>
+                ) : null}
               </section>
             </div>
           </div>

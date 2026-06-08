@@ -1,12 +1,6 @@
 import type { HomeProfile } from "@/features/home/types";
 import type { UserProfileCode, UserProfileSlug } from "@/types/user";
 
-const routedProfiles = new Set<HomeProfile>([
-  "experienced-mother",
-  "future-mother",
-  "health-professional",
-]);
-
 const profileByCode: Partial<Record<UserProfileCode, HomeProfile>> = {
   DSM: "future-mother",
   MMT: "experienced-mother",
@@ -52,20 +46,6 @@ export function resolveUserProfile(user?: {
   return resolveProfile(user?.profileSlug ?? user?.profileCode);
 }
 
-export function resolveRouteProfile(
-  profile?: string | null,
-  user?: {
-    profileCode?: UserProfileCode | string;
-    profileSlug?: UserProfileSlug | string;
-  } | null
-): HomeProfile {
-  return profile ? resolveProfile(profile) : resolveUserProfile(user);
-}
-
-export function getProfileQuery(profile?: HomeProfile | string | null) {
-  return routedProfiles.has(profile as HomeProfile) ? `?profile=${profile}` : "";
-}
-
-export function getProfileScopedHref(path: string, profile?: HomeProfile | string | null) {
-  return `${path}${getProfileQuery(profile)}`;
+export function getProfileScopedHref(path: string, _profile?: HomeProfile | string | null) {
+  return path;
 }

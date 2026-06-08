@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import {
   BookOpenText,
   ChartNoAxesColumnIncreasing,
@@ -10,10 +9,10 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { HomeProfile } from "@/features/home/types";
 import cn from "@/lib/utils";
-import { getProfileScopedHref, resolveProfile } from "@/features/profile/utils/profile-routing";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 
 const navigationItems = [
   {
@@ -63,10 +62,8 @@ type BottomNavigationContentProps = {
   profile?: HomeProfile;
 };
 
-function BottomNavigationContent({ profile: providedProfile }: BottomNavigationContentProps) {
+function BottomNavigationContent({ profile = "recent-mother" }: BottomNavigationContentProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const profile = providedProfile ?? resolveProfile(searchParams.get("profile"));
   const visibleItems = navigationItemsByProfile[profile];
 
   return (
@@ -112,9 +109,5 @@ type BottomNavigationProps = {
 };
 
 export function BottomNavigation({ profile }: BottomNavigationProps) {
-  return (
-    <Suspense fallback={null}>
-      <BottomNavigationContent profile={profile} />
-    </Suspense>
-  );
+  return <BottomNavigationContent profile={profile} />;
 }

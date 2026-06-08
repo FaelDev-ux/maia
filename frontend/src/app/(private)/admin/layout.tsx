@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
 import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type AdminLayoutProps = {
@@ -8,9 +8,7 @@ type AdminLayoutProps = {
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const user = await getServerAuthenticatedUser();
 
-  if (!user?.roles.includes("ADM")) {
-    redirect("/home");
-  }
+  requireRouteRoles(user, appRouteAccess.admin);
 
   return children;
 }

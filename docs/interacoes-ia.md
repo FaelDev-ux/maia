@@ -324,12 +324,12 @@ Criar variações da Home para todos os perfis principais selecionáveis no onbo
 
 ### 3. Resposta da IA
 
-A IA leu `context.md`, `AGENTS.md`, inspecionou a feature `home`, o fluxo `SelectTypeFlow` e as steps finais de cada perfil. Em seguida, transformou a Home em uma tela parametrizada por perfil via query string:
+A IA leu `context.md`, `AGENTS.md`, inspecionou a feature `home`, o fluxo `SelectTypeFlow` e as steps finais de cada perfil. Em seguida, transformou a Home em uma tela personalizada pelo perfil da usuária autenticada:
 
-- `/home`: mãe recente;
-- `/home?profile=future-mother`: deseja ser mãe/futura mãe;
-- `/home?profile=experienced-mother`: mãe experiente/mentora;
-- `/home?profile=health-professional`: profissional de saúde.
+- `/home`: resolve o perfil atual a partir dos dados da usuária logada;
+- deseja ser mãe/futura mãe: conteúdo definido pelo perfil retornado em `/me`;
+- mãe experiente/mentora: conteúdo definido pelo perfil retornado em `/me`;
+- profissional de saúde: conteúdo definido pelo perfil retornado em `/me`.
 
 Também criou componentes reutilizáveis para a variação de mentoria/profissional, como card de impacto, badge de perfil e cards de pedidos de ajuda.
 
@@ -347,9 +347,9 @@ O projeto passou a ter quatro variações de Home com a mesma base visual, respo
 Os fluxos finais ficaram:
 
 - mãe recente: `welcome -> baby-info -> support -> /home`;
-- deseja ser mãe: `welcome -> support -> /home?profile=future-mother`;
-- mãe experiente: `welcome -> /home?profile=experienced-mother`;
-- profissional de saúde: `data -> welcome -> /home?profile=health-professional`.
+- deseja ser mãe: `welcome -> support -> /home`;
+- mãe experiente: `welcome -> /home`;
+- profissional de saúde: `data -> welcome -> /home`.
 
 ### 5. Acertos
 
@@ -428,9 +428,7 @@ Rotas validadas com resposta `200`:
 - `/auth/forgot-password`;
 - `/auth/select-type`;
 - `/home`;
-- `/home?profile=future-mother`;
-- `/home?profile=experienced-mother`;
-- `/home?profile=health-professional`;
+- `/home` com sessões de futura mãe, mãe experiente e profissional de saúde;
 - `/check-in`;
 - `/conteudos`;
 - `/conteudos/navegando-nas-emocoes`;
