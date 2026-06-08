@@ -13,5 +13,5 @@ export default async function ProfileRoute({ searchParams }: ProfileRouteProps) 
   const user = await getServerAuthenticatedUser();
   const profile = resolveRouteProfile(params?.profile, user);
 
-  return <ProfilePage key={profile} profile={profile} />;
+  return <ProfilePage initialUser={user} key={profile} profile={profile} />;
 }

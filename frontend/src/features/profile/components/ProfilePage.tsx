@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, CheckCircle2 } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import type { HomeProfile } from "@/features/home/types";
 import { NotificationSettingsCard } from "@/features/notifications/components/NotificationSettingsCard";
+import { getStoredNotificationPreferences } from "@/features/notifications/data/notification-preferences";
 import { profileContentByProfile } from "@/features/profile/data/profile-content";
-import { saveProfileValues } from "@/features/profile/data/profile-storage";
+import {
+  saveAuthenticatedUserProfile,
+  saveProfileValues,
+} from "@/features/profile/data/profile-storage";
 import { ProfileFieldControl } from "@/features/profile/components/ProfileFieldControl";
 import {
   useStoredProfileValues,
@@ -23,8 +27,10 @@ import {
   professionalStateOptions,
   type ProfessionalOption,
 } from "@/features/usertypeselection/health-professional/data/professional-options";
+import type { AuthenticatedUser } from "@/types/user";
 
 type ProfilePageProps = {
+  initialUser?: AuthenticatedUser | null;
   profile: HomeProfile;
 };
 
@@ -62,11 +68,33 @@ function getProfessionalProfileBadge(status: string) {
   return "Aguardando análise";
 }
 
-export function ProfilePage({ profile }: ProfilePageProps) {
+function parseProfileDate(value: string) {
+  const trimmedValue = value.trim();
+  const brazilianDateMatch = trimmedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (brazilianDateMatch) {
+    const [, day, month, year] = brazilianDateMatch;
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return trimmedValue;
+}
+
+function splitTextList(value: string) {
+  return value
+    .split(/,|\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
   const content = profileContentByProfile[profile];
   const values = useStoredProfileValues(profile);
   const storedUser = useStoredUserProfile(profile);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [openProfessionalSelectId, setOpenProfessionalSelectId] =
     useState<ProfessionalProfileSelectId | null>(null);
   const [professionalSelectDrafts, setProfessionalSelectDrafts] = useState<
@@ -88,6 +116,10 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       ? getProfessionalProfileBadge(storedUser.professionalVerificationStatus)
       : content.badge;
 
+  useEffect(() => {
+    saveAuthenticatedUserProfile(initialUser);
+  }, [initialUser]);
+
   function updateValue(fieldId: keyof ProfileFormValues, value: string) {
     saveProfileValues(
       {
@@ -97,6 +129,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       profile
     );
     setIsSaved(false);
+    setSaveError("");
   }
 
   function handleProfessionalSelectOpenChange(
@@ -213,8 +246,100 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function buildProfilePayload() {
+    const notificationPreferences = getStoredNotificationPreferences();
+    const payload = {
+      avatarUrl: values.avatarUrl || undefined,
+      birthDate: parseProfileDate(values.birthDate),
+      fullName: values.fullName,
+      notificationSummary: {
+        ...storedUser.notificationSummary,
+        dailyCheckInEnabled: notificationPreferences.dailyCheckInEnabled,
+        pushEnabled: notificationPreferences.dailyCheckInEnabled,
+        timezone: storedUser.notificationSummary.timezone || "America/Fortaleza",
+      },
+      phone: values.phone,
+      privacy: storedUser.privacy,
+    };
+
+    if (profile === "recent-mother") {
+      return {
+        ...payload,
+        recentMother: {
+          ...(storedUser.recentMother ?? {}),
+          babyBirthDate: parseProfileDate(values.babyBirthDate),
+          bio: values.bio.trim(),
+        },
+      };
+    }
+
+    if (profile === "future-mother") {
+      return {
+        ...payload,
+        futureMother: {
+          ...(storedUser.futureMother ?? {}),
+          interests: splitTextList(values.interests),
+          journeyMoment: values.journeyMoment.trim(),
+        },
+      };
+    }
+
+    if (profile === "experienced-mother") {
+      return {
+        ...payload,
+        mentor: {
+          ...(storedUser.mentor ?? {
+            availableForSupport: true,
+            supportTopics: [],
+          }),
+          mentorBio: values.mentorBio.trim(),
+          motherhoodExperience: values.motherhoodExperience.trim(),
+        },
+      };
+    }
+
+    if (profile === "health-professional") {
+      return {
+        ...payload,
+        professional: {
+          ...(storedUser.professional ?? {}),
+          council: values.council.trim(),
+          registrationNumber: values.registrationNumber.trim(),
+          specialty: values.specialty.trim(),
+          state: values.state.trim(),
+        },
+      };
+    }
+
+    return payload;
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSaving(true);
+    setIsSaved(false);
+    setSaveError("");
+
+    const response = await fetch("/api/users/me", {
+      body: JSON.stringify(buildProfilePayload()),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    const result = (await response.json().catch(() => ({}))) as {
+      erro?: string;
+      user?: unknown;
+    };
+
+    setIsSaving(false);
+
+    if (!response.ok) {
+      setSaveError(result.erro ?? "Nao foi possivel salvar seu perfil agora.");
+      return;
+    }
+
+    saveAuthenticatedUserProfile(result.user);
     setIsSaved(true);
   }
 
@@ -319,16 +444,23 @@ export function ProfilePage({ profile }: ProfilePageProps) {
               </div>
 
               <button
-                className="mt-9 flex h-16 w-full items-center justify-center rounded-full bg-primary px-6 font-title text-lg font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                className="mt-9 flex h-16 w-full items-center justify-center rounded-full bg-primary px-6 font-title text-lg font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isSaving}
                 type="submit"
               >
-                Salvar
+                {isSaving ? "Salvando..." : "Salvar"}
               </button>
 
               {isSaved ? (
                 <p className="mt-5 flex items-center justify-center gap-2 text-sm font-extrabold text-primary">
                   <CheckCircle2 aria-hidden size={17} strokeWidth={2.4} />
-                  Perfil atualizado localmente
+                  Perfil atualizado
+                </p>
+              ) : null}
+
+              {saveError ? (
+                <p className="mt-5 rounded-2xl bg-primary/10 px-4 py-3 text-center text-sm font-bold leading-6 text-primary">
+                  {saveError}
                 </p>
               ) : null}
             </form>
