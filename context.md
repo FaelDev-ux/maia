@@ -177,6 +177,31 @@ Validação já realizada em produção:
 - Rota protegida sem sessão redireciona para login: OK.
 - Rota pública com sessão redireciona para `/home`: OK.
 
+Endpoints de dominio implementados no Django REST e publicados no Cloud Run:
+
+- Check-ins: `POST/GET /api/check-ins/`, `GET/PATCH/PUT/DELETE /api/check-ins/<id>/`, `GET /api/check-ins/summary/`.
+- Conteudos: `GET /api/contents/`, `GET /api/contents/<id>/`, `POST/PATCH/DELETE` restritos a PRO/ADM quando aplicavel.
+- Recomendacoes: `GET /api/recommendations/`, com regras simples baseadas em tags/sinais dos check-ins.
+- Comunidade: `GET/POST /api/community/posts/`, detalhes, comentarios, apoio e feedback de comentario.
+- Notificacoes: `GET/PUT /api/notifications/preferences/` e `POST /api/notifications/subscriptions/`.
+- Admin: `GET /api/admin/metrics/`, profissionais pendentes e moderacao de posts, protegidos por permissao ADM.
+- Privacidade: `GET /api/privacy/export/` e `POST /api/privacy/delete-request/`.
+- Avatar de perfil: `POST /api/usuario/<uid>/avatar/`, usando Firebase Storage e aceitando apenas `image/jpeg`, `image/png` e `image/webp` ate 5 MB.
+
+Next BFF:
+
+- Existe proxy catch-all em `frontend/src/app/api/[...backendPath]/route.ts` para rotas de dominio.
+- Upload de avatar pelo navegador passa por `frontend/src/app/api/users/me/avatar/route.ts` e nunca chama o Django diretamente.
+- O perfil envia foto real para o backend; nao deve mais usar base64/localStorage para avatar autenticado.
+
+Validacao de dominio ja realizada:
+
+- Django `manage.py check`: OK.
+- Frontend `npm run lint`: OK.
+- Frontend `npm run build`: OK.
+- Teste integrado Cloud Run -> Firebase: check-ins, summary, contents, recommendations, community, notifications, privacy, admin 403 para usuario comum e avatar JPG/PNG/WebP-only: OK.
+- Teste local do Next BFF em `localhost:3002` apontando para Cloud Run: cookies httpOnly, `/api/check-ins/` e `/api/users/me/avatar`: OK.
+
 ## 11. Estrutura atual conhecida
 
 - `frontend/src/app`: rotas e layout global.
