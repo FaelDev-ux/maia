@@ -5,6 +5,7 @@ from .views import (
     LoginUsuarioView,
     LogoutUsuarioView,
     MeView,
+    OnboardingUsuarioView,
     RefreshUsuarioView,
     UsuarioDetailView,
 )
@@ -16,5 +17,6 @@ urlpatterns = [
     path("refresh/", RefreshUsuarioView.as_view(), name="api_refresh"),
     path("logout/", LogoutUsuarioView.as_view(), name="api_logout"),
     path("me/", MeView.as_view(), name="api_me"),
+    path("usuario/<str:uid>/onboarding/", OnboardingUsuarioView.as_view(), name="api_usuario_onboarding"),
     path("usuario/<str:uid>/", UsuarioDetailView.as_view(), name="api_usuario_detail"),
 ]

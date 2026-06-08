@@ -69,6 +69,19 @@ type CommunityPostStatus = "published" | "hidden" | "removed" | "under-review";
 type ContentStatus = "draft" | "published" | "archived";
 ```
 
+### Politica para profissionais de saude
+
+Usuarios `PRO` podem acessar as funcionalidades do perfil profissional mesmo quando
+`professionalVerificationStatus` for `pending`.
+
+Regras:
+
+- `PRO pending` pode acessar home, comunidade, comentarios e publicacoes permitidas ao perfil.
+- O backend nao deve bloquear acoes gerais de `PRO` apenas por status `pending`.
+- A API deve sempre retornar `professionalVerificationStatus` para o frontend exibir tags como `Em analise`, `Profissional verificada` ou `Nao verificada`.
+- Aprovacao administrativa muda o status para `verified`; rejeicao muda para `rejected`.
+- Acoes estritamente administrativas continuam restritas a `ADM`.
+
 ### Respostas de erro
 
 Contrato canonico futuro:
@@ -292,7 +305,7 @@ Response `200`:
 
 ### PUT `/api/usuario/{uid}/`
 
-Status: parcial.
+Status: implementado.
 
 Atualiza perfil do usuario. O contrato do MVP deve aceitar os campos abaixo.
 
@@ -345,7 +358,34 @@ Response `200`:
 
 ```json
 {
-  "message": "Perfil atualizado com sucesso.",
+  "mensagem": "Perfil atualizado com sucesso.",
+  "user": {}
+}
+```
+
+### PUT `/api/usuario/{uid}/onboarding/`
+
+Status: implementado.
+
+Finaliza ou atualiza o estado de onboarding do usuario. Usuario so atualiza o
+proprio onboarding. `ADM` pode atualizar qualquer usuario.
+
+Request:
+
+```json
+{
+  "completed": true,
+  "completedSteps": ["select-type", "profile-details"],
+  "selectedProfileAt": "2026-06-08T12:00:00.000Z",
+  "completedAt": "2026-06-08T12:00:00.000Z"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "mensagem": "Onboarding atualizado com sucesso.",
   "user": {}
 }
 ```
@@ -764,6 +804,13 @@ Request:
 
 Todas as rotas desta secao exigem papel `ADM`.
 
+No Django REST, endpoints administrativos devem usar:
+
+```py
+authentication_classes = [FirebaseAuthentication]
+permission_classes = [IsAuthenticated, IsAdminRole]
+```
+
 ### GET `/api/admin/metrics/`
 
 Status: planejado.
@@ -918,4 +965,3 @@ Regras:
 7. Implementar validacao profissional e admin.
 8. Implementar notificacoes.
 9. Implementar exportacao/exclusao de dados.
-
