@@ -118,11 +118,15 @@ Este arquivo funciona como memória operacional e guia de contexto do projeto Ma
 
 ## 10. Backend planejado
 
-- O Documento de Visão define backend em Python com Django REST.
-- O frontend deve ser desenvolvido de forma desacoplada, consumindo API REST.
+- Decisão atual confirmada: usar Django REST + Firebase.
+- Django REST será a camada HTTP/API principal do backend.
+- Firebase Authentication gerencia credenciais, login e tokens de usuário.
+- Cloud Firestore será usado como banco principal para perfis, check-ins, comunidade, conteúdos e dados operacionais.
+- Arquitetura BFF: o navegador consome apenas rotas internas Next.js (`/api/...`), e o servidor Next chama o Django REST.
+- O backend Django deve permanecer oculto do client; Server Components podem buscar dados diretamente no Django pelo servidor.
+- Autenticação usa cookies httpOnly gerenciados pelo Next; não usar localStorage/sessionStorage, Auth.js ou Firebase Auth no frontend para autenticação.
 - Evitar acoplar regras de negócio críticas apenas no frontend.
-- Endpoints reais ainda precisam ser validados com o time de backend.
-- Enquanto a API não existir, usar mocks tipados e isolados por feature.
+- Enquanto endpoints reais não estiverem completos, usar mocks tipados e isolados por feature.
 
 ## 11. Estrutura atual conhecida
 
@@ -330,7 +334,7 @@ Executar dentro de `frontend` quando aplicável:
 - Usar `src/schemas/auth.schema.ts` para centralizar validações de autenticação.
 - Reaproveitar componentes de input entre login, cadastro e recuperação quando fizer sentido.
 - Priorizar construção das telas internas do produto após autenticação visual.
-- Usar mocks tipados até existir contrato real da API Django REST.
+- Usar mocks tipados até existir contrato real da API Django REST + Firebase.
 - Buscar imagens de perfil mockadas a partir de `frontend/src/data/authenticated-user.ts`; telas internas não devem hardcodar avatar de usuária em mocks de feature.
 - Considerar `context.md` como memória do projeto e futuro `AGENTS.md` como instrução específica para Codex/agentes.
 
@@ -343,10 +347,11 @@ Executar dentro de `frontend` quando aplicável:
 5. Implementar Home autenticada com base no Figma.
 6. Criar componentes base reutilizáveis: Button, Input, Card, Badge, BottomNavigation.
 7. Criar mocks tipados de check-in, conteúdos, posts e perfil.
-8. Integrar com API real quando o backend Django REST estiver disponível.
+8. Integrar com API real quando o backend Django REST + Firebase estiver disponível.
 
 ## 30. Registro de mudanças
 
 - 2026-05-27: Criado contexto operacional inicial com estado do frontend, padrões, riscos e comandos.
 - 2026-05-28: Incorporado Documento de Visão do Maia, perfis de usuário, requisitos funcionais/não funcionais, stack planejada com Django REST e referência ao Figma/export das telas principais.
 - 2026-06-02: Centralizada a imagem de perfil mockada em `frontend/src/data/authenticated-user.ts`; dashboards e telas internas devem ler avatar de usuária desse mock global.
+- 2026-06-08: Confirmada direção de backend Django REST + Firebase; Django REST será a API principal, com Firebase Authentication e Firestore como serviços de autenticação e dados.
