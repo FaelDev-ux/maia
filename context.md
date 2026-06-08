@@ -128,6 +128,55 @@ Este arquivo funciona como memória operacional e guia de contexto do projeto Ma
 - Evitar acoplar regras de negócio críticas apenas no frontend.
 - Enquanto endpoints reais não estiverem completos, usar mocks tipados e isolados por feature.
 
+### Backend em Cloud Run
+
+- O backend Django REST está publicado no Google Cloud Run.
+- Projeto Google Cloud: `maia-86c23`.
+- Região: `southamerica-east1` (São Paulo).
+- Serviço: `maia-backend`.
+- URL canônica do serviço: `https://maia-backend-33fbqbgqka-rj.a.run.app`.
+- URL alternativa impressa pelo deploy e também funcional: `https://maia-backend-325650050541.southamerica-east1.run.app`.
+- O frontend hospedado na Vercel deve usar `MAIA_BACKEND_URL=https://maia-backend-33fbqbgqka-rj.a.run.app`.
+- Não usar `NEXT_PUBLIC_` para `MAIA_BACKEND_URL`; essa variável deve ficar disponível apenas no servidor Next/BFF.
+- Secrets do backend ficam no Google Secret Manager:
+  - `maia-firebase-service-account`
+  - `maia-django-secret-key`
+  - `maia-firebase-web-api-key`
+- Arquivos locais sensíveis continuam ignorados pelo Git: `backend/.env` e `backend/firebase.json`.
+- O script de deploy do backend é `backend/scripts/deploy-cloud-run.ps1`.
+
+Para subir uma nova versão do backend no Cloud Run:
+
+```powershell
+cd C:\Users\tiora\OneDrive\Documentos\GitHub\maia\backend
+.\scripts\deploy-cloud-run.ps1
+```
+
+Pré-requisitos do deploy:
+
+```powershell
+gcloud auth login
+gcloud config set project maia-86c23
+```
+
+O script:
+
+- habilita APIs necessárias do Google Cloud;
+- cria ou atualiza versões dos secrets no Secret Manager;
+- concede `roles/secretmanager.secretAccessor` para a service account da revisão do Cloud Run;
+- faz build a partir do `backend/Dockerfile`;
+- publica o serviço `maia-backend` na região `southamerica-east1`.
+
+Validação já realizada em produção:
+
+- Vercel frontend -> Next BFF -> Cloud Run Django -> Firebase.
+- Cadastro real pelo frontend: OK.
+- Login real pelo frontend: OK.
+- Logout com limpeza de cookies: OK.
+- `/api/auth/me` com cookie httpOnly: OK.
+- Rota protegida sem sessão redireciona para login: OK.
+- Rota pública com sessão redireciona para `/home`: OK.
+
 ## 11. Estrutura atual conhecida
 
 - `frontend/src/app`: rotas e layout global.
@@ -355,3 +404,4 @@ Executar dentro de `frontend` quando aplicável:
 - 2026-05-28: Incorporado Documento de Visão do Maia, perfis de usuário, requisitos funcionais/não funcionais, stack planejada com Django REST e referência ao Figma/export das telas principais.
 - 2026-06-02: Centralizada a imagem de perfil mockada em `frontend/src/data/authenticated-user.ts`; dashboards e telas internas devem ler avatar de usuária desse mock global.
 - 2026-06-08: Confirmada direção de backend Django REST + Firebase; Django REST será a API principal, com Firebase Authentication e Firestore como serviços de autenticação e dados.
+- 2026-06-08: Backend Django publicado no Google Cloud Run como `maia-backend` em `southamerica-east1`; frontend Vercel validado consumindo o backend via Next BFF com cookies httpOnly.
