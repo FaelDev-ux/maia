@@ -148,5 +148,5 @@ $sourcePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
   --cpu 1 `
   --min-instances 0 `
   --max-instances 3 `
-  --set-env-vars "DJANGO_DEBUG=false,DJANGO_ALLOWED_HOSTS=.run.app,DJANGO_CORS_ALLOW_ALL_ORIGINS=false,DJANGO_TIME_ZONE=America/Fortaleza" `
+  --set-env-vars "DJANGO_DEBUG=false,DJANGO_ALLOWED_HOSTS=.run.app,DJANGO_CORS_ALLOW_ALL_ORIGINS=false,DJANGO_TIME_ZONE=America/Fortaleza,FIREBASE_STORAGE_BUCKET=maia-86c23.firebasestorage.app" `
   --update-secrets "FIREBASE_CREDENTIALS_JSON=${firebaseSecret}:latest,DJANGO_SECRET_KEY=${djangoSecret}:latest,FIREBASE_WEB_API_KEY=${firebaseWebApiKeySecret}:latest"

@@ -1,4 +1,4 @@
-from firebase_admin import auth, credentials, firestore, get_app, initialize_app
+from firebase_admin import auth, credentials, firestore, get_app, initialize_app, storage
 from google.auth.exceptions import DefaultCredentialsError
 from django.conf import settings
 import json
@@ -21,11 +21,15 @@ def initialize_firebase_app():
 
     credentials_json = settings.FIREBASE_CREDENTIALS_JSON
     credentials_file = settings.FIREBASE_CREDENTIALS_FILE
+    firebase_options = {}
+
+    if settings.FIREBASE_STORAGE_BUCKET:
+        firebase_options["storageBucket"] = settings.FIREBASE_STORAGE_BUCKET
 
     if credentials_json:
         try:
             credential = credentials.Certificate(json.loads(credentials_json))
-            return initialize_app(credential)
+            return initialize_app(credential, firebase_options)
         except (json.JSONDecodeError, ValueError, DefaultCredentialsError) as exc:
             raise FirebaseNotConfiguredError(
                 "FIREBASE_CREDENTIALS_JSON invalido ou indisponivel."
@@ -33,7 +37,7 @@ def initialize_firebase_app():
 
     if not credentials_file:
         try:
-            return initialize_app(credentials.ApplicationDefault())
+            return initialize_app(credentials.ApplicationDefault(), firebase_options)
         except (ValueError, DefaultCredentialsError) as exc:
             raise FirebaseNotConfiguredError(
                 "Credencial Firebase indisponivel. Configure FIREBASE_CREDENTIALS_JSON ou FIREBASE_CREDENTIALS_FILE."
@@ -41,7 +45,7 @@ def initialize_firebase_app():
 
     try:
         credential = credentials.Certificate(credentials_file)
-        return initialize_app(credential)
+        return initialize_app(credential, firebase_options)
     except (FileNotFoundError, ValueError, DefaultCredentialsError) as exc:
         raise FirebaseNotConfiguredError(
             "Credencial Firebase indisponivel. Configure FIREBASE_CREDENTIALS_FILE."
@@ -56,6 +60,11 @@ def get_firebase_auth():
 def get_firestore_client():
     initialize_firebase_app()
     return firestore.client()
+
+
+def get_storage_bucket():
+    initialize_firebase_app()
+    return storage.bucket()
 
 
 def server_timestamp():
