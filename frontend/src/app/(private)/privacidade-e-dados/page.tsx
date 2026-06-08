@@ -1,14 +1,11 @@
 import { PrivacyDataPage } from "@/features/settings/components/PrivacyDataPage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
-type PrivacyDataRouteProps = {
-  searchParams?: Promise<{
-    profile?: string;
-  }>;
-};
+export default async function PrivacyDataRoute() {
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
 
-export default async function PrivacyDataRoute({ searchParams }: PrivacyDataRouteProps) {
-  const params = await searchParams;
-
-  return <PrivacyDataPage profile={resolveProfile(params?.profile)} />;
+  return <PrivacyDataPage profile={resolveUserProfile(user)} />;
 }

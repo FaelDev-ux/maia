@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { saveAuthenticatedUserProfile } from "@/features/profile/data/profile-storage";
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema";
 import { AuthInput } from "./AuthInput";
 
@@ -38,13 +39,14 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
       },
       method: "POST",
     });
+    const result = (await response.json().catch(() => ({}))) as { erro?: string; user?: unknown };
 
     if (!response.ok) {
-      const result = (await response.json().catch(() => ({}))) as { erro?: string };
       setSubmitError(result.erro ?? "Nao foi possivel entrar. Confira seus dados.");
       return;
     }
 
+    saveAuthenticatedUserProfile(result.user);
     router.replace("/home");
     router.refresh();
   }

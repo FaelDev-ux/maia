@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
-import { getDefaultAuthorizedRoute } from "@/features/auth/route-access";
 import { getServerAuthenticatedUser } from "@/services/api/session";
 
-export default async function PrivatePage() {
+type PrivateLayoutProps = {
+  children: React.ReactNode;
+};
+
+export default async function PrivateLayout({ children }: PrivateLayoutProps) {
   const user = await getServerAuthenticatedUser();
 
   if (!user) {
     redirect("/auth?mode=login");
   }
 
-  redirect(getDefaultAuthorizedRoute(user));
+  return children;
 }

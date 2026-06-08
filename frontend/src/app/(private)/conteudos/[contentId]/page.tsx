@@ -1,14 +1,13 @@
 import { notFound } from "next/navigation";
 import { ContentArticlePage } from "@/features/contents/components/ContentArticlePage";
 import { contentArticles, getContentArticleById } from "@/features/contents/data/content-articles";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type ContentArticleRouteProps = {
   params: Promise<{
     contentId: string;
-  }>;
-  searchParams?: Promise<{
-    profile?: string;
   }>;
 };
 
@@ -18,14 +17,15 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function ContentArticleRoute({ params, searchParams }: ContentArticleRouteProps) {
+export default async function ContentArticleRoute({ params }: ContentArticleRouteProps) {
   const { contentId } = await params;
-  const resolvedSearchParams = await searchParams;
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
   const article = getContentArticleById(contentId);
 
   if (!article) {
     notFound();
   }
 
-  return <ContentArticlePage article={article} profile={resolveProfile(resolvedSearchParams?.profile)} />;
+  return <ContentArticlePage article={article} profile={resolveUserProfile(user)} />;
 }

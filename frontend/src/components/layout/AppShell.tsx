@@ -34,7 +34,7 @@ export function AppShell({ children }: AppShellProps) {
         <main className="flex-1 px-5 pb-28 pt-5 md:px-8 md:pb-32">{children}</main>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile.slug} />
     </div>
   );
 }

@@ -1,26 +1,26 @@
 import { CommunityPostDetailPage } from "@/features/community/components/CommunityPostDetailPage";
 import { communityPosts } from "@/features/community/data/community-posts";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type CommunityPostRouteProps = {
   params: Promise<{
     postId: string;
   }>;
-  searchParams?: Promise<{
-    profile?: string;
-  }>;
 };
 
-export default async function CommunityPostRoute({ params, searchParams }: CommunityPostRouteProps) {
+export default async function CommunityPostRoute({ params }: CommunityPostRouteProps) {
   const { postId } = await params;
-  const resolvedSearchParams = await searchParams;
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
   const post = communityPosts.find((currentPost) => currentPost.id === postId);
 
   return (
     <CommunityPostDetailPage
       initialPost={post}
       postId={postId}
-      profile={resolveProfile(resolvedSearchParams?.profile)}
+      profile={resolveUserProfile(user)}
     />
   );
 }

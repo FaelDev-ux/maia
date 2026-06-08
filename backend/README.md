@@ -34,6 +34,8 @@ python manage.py runserver
 
 ## Endpoints iniciais
 
+Os contratos completos e padroes de payload do MVP estao em `ENDPOINTS.MD`.
+
 - `POST /api/cadastro/`: cria usuario no Firebase Auth e documento em `users/{uid}`.
 - `POST /api/login/`: autentica com Firebase Authentication e devolve tokens para o BFF.
 - `POST /api/logout/`: encerra a sessao logica.

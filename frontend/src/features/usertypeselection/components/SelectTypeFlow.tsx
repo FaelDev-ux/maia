@@ -10,8 +10,16 @@ import { HealthProfessionalWelcomeStep } from "@/features/usertypeselection/heal
 import { RecentMotherBabyInfoStep } from "@/features/usertypeselection/recent-mother/components/BabyInfoStep";
 import { RecentMotherSupportStep } from "@/features/usertypeselection/recent-mother/components/SupportStep";
 import { RecentMotherWelcomeStep } from "@/features/usertypeselection/recent-mother/components/WelcomeStep";
+import { markPwaInstallPromptPending } from "@/features/pwa/data/install-preferences";
+import {
+  getStoredProfileValues,
+  saveAuthenticatedUserProfile,
+} from "@/features/profile/data/profile-storage";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
+import { useRegistrationDraft } from "@/features/signup/components/RegistrationDraftProvider";
+import type { UserProfileCode } from "@/types/user";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type SelectTypeStep =
   | "select-type"
@@ -43,6 +51,13 @@ const firstStepByOption: Record<UserTypeOption, SelectTypeStep> = {
   "recent-mother": "recent-mother-welcome",
 };
 
+const profileCodeByOption: Record<UserTypeOption, UserProfileCode> = {
+  "experienced-mother": "MMT",
+  "future-mother": "DSM",
+  "health-professional": "PRO",
+  "recent-mother": "PUE",
+};
+
 function isSelectTypeStep(step: string | null): step is SelectTypeStep {
   return validSteps.includes(step as SelectTypeStep);
 }
@@ -50,9 +65,18 @@ function isSelectTypeStep(step: string | null): step is SelectTypeStep {
 export function SelectTypeFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { clearRegistrationDraft, registrationDraft } = useRegistrationDraft();
   const [selectedOption, setSelectedOption] = useState<UserTypeOption>("recent-mother");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const stepParam = searchParams.get("step");
   const currentStep: SelectTypeStep = isSelectTypeStep(stepParam) ? stepParam : "select-type";
+
+  useEffect(() => {
+    if (!registrationDraft) {
+      router.replace("/auth?mode=register&intro=1");
+    }
+  }, [registrationDraft, router]);
 
   function goToStep(step: SelectTypeStep) {
     if (step === "select-type") {
@@ -69,6 +93,50 @@ export function SelectTypeFlow() {
 
   function handleContinue() {
     goToStep(firstStepByOption[selectedOption]);
+  }
+
+  async function completeRegistration(option: UserTypeOption) {
+    if (!registrationDraft || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    const profileCode = profileCodeByOption[option];
+    const professionalValues =
+      option === "health-professional" ? getStoredProfileValues("health-professional") : null;
+    const response = await fetch("/api/auth/register", {
+      body: JSON.stringify({
+        ...registrationDraft,
+        profileCode,
+        professional: professionalValues
+          ? {
+              council: professionalValues.council,
+              registrationNumber: professionalValues.registrationNumber,
+              specialty: professionalValues.specialty,
+              state: professionalValues.state,
+            }
+          : undefined,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const result = (await response.json().catch(() => ({}))) as { erro?: string; user?: unknown };
+
+    if (!response.ok) {
+      setSubmitError(result.erro ?? "Nao foi possivel concluir seu cadastro agora.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    saveAuthenticatedUserProfile(result.user);
+    clearRegistrationDraft();
+    markPwaInstallPromptPending();
+    router.replace(getProfileScopedHref("/home", option));
+    router.refresh();
   }
 
   function renderCurrentStep(): ReactNode {
@@ -94,7 +162,7 @@ export function SelectTypeFlow() {
       return (
         <RecentMotherSupportStep
           onBack={() => goToStep("recent-mother-baby-info")}
-          onContinue={() => router.push("/home")}
+          onContinue={() => completeRegistration("recent-mother")}
         />
       );
     }
@@ -112,7 +180,7 @@ export function SelectTypeFlow() {
       return (
         <FutureMotherSupportStep
           onBack={() => goToStep("future-mother-welcome")}
-          onContinue={() => router.push("/home?profile=future-mother")}
+          onContinue={() => completeRegistration("future-mother")}
         />
       );
     }
@@ -121,7 +189,7 @@ export function SelectTypeFlow() {
       return (
         <ExperiencedMotherWelcomeStep
           onBack={() => goToStep("select-type")}
-          onContinue={() => router.push("/home?profile=experienced-mother")}
+          onContinue={() => completeRegistration("experienced-mother")}
         />
       );
     }
@@ -139,7 +207,7 @@ export function SelectTypeFlow() {
       return (
         <HealthProfessionalWelcomeStep
           onBack={() => goToStep("health-professional-data")}
-          onContinue={() => router.push("/home?profile=health-professional")}
+          onContinue={() => completeRegistration("health-professional")}
         />
       );
     }
@@ -177,5 +245,21 @@ export function SelectTypeFlow() {
     );
   }
 
-  return renderCurrentStep();
+  return (
+    <>
+      {renderCurrentStep()}
+      {submitError ? (
+        <p className="fixed inset-x-5 bottom-28 z-50 mx-auto max-w-sm rounded-2xl bg-white px-5 py-4 text-center text-sm font-bold leading-6 text-primary shadow-card ring-1 ring-primary/15">
+          {submitError}
+        </p>
+      ) : null}
+      {isSubmitting ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
+          <p className="rounded-full bg-white px-6 py-4 text-sm font-extrabold text-primary shadow-card">
+            Criando sua conta...
+          </p>
+        </div>
+      ) : null}
+    </>
+  );
 }

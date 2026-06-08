@@ -99,3 +99,35 @@ def sign_in_with_password(email, password):
         raise FirebaseAuthRequestError("E-mail ou senha invalidos.")
 
     raise FirebaseAuthRequestError("Nao foi possivel autenticar com o Firebase.")
+
+
+def refresh_id_token(refresh_token):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    if not refresh_token:
+        raise FirebaseAuthRequestError("Refresh token nao informado.")
+
+    response = requests.post(
+        "https://securetoken.googleapis.com/v1/token",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message in {"INVALID_REFRESH_TOKEN", "TOKEN_EXPIRED", "USER_DISABLED"}:
+        raise FirebaseAuthRequestError("Sessao expirada. Entre novamente.")
+
+    raise FirebaseAuthRequestError("Nao foi possivel renovar a sessao.")

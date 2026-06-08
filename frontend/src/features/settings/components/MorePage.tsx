@@ -117,7 +117,7 @@ export function MorePage({ profile }: MorePageProps) {
           </section>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

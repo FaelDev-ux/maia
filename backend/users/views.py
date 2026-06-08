@@ -1,3 +1,7 @@
+import logging
+
+from firebase_admin import auth as firebase_admin_auth
+from firebase_admin import exceptions as firebase_admin_exceptions
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,9 +13,14 @@ from .firebase import (
     FirebaseNotConfiguredError,
     get_firebase_auth,
     get_firestore_client,
+    refresh_id_token,
     server_timestamp,
     sign_in_with_password,
 )
+from .permissions import user_is_admin
+
+
+logger = logging.getLogger(__name__)
 
 
 PROFILE_SLUGS = {
@@ -21,6 +30,36 @@ PROFILE_SLUGS = {
     "PRO": "health-professional",
     "ADM": "administrator",
 }
+
+PROFILE_CODES = {slug: code for code, slug in PROFILE_SLUGS.items()}
+
+PRIVACY_FIELDS = {
+    "defaultAnonymousCommunityPost",
+    "showAvatarInCommunity",
+    "allowPersonalizedRecommendations",
+    "allowUsageAnalytics",
+}
+
+NOTIFICATION_SUMMARY_FIELDS = {
+    "dailyCheckInEnabled",
+    "pushEnabled",
+    "timezone",
+    "dailyCheckInTime",
+}
+
+RECENT_MOTHER_FIELDS = {"babyIds", "babyBirthDate", "bio", "supportNeeds"}
+FUTURE_MOTHER_FIELDS = {"journeyMoment", "interests", "supportNeeds"}
+MENTOR_FIELDS = {"motherhoodExperience", "mentorBio", "availableForSupport", "supportTopics"}
+PROFESSIONAL_FIELDS = {
+    "registrationNumber",
+    "council",
+    "state",
+    "specialty",
+    "verifiedAt",
+    "verifiedBy",
+    "publicBio",
+}
+ONBOARDING_FIELDS = {"completed", "selectedProfileAt", "completedAt", "completedSteps"}
 
 
 def get_first_name(full_name):
@@ -39,6 +78,130 @@ def get_value(data, *keys):
     return None
 
 
+def get_dict_value(data, key):
+    value = data.get(key)
+
+    return value if isinstance(value, dict) else None
+
+
+def get_list_value(data, key):
+    value = data.get(key)
+
+    return value if isinstance(value, list) else None
+
+
+def filter_known_fields(data, allowed_fields):
+    if not isinstance(data, dict):
+        return {}
+
+    return {key: value for key, value in data.items() if key in allowed_fields and value is not None}
+
+
+def get_profile_code_from_update(data, current_user):
+    profile_code = get_value(data, "profileCode")
+
+    if profile_code in PROFILE_SLUGS:
+        return profile_code
+
+    profile_slug = get_value(data, "profileSlug")
+
+    if profile_slug in PROFILE_CODES:
+        return PROFILE_CODES[profile_slug]
+
+    return current_user.get("profileCode") or "PUE"
+
+
+def get_current_roles(current_user):
+    roles = current_user.get("roles")
+
+    if isinstance(roles, list):
+        return [role for role in roles if isinstance(role, str)]
+
+    if isinstance(roles, str):
+        return [roles]
+
+    return []
+
+
+def build_profile_update_data(data, current_user):
+    updated_data = {}
+    full_name = get_value(data, "name", "fullName", "nome_completo")
+    phone = get_value(data, "phone", "telefone")
+    birth_date = get_value(data, "birthDate", "data_nascimento")
+    avatar_url = get_value(data, "avatarUrl")
+    profile_code = get_profile_code_from_update(data, current_user)
+
+    if full_name is not None:
+        updated_data["fullName"] = full_name
+        updated_data["normalizedName"] = normalize_name(full_name)
+        updated_data["firstName"] = get_first_name(full_name)
+
+    if phone is not None:
+        updated_data["phone"] = phone
+
+    if birth_date is not None:
+        updated_data["birthDate"] = birth_date
+
+    if avatar_url is not None:
+        updated_data["avatarUrl"] = avatar_url
+
+    if profile_code in PROFILE_SLUGS:
+        updated_data["profileCode"] = profile_code
+        updated_data["profileSlug"] = PROFILE_SLUGS[profile_code]
+        updated_data["roles"] = list(
+            dict.fromkeys([*get_current_roles(current_user), profile_code])
+        )
+
+    privacy = filter_known_fields(get_dict_value(data, "privacy"), PRIVACY_FIELDS)
+    if privacy:
+        updated_data["privacy"] = {**(current_user.get("privacy") or {}), **privacy}
+
+    notification_summary = filter_known_fields(
+        get_dict_value(data, "notificationSummary"),
+        NOTIFICATION_SUMMARY_FIELDS,
+    )
+    if notification_summary:
+        updated_data["notificationSummary"] = {
+            **(current_user.get("notificationSummary") or {}),
+            **notification_summary,
+        }
+
+    recent_mother = filter_known_fields(get_dict_value(data, "recentMother"), RECENT_MOTHER_FIELDS)
+    if recent_mother:
+        updated_data["recentMother"] = {**(current_user.get("recentMother") or {}), **recent_mother}
+
+    future_mother = filter_known_fields(get_dict_value(data, "futureMother"), FUTURE_MOTHER_FIELDS)
+    if future_mother:
+        updated_data["futureMother"] = {**(current_user.get("futureMother") or {}), **future_mother}
+
+    mentor = filter_known_fields(get_dict_value(data, "mentor"), MENTOR_FIELDS)
+    if mentor:
+        updated_data["mentor"] = {**(current_user.get("mentor") or {}), **mentor}
+
+    professional = filter_known_fields(get_dict_value(data, "professional"), PROFESSIONAL_FIELDS)
+    if professional:
+        updated_data["professional"] = {**(current_user.get("professional") or {}), **professional}
+
+        if current_user.get("professionalVerificationStatus") != "verified":
+            updated_data["professionalVerificationStatus"] = "pending"
+
+    onboarding = filter_known_fields(get_dict_value(data, "onboarding"), ONBOARDING_FIELDS)
+    if onboarding:
+        updated_data["onboarding"] = {**(current_user.get("onboarding") or {}), **onboarding}
+
+    completed_steps = get_list_value(data, "completedSteps")
+    if completed_steps is not None:
+        updated_data["onboarding"] = {
+            **(current_user.get("onboarding") or {}),
+            **(updated_data.get("onboarding") or {}),
+            "completedSteps": completed_steps,
+        }
+
+    updated_data["updatedAt"] = server_timestamp()
+
+    return updated_data
+
+
 def error_response(message, http_status=status.HTTP_400_BAD_REQUEST):
     return Response({"erro": message}, status=http_status)
 
@@ -54,6 +217,61 @@ def firebase_error_response(exc, http_status=status.HTTP_503_SERVICE_UNAVAILABLE
         "Nao foi possivel concluir a operacao no Firebase.",
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+def firebase_create_user_error_response(exc):
+    if isinstance(exc, firebase_admin_auth.EmailAlreadyExistsError):
+        return error_response(
+            "Este e-mail ja esta cadastrado. Tente entrar ou recuperar sua senha.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_auth.PhoneNumberAlreadyExistsError):
+        return error_response(
+            "Este telefone ja esta vinculado a outra conta.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_auth.UidAlreadyExistsError):
+        return error_response(
+            "Nao foi possivel criar o usuario com esses dados.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.PermissionDeniedError):
+        logger.warning("Firebase Admin sem permissao para criar usuario.", exc_info=True)
+        return error_response(
+            "Nao foi possivel criar sua conta agora. Tente novamente em alguns minutos.",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.UnavailableError):
+        return error_response(
+            (
+                "O servico de autenticacao esta indisponivel no momento. "
+                "Tente novamente em alguns minutos."
+            ),
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.FirebaseError):
+        logger.warning("Firebase Admin falhou ao criar usuario.", exc_info=True)
+        return error_response(
+            "Nao foi possivel criar sua conta agora. Tente novamente em alguns minutos.",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    error_message = str(exc).lower()
+
+    if "email" in error_message:
+        return error_response("Informe um e-mail valido.")
+
+    if "password" in error_message or "senha" in error_message:
+        return error_response(
+            "A senha informada nao atende aos requisitos. Use pelo menos 8 caracteres."
+        )
+
+    return error_response("Confira os dados de cadastro e tente novamente.")
 
 
 def serialize_firestore_value(value):
@@ -90,11 +308,6 @@ def cleanup_created_user(uid):
         pass
 
 
-def user_is_admin(firebase_user):
-    claims = getattr(firebase_user, "decoded_token", {}) or {}
-    return bool(claims.get("admin") or claims.get("role") == "ADM")
-
-
 def ensure_user_can_access(request, uid):
     if request.user.uid == uid or user_is_admin(request.user):
         return None
@@ -114,6 +327,7 @@ class CadastroUsuarioView(APIView):
         phone = get_value(data, "phone", "telefone")
         birth_date = get_value(data, "birthDate", "data_nascimento")
         profile_code = get_value(data, "profileCode", "perfil") or "PUE"
+        professional = data.get("professional") if isinstance(data.get("professional"), dict) else {}
 
         if not email or not password:
             return error_response("E-mail e senha sao obrigatorios.")
@@ -152,7 +366,7 @@ class CadastroUsuarioView(APIView):
                 "profileSlug": PROFILE_SLUGS[profile_code],
                 "roles": [profile_code],
                 "status": "active",
-                "professionalVerificationStatus": "not-required",
+                "professionalVerificationStatus": "pending" if profile_code == "PRO" else "not-required",
                 "privacy": {
                     "defaultAnonymousCommunityPost": True,
                     "showAvatarInCommunity": True,
@@ -172,14 +386,22 @@ class CadastroUsuarioView(APIView):
                     "supportsReceivedCount": 0,
                 },
                 "onboarding": {
-                    "completed": False,
-                    "completedSteps": [],
+                    "completed": True,
+                    "completedSteps": ["select-type"],
                 },
                 "acceptedTermsVersion": "pending",
                 "acceptedPrivacyVersion": "pending",
                 "createdAt": timestamp,
                 "updatedAt": timestamp,
             }
+
+            if profile_code == "PRO":
+                user_data["professional"] = {
+                    "registrationNumber": get_value(professional, "registrationNumber") or "",
+                    "council": get_value(professional, "council") or "",
+                    "state": get_value(professional, "state") or "",
+                    "specialty": get_value(professional, "specialty") or "",
+                }
 
             db.collection("users").document(user_record.uid).set(user_data)
             token_data = sign_in_with_password(email, password)
@@ -209,9 +431,14 @@ class CadastroUsuarioView(APIView):
             if created_uid:
                 cleanup_created_user(created_uid)
             return firebase_error_response(exc)
+        except (firebase_admin_exceptions.FirebaseError, ValueError) as exc:
+            if created_uid:
+                cleanup_created_user(created_uid)
+            return firebase_create_user_error_response(exc)
         except Exception:
             if created_uid:
                 cleanup_created_user(created_uid)
+            logger.exception("Erro inesperado ao criar usuario.")
             return error_response("Nao foi possivel criar o usuario.")
 
 
@@ -244,6 +471,35 @@ class LoginUsuarioView(APIView):
             return firebase_error_response(exc)
         except Exception:
             return error_response("Nao foi possivel realizar o login.")
+
+
+class RefreshUsuarioView(APIView):
+    def post(self, request):
+        refresh_token = get_value(request.data, "refreshToken", "refresh_token")
+
+        if not refresh_token:
+            return error_response("Refresh token e obrigatorio.", status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            token_data = refresh_id_token(refresh_token)
+            uid = token_data.get("user_id")
+            user = get_user_payload(uid) if uid else None
+
+            return Response(
+                {
+                    "mensagem": "Sessao renovada com sucesso.",
+                    "accessToken": token_data.get("id_token"),
+                    "refreshToken": token_data.get("refresh_token") or refresh_token,
+                    "expiresIn": token_data.get("expires_in"),
+                    "uid": uid,
+                    "user": user,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (FirebaseNotConfiguredError, FirebaseAuthRequestError) as exc:
+            return firebase_error_response(exc)
+        except Exception:
+            return error_response("Nao foi possivel renovar a sessao.")
 
 
 class UsuarioDetailView(APIView):
@@ -279,30 +535,28 @@ class UsuarioDetailView(APIView):
             db = get_firestore_client()
             user_ref = db.collection("users").document(uid)
 
-            if not user_ref.get().exists:
+            user_snapshot = user_ref.get()
+
+            if not user_snapshot.exists:
                 return error_response("Usuario nao encontrado.", status.HTTP_404_NOT_FOUND)
 
             data = request.data
-            full_name = get_value(data, "name", "fullName", "nome_completo")
-
-            updated_data = {
-                "fullName": full_name,
-                "phone": get_value(data, "phone", "telefone"),
-                "birthDate": get_value(data, "birthDate", "data_nascimento"),
-                "updatedAt": server_timestamp(),
-            }
-
-            if full_name:
-                updated_data["normalizedName"] = normalize_name(full_name)
-                updated_data["firstName"] = get_first_name(full_name)
-
-            updated_data = {key: value for key, value in updated_data.items() if value is not None}
+            current_user = user_snapshot.to_dict() or {}
+            updated_data = build_profile_update_data(data, current_user)
             user_ref.update(updated_data)
 
-            if full_name:
-                get_firebase_auth().update_user(uid, display_name=full_name)
+            if "fullName" in updated_data:
+                get_firebase_auth().update_user(uid, display_name=updated_data["fullName"])
 
-            return Response({"mensagem": "Perfil atualizado com sucesso."}, status=status.HTTP_200_OK)
+            updated_user = get_user_payload(uid)
+
+            return Response(
+                {
+                    "mensagem": "Perfil atualizado com sucesso.",
+                    "user": updated_user,
+                },
+                status=status.HTTP_200_OK,
+            )
         except FirebaseNotConfiguredError as exc:
             return firebase_error_response(exc)
         except Exception:
@@ -359,6 +613,55 @@ class MeView(APIView):
                 "Nao foi possivel buscar a sessao.",
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class OnboardingUsuarioView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, uid):
+        permission_error = ensure_user_can_access(request, uid)
+        if permission_error:
+            return permission_error
+
+        try:
+            db = get_firestore_client()
+            user_ref = db.collection("users").document(uid)
+            user_snapshot = user_ref.get()
+
+            if not user_snapshot.exists:
+                return error_response("Usuario nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+            current_user = user_snapshot.to_dict() or {}
+            data = request.data
+            onboarding = filter_known_fields(data, ONBOARDING_FIELDS)
+
+            if "completed" not in onboarding:
+                onboarding["completed"] = True
+
+            if "completedSteps" not in onboarding:
+                onboarding["completedSteps"] = data.get("completedSteps") or ["select-type"]
+
+            updated_data = {
+                "onboarding": {
+                    **(current_user.get("onboarding") or {}),
+                    **onboarding,
+                },
+                "updatedAt": server_timestamp(),
+            }
+            user_ref.update(updated_data)
+
+            return Response(
+                {
+                    "mensagem": "Onboarding atualizado com sucesso.",
+                    "user": get_user_payload(uid),
+                },
+                status=status.HTTP_200_OK,
+            )
+        except FirebaseNotConfiguredError as exc:
+            return firebase_error_response(exc)
+        except Exception:
+            return error_response("Nao foi possivel atualizar o onboarding.")
 
 
 class LogoutUsuarioView(APIView):

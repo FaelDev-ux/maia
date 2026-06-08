@@ -12,7 +12,7 @@ import {
   saveStoredSupportedPostIds,
 } from "@/features/community/data/community-storage";
 import type { CommunityPost } from "@/features/community/types";
-import { getProfileQuery } from "@/features/profile/utils/profile-routing";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
 type CommunityPostCardProps = {
@@ -84,7 +84,7 @@ export function CommunityPostCard({
   const displayName = post.isAnonymous ? "Usuária" : post.authorName;
   const displayRole = post.isAnonymous ? "Publicação protegida" : post.authorRole;
   const isInteractive = variant === "feed";
-  const postUrl = `/comunidade/${post.id}${getProfileQuery(profile)}`;
+  const postUrl = getProfileScopedHref(`/comunidade/${post.id}`, profile);
 
   function openPost(comments = false) {
     if (!isInteractive) {

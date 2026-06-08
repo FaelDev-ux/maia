@@ -113,7 +113,7 @@ export function PrivacyDataPage({ profile }: PrivacyDataPageProps) {
           </section>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

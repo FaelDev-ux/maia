@@ -1,15 +1,12 @@
 import { ProfilePage } from "@/features/profile/components/ProfilePage";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
-type ProfileRouteProps = {
-  searchParams?: Promise<{
-    profile?: string;
-  }>;
-};
+export default async function ProfileRoute() {
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
+  const profile = resolveUserProfile(user);
 
-export default async function ProfileRoute({ searchParams }: ProfileRouteProps) {
-  const params = await searchParams;
-  const profile = resolveProfile(params?.profile);
-
-  return <ProfilePage key={profile} profile={profile} />;
+  return <ProfilePage initialUser={user} key={profile} profile={profile} />;
 }

@@ -11,10 +11,24 @@ export type BackendAuthResponse = {
   uid?: string;
   user?: unknown;
   erro?: string;
+  error?: string;
 };
 
 export function getBackendUrl() {
   return process.env.MAIA_BACKEND_URL ?? "http://127.0.0.1:8000";
+}
+
+export async function requestBackendTokenRefresh(refreshToken: string) {
+  const response = await fetch(`${getBackendUrl()}/api/refresh/`, {
+    body: JSON.stringify({ refreshToken }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const data = await parseBackendResponse(response);
+
+  return { data, response };
 }
 
 export async function parseBackendResponse(response: Response): Promise<BackendAuthResponse> {
@@ -26,7 +40,7 @@ export async function parseBackendResponse(response: Response): Promise<BackendA
 }
 
 export function getBackendError(data: BackendAuthResponse) {
-  return data.erro ?? data.mensagem ?? "Nao foi possivel concluir a operacao.";
+  return data.erro ?? data.error ?? data.mensagem ?? "Nao foi possivel concluir a operacao.";
 }
 
 export function setAuthCookies(response: NextResponse, data: BackendAuthResponse) {

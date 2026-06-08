@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import {
   BookOpenText,
   ChartNoAxesColumnIncreasing,
@@ -10,9 +9,10 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
+import type { HomeProfile } from "@/features/home/types";
 import cn from "@/lib/utils";
-import { getProfileScopedHref, resolveProfile } from "@/features/profile/utils/profile-routing";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 
 const navigationItems = [
   {
@@ -47,22 +47,37 @@ const navigationItems = [
   },
 ] as const;
 
+const navigationItemsByProfile: Record<HomeProfile, readonly (typeof navigationItems)[number][]> = {
+  "experienced-mother": navigationItems.filter((item) => item.href !== "/historico"),
+  "future-mother": navigationItems.filter((item) => item.href !== "/historico"),
+  "health-professional": navigationItems.filter((item) => item.href !== "/historico"),
+  "recent-mother": navigationItems,
+};
+
 function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function BottomNavigationContent() {
+type BottomNavigationContentProps = {
+  profile?: HomeProfile;
+};
+
+function BottomNavigationContent({ profile = "recent-mother" }: BottomNavigationContentProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const profile = resolveProfile(searchParams.get("profile"));
+  const visibleItems = navigationItemsByProfile[profile];
 
   return (
     <nav
       aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8"
     >
-      <ul className="mx-auto grid h-20 max-w-[25.5rem] grid-cols-6 items-center rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[34rem]">
-        {navigationItems.map((item) => {
+      <ul
+        className="mx-auto grid h-20 max-w-[25.5rem] items-center rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[34rem]"
+        style={{
+          gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {visibleItems.map((item) => {
           const isActive = isActiveRoute(pathname, item.href);
           const Icon = item.icon;
           const href = getProfileScopedHref(item.href, profile);
@@ -89,10 +104,10 @@ function BottomNavigationContent() {
   );
 }
 
-export function BottomNavigation() {
-  return (
-    <Suspense fallback={null}>
-      <BottomNavigationContent />
-    </Suspense>
-  );
+type BottomNavigationProps = {
+  profile?: HomeProfile;
+};
+
+export function BottomNavigation({ profile }: BottomNavigationProps) {
+  return <BottomNavigationContent profile={profile} />;
 }

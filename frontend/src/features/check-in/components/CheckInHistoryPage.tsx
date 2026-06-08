@@ -631,7 +631,7 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
         </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

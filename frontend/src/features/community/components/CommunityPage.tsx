@@ -380,7 +380,7 @@ export function CommunityPage({ profile }: CommunityPageProps) {
         <PenLine aria-hidden size={30} strokeWidth={2.3} />
       </Link>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
       {postPendingDeletion ? (
         <DeletePostConfirmationModal
           onCancel={() => setPostPendingDeletion(null)}
