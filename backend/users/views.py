@@ -1,3 +1,7 @@
+import logging
+
+from firebase_admin import auth as firebase_admin_auth
+from firebase_admin import exceptions as firebase_admin_exceptions
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,6 +18,9 @@ from .firebase import (
     sign_in_with_password,
 )
 from .permissions import user_is_admin
+
+
+logger = logging.getLogger(__name__)
 
 
 PROFILE_SLUGS = {
@@ -212,6 +219,61 @@ def firebase_error_response(exc, http_status=status.HTTP_503_SERVICE_UNAVAILABLE
     )
 
 
+def firebase_create_user_error_response(exc):
+    if isinstance(exc, firebase_admin_auth.EmailAlreadyExistsError):
+        return error_response(
+            "Este e-mail ja esta cadastrado. Tente entrar ou recuperar sua senha.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_auth.PhoneNumberAlreadyExistsError):
+        return error_response(
+            "Este telefone ja esta vinculado a outra conta.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_auth.UidAlreadyExistsError):
+        return error_response(
+            "Nao foi possivel criar o usuario com esses dados.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.PermissionDeniedError):
+        logger.warning("Firebase Admin sem permissao para criar usuario.", exc_info=True)
+        return error_response(
+            "Nao foi possivel criar sua conta agora. Tente novamente em alguns minutos.",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.UnavailableError):
+        return error_response(
+            (
+                "O servico de autenticacao esta indisponivel no momento. "
+                "Tente novamente em alguns minutos."
+            ),
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    if isinstance(exc, firebase_admin_exceptions.FirebaseError):
+        logger.warning("Firebase Admin falhou ao criar usuario.", exc_info=True)
+        return error_response(
+            "Nao foi possivel criar sua conta agora. Tente novamente em alguns minutos.",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    error_message = str(exc).lower()
+
+    if "email" in error_message:
+        return error_response("Informe um e-mail valido.")
+
+    if "password" in error_message or "senha" in error_message:
+        return error_response(
+            "A senha informada nao atende aos requisitos. Use pelo menos 8 caracteres."
+        )
+
+    return error_response("Confira os dados de cadastro e tente novamente.")
+
+
 def serialize_firestore_value(value):
     if isinstance(value, dict):
         return {key: serialize_firestore_value(current_value) for key, current_value in value.items()}
@@ -369,9 +431,14 @@ class CadastroUsuarioView(APIView):
             if created_uid:
                 cleanup_created_user(created_uid)
             return firebase_error_response(exc)
+        except (firebase_admin_exceptions.FirebaseError, ValueError) as exc:
+            if created_uid:
+                cleanup_created_user(created_uid)
+            return firebase_create_user_error_response(exc)
         except Exception:
             if created_uid:
                 cleanup_created_user(created_uid)
+            logger.exception("Erro inesperado ao criar usuario.")
             return error_response("Nao foi possivel criar o usuario.")
 
 

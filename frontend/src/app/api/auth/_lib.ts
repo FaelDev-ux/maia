@@ -11,6 +11,7 @@ export type BackendAuthResponse = {
   uid?: string;
   user?: unknown;
   erro?: string;
+  error?: string;
 };
 
 export function getBackendUrl() {
@@ -39,7 +40,7 @@ export async function parseBackendResponse(response: Response): Promise<BackendA
 }
 
 export function getBackendError(data: BackendAuthResponse) {
-  return data.erro ?? data.mensagem ?? "Nao foi possivel concluir a operacao.";
+  return data.erro ?? data.error ?? data.mensagem ?? "Nao foi possivel concluir a operacao.";
 }
 
 export function setAuthCookies(response: NextResponse, data: BackendAuthResponse) {
