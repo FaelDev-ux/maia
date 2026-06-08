@@ -36,6 +36,9 @@ type ProfilePageProps = {
 
 type ProfessionalProfileSelectId = "council" | "specialty" | "state";
 
+const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+
 function getOptionValue(options: ProfessionalOption[], value: string, fallback = "") {
   return options.find((option) => option.value === value || option.label === value)?.value ?? fallback;
 }
@@ -95,6 +98,8 @@ export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [avatarError, setAvatarError] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [openProfessionalSelectId, setOpenProfessionalSelectId] =
     useState<ProfessionalProfileSelectId | null>(null);
   const [professionalSelectDrafts, setProfessionalSelectDrafts] = useState<
@@ -227,23 +232,54 @@ export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
     );
   }
 
-  function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
+    setAvatarError("");
+    setIsSaved(false);
 
-    reader.addEventListener("load", () => {
-      if (typeof reader.result !== "string") {
-        return;
-      }
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      setAvatarError("Envie apenas fotos em JPG, PNG ou WebP.");
+      event.target.value = "";
+      return;
+    }
 
-      updateValue("avatarUrl", reader.result);
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setAvatarError("A foto deve ter no maximo 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("image", file);
+
+    setIsUploadingAvatar(true);
+
+    const response = await fetch("/api/users/me/avatar", {
+      body: formData,
+      method: "POST",
     });
-    reader.readAsDataURL(file);
+    const result = (await response.json().catch(() => ({}))) as {
+      avatarUrl?: string;
+      erro?: string;
+      user?: unknown;
+    };
+
+    setIsUploadingAvatar(false);
+    event.target.value = "";
+
+    if (!response.ok || !result.avatarUrl) {
+      setAvatarError(result.erro ?? "Nao foi possivel salvar sua foto agora.");
+      return;
+    }
+
+    updateValue("avatarUrl", result.avatarUrl);
+    saveAuthenticatedUserProfile(result.user);
+    setIsSaved(true);
   }
 
   function buildProfilePayload() {
@@ -407,12 +443,14 @@ export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
                       Escolher foto
                     </span>
                     <span className="mt-2 block truncate px-2 text-xs font-semibold text-text/70">
-                      {values.avatarUrl.startsWith("data:")
-                        ? "Imagem selecionada"
-                        : "Use uma foto do celular"}
+                      {isUploadingAvatar
+                        ? "Enviando foto..."
+                        : values.avatarUrl
+                          ? "Foto salva com seguranca"
+                          : "Use uma foto JPG, PNG ou WebP"}
                     </span>
                     <input
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       className="sr-only"
                       id="profile-avatarFile"
                       onChange={handleAvatarFileChange}
@@ -420,6 +458,11 @@ export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
                     />
                   </span>
                 </span>
+                {avatarError ? (
+                  <span className="mt-3 block rounded-2xl bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
+                    {avatarError}
+                  </span>
+                ) : null}
               </label>
 
               <div className="grid gap-6">
