@@ -1,7 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ContentArticleCard } from "@/features/contents/components/ContentArticleCard";
 import { ContentHeader } from "@/features/contents/components/ContentHeader";
-import { contentArticles } from "@/features/contents/data/content-articles";
+import { fetchContents } from "@/features/contents/services";
+import type { ContentArticle } from "@/features/contents/types";
 import type { HomeProfile } from "@/features/home/types";
 
 type ContentsPageProps = {
@@ -10,6 +14,44 @@ type ContentsPageProps = {
 
 export function ContentsPage({ profile }: ContentsPageProps) {
   const isHealthProfessional = profile === "health-professional";
+  const [articles, setArticles] = useState<ContentArticle[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadContents() {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const nextArticles = await fetchContents();
+
+        if (isMounted) {
+          setArticles(nextArticles);
+        }
+      } catch (currentError) {
+        if (isMounted) {
+          setError(
+            currentError instanceof Error
+              ? currentError.message
+              : "Nao foi possivel carregar os conteudos."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadContents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <main className="min-h-dvh bg-background text-text">
@@ -43,11 +85,26 @@ export function ContentsPage({ profile }: ContentsPageProps) {
           </section>
 
           <section className="mt-8 md:mt-0" aria-label="Artigos recomendados">
+            {isLoading ? (
+              <div className="rounded-[2rem] bg-white px-6 py-8 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
+                <p className="font-title text-xl font-extrabold text-title">
+                  Carregando conteudos
+                </p>
+                <p className="mt-3 text-sm leading-6 text-text">
+                  Estamos buscando as leituras disponiveis para voce.
+                </p>
+              </div>
+            ) : error ? (
+              <div className="rounded-[2rem] bg-primary/10 px-6 py-6 text-sm font-bold leading-6 text-primary">
+                {error}
+              </div>
+            ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {contentArticles.map((article) => (
+              {articles.map((article) => (
                 <ContentArticleCard article={article} key={article.id} profile={profile} />
               ))}
             </div>
+            )}
           </section>
         </div>
       </div>

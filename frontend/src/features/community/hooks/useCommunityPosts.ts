@@ -1,25 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchDailyCheckIns } from "@/features/check-in/services";
-import type { DailyCheckInRecord } from "@/features/check-in/types";
+import { fetchCommunityPosts } from "@/features/community/services";
+import type { CommunityPost } from "@/features/community/types";
 
-export function useStoredDailyCheckIns() {
-  const [records, setRecords] = useState<DailyCheckInRecord[]>([]);
+export function useCommunityPosts() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
 
   const reload = useCallback(async () => {
     setIsLoading(true);
     setError("");
 
     try {
-      setRecords(await fetchDailyCheckIns());
+      setPosts(await fetchCommunityPosts());
     } catch (currentError) {
       setError(
         currentError instanceof Error
           ? currentError.message
-          : "Nao foi possivel carregar seus check-ins."
+          : "Nao foi possivel carregar a comunidade."
       );
     } finally {
       setIsLoading(false);
@@ -30,5 +30,5 @@ export function useStoredDailyCheckIns() {
     void Promise.resolve().then(reload);
   }, [reload]);
 
-  return { error, isLoading, records, reload };
+  return { error, isLoading, posts, reload, setPosts };
 }

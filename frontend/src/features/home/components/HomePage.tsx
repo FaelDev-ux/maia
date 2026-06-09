@@ -1,18 +1,13 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { HandHeart, Heart } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
-import { communityPosts } from "@/features/community/data/community-posts";
-import {
-  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
-  COMMUNITY_CREATED_POSTS_STORAGE_KEY,
-  COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY,
-  COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT,
-} from "@/features/community/data/community-storage";
+import { fetchRecommendations } from "@/features/contents/services";
+import { useCommunityPosts } from "@/features/community/hooks/useCommunityPosts";
 import { CommunityPreviewCard } from "@/features/home/components/CommunityPreviewCard";
 import { EmotionChip } from "@/features/home/components/EmotionChip";
 import { HelpRequestCard } from "@/features/home/components/HelpRequestCard";
@@ -22,15 +17,10 @@ import { MentorProfileBadge } from "@/features/home/components/MentorProfileBadg
 import { RecommendationCard } from "@/features/home/components/RecommendationCard";
 import { WeeklyEmotionChartCard } from "@/features/home/components/WeeklyEmotionChartCard";
 import { WeeklyInsightCard } from "@/features/home/components/WeeklyInsightCard";
-import { getDailyRecommendationsForProfile } from "@/features/home/data/daily-recommendations";
 import { homeContentByProfile } from "@/features/home/data/home-content";
-import {
-  buildProfessionalDashboardData,
-  parseCreatedCommunityPosts,
-  parseSupportedPostIds,
-} from "@/features/home/data/professional-dashboard";
+import { buildProfessionalDashboardData } from "@/features/home/data/professional-dashboard";
 import { getWeeklyInsightFromCheckIns } from "@/features/home/data/weekly-insights";
-import type { HomeProfile } from "@/features/home/types";
+import type { HomeProfile, Recommendation } from "@/features/home/types";
 import { DailyCheckInNotificationModal } from "@/features/notifications/components/DailyCheckInNotificationModal";
 import {
   getTodayNotificationPromptDate,
@@ -49,79 +39,14 @@ type HomePageProps = {
   profile?: HomeProfile;
 };
 
-function subscribeToCommunityActivityChanges(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-  window.addEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-    window.removeEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getCreatedCommunityPostsSnapshot() {
-  if (typeof window === "undefined") {
-    return "[]";
-  }
-
-  return window.localStorage.getItem(COMMUNITY_CREATED_POSTS_STORAGE_KEY) ?? "[]";
-}
-
-function getSupportedCommunityPostsSnapshot() {
-  if (typeof window === "undefined") {
-    return "[]";
-  }
-
-  return window.localStorage.getItem(COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY) ?? "[]";
-}
-
-function getCommunityStorageServerSnapshot() {
-  return "[]";
-}
-
-function subscribeToDailyRecommendationDate(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  const intervalId = window.setInterval(onStoreChange, 60 * 1000);
-  window.addEventListener("focus", onStoreChange);
-
-  return () => {
-    window.clearInterval(intervalId);
-    window.removeEventListener("focus", onStoreChange);
-  };
-}
-
-function getDailyRecommendationDateSnapshot() {
-  if (typeof window === "undefined") {
-    return "1970-01-01";
-  }
-
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function getDailyRecommendationDateServerSnapshot() {
-  return "1970-01-01";
-}
-
 export function HomePage({ profile = "recent-mother" }: HomePageProps) {
   const content = homeContentByProfile[profile];
   const canUseCheckInRoutes = profile === "recent-mother";
   const storedProfile = useStoredProfileValues(profile);
   const storedUser = useStoredUserProfile(profile);
-  const dailyCheckIns = useStoredDailyCheckIns();
+  const { records: dailyCheckIns } = useStoredDailyCheckIns();
+  const { posts: communityFeedPosts } = useCommunityPosts();
+  const [dailyRecommendations, setDailyRecommendations] = useState<Recommendation[]>([]);
   const { permission, preferences } = useNotificationPreferences();
   const isNotificationPromptOpen =
     canUseCheckInRoutes &&
@@ -136,33 +61,6 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
     content.variant === "wellbeing"
       ? getWeeklyInsightFromCheckIns(profile, content.insight, dailyCheckIns)
       : null;
-  const createdCommunityPostsSnapshot = useSyncExternalStore(
-    subscribeToCommunityActivityChanges,
-    getCreatedCommunityPostsSnapshot,
-    getCommunityStorageServerSnapshot
-  );
-  const supportedCommunityPostsSnapshot = useSyncExternalStore(
-    subscribeToCommunityActivityChanges,
-    getSupportedCommunityPostsSnapshot,
-    getCommunityStorageServerSnapshot
-  );
-  const dailyRecommendationDateKey = useSyncExternalStore(
-    subscribeToDailyRecommendationDate,
-    getDailyRecommendationDateSnapshot,
-    getDailyRecommendationDateServerSnapshot
-  );
-  const createdCommunityPosts = useMemo(
-    () => parseCreatedCommunityPosts(createdCommunityPostsSnapshot),
-    [createdCommunityPostsSnapshot]
-  );
-  const supportedPostIds = useMemo(
-    () => parseSupportedPostIds(supportedCommunityPostsSnapshot),
-    [supportedCommunityPostsSnapshot]
-  );
-  const communityFeedPosts = useMemo(
-    () => [...createdCommunityPosts, ...communityPosts],
-    [createdCommunityPosts]
-  );
   const professionalDashboardData = useMemo(
     () =>
       buildProfessionalDashboardData({
@@ -172,7 +70,7 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
         posts: communityFeedPosts,
         specialty: storedProfile.specialty,
         status: storedUser.professionalVerificationStatus,
-        supportedPostIds,
+        supportedPostIds: [],
       }),
     [
       communityFeedPosts,
@@ -180,16 +78,35 @@ export function HomePage({ profile = "recent-mother" }: HomePageProps) {
       displayName,
       storedProfile.specialty,
       storedUser.professionalVerificationStatus,
-      supportedPostIds,
     ]
   );
-  const dailyRecommendations = useMemo(
-    () =>
-      content.variant === "wellbeing"
-        ? getDailyRecommendationsForProfile(profile, dailyRecommendationDateKey)
-        : [],
-    [content.variant, dailyRecommendationDateKey, profile]
-  );
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRecommendations() {
+      if (content.variant !== "wellbeing") {
+        return;
+      }
+
+      try {
+        const recommendations = await fetchRecommendations();
+
+        if (isMounted) {
+          setDailyRecommendations(recommendations);
+        }
+      } catch {
+        if (isMounted) {
+          setDailyRecommendations([]);
+        }
+      }
+    }
+
+    void loadRecommendations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [content.variant]);
   const professionalActivityHref = professionalDashboardData.recentPostId
     ? getProfileScopedHref(`/comunidade/${professionalDashboardData.recentPostId}`, profile)
     : getProfileScopedHref("/comunidade", profile);

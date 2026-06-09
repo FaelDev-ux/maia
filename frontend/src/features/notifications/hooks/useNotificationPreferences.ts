@@ -1,12 +1,13 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   getBrowserNotificationPermission,
   getStoredNotificationPreferences,
+  saveNotificationPreferences,
   type NotificationPermissionState,
   type NotificationPreferences,
-  NOTIFICATION_PREFERENCES_STORAGE_KEY,
   NOTIFICATION_PREFERENCES_UPDATED_EVENT,
 } from "@/features/notifications/data/notification-preferences";
+import { fetchNotificationPreferences } from "@/features/notifications/services";
 
 type NotificationPreferencesSnapshot = {
   permission: NotificationPermissionState;
@@ -28,17 +29,9 @@ function subscribeToNotificationPreferences(onStoreChange: () => void) {
 }
 
 function getNotificationPreferencesSnapshot() {
-  if (typeof window === "undefined") {
-    return JSON.stringify({
-      permission: "unsupported",
-      preferences: getStoredNotificationPreferences(),
-    } satisfies NotificationPreferencesSnapshot);
-  }
-
   return JSON.stringify({
     permission: getBrowserNotificationPermission(),
     preferences: getStoredNotificationPreferences(),
-    raw: window.localStorage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY) ?? "",
   });
 }
 
@@ -55,6 +48,28 @@ export function useNotificationPreferences() {
     getNotificationPreferencesSnapshot,
     getNotificationPreferencesServerSnapshot
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPreferences() {
+      try {
+        const preferences = await fetchNotificationPreferences();
+
+        if (isMounted) {
+          saveNotificationPreferences(preferences);
+        }
+      } catch {
+        // A permissao do navegador ainda permite renderizar um estado seguro.
+      }
+    }
+
+    void loadPreferences();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   try {
     const parsedSnapshot = JSON.parse(snapshot) as NotificationPreferencesSnapshot;

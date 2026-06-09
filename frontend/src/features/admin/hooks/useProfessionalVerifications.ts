@@ -1,75 +1,41 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
-import {
-  getProfessionalVerificationActionsServerSnapshot,
-  getProfessionalVerificationActionsSnapshot,
-  getProfessionalVerificationsServerSnapshot,
-  getProfessionalVerificationsSnapshot,
-  PROFESSIONAL_VERIFICATIONS_UPDATED_EVENT,
-} from "@/features/admin/data/professional-verifications";
+import { useCallback, useEffect, useState } from "react";
+import { fetchProfessionalVerifications } from "@/features/admin/services";
 import type {
   ProfessionalVerification,
   ProfessionalVerificationAction,
 } from "@/features/admin/types";
 
-function subscribeToProfessionalVerifications(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(PROFESSIONAL_VERIFICATIONS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(PROFESSIONAL_VERIFICATIONS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function parseVerifications(snapshot: string) {
-  try {
-    const parsedVerifications = JSON.parse(snapshot) as unknown;
-
-    return Array.isArray(parsedVerifications)
-      ? (parsedVerifications as ProfessionalVerification[])
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function parseActions(snapshot: string) {
-  try {
-    const parsedActions = JSON.parse(snapshot) as unknown;
-
-    return Array.isArray(parsedActions)
-      ? (parsedActions as ProfessionalVerificationAction[])
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 export function useProfessionalVerifications() {
-  const verificationsSnapshot = useSyncExternalStore(
-    subscribeToProfessionalVerifications,
-    getProfessionalVerificationsSnapshot,
-    getProfessionalVerificationsServerSnapshot
-  );
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [verifications, setVerifications] = useState<ProfessionalVerification[]>([]);
 
-  return useMemo(() => parseVerifications(verificationsSnapshot), [verificationsSnapshot]);
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      setVerifications(await fetchProfessionalVerifications());
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel carregar validacoes profissionais."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(reload);
+  }, [reload]);
+
+  return { error, isLoading, reload, verifications };
 }
 
-export function useProfessionalVerificationActions() {
-  const actionsSnapshot = useSyncExternalStore(
-    subscribeToProfessionalVerifications,
-    getProfessionalVerificationActionsSnapshot,
-    getProfessionalVerificationActionsServerSnapshot
-  );
-
-  return useMemo<ProfessionalVerificationAction[]>(
-    () => parseActions(actionsSnapshot),
-    [actionsSnapshot]
-  );
+export function useProfessionalVerificationActions(): ProfessionalVerificationAction[] {
+  return [];
 }

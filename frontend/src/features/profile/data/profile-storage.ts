@@ -1,4 +1,3 @@
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import type { HomeProfile } from "@/features/home/types";
 import type { ProfileFormValues } from "@/features/profile/types";
 import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
@@ -11,17 +10,7 @@ import {
   type UserProfileCode,
 } from "@/types/user";
 
-export const PROFILE_STORAGE_KEY = "maia-profile-data";
-export const PROFILE_BABIES_STORAGE_KEY = "maia-profile-babies";
 export const PROFILE_UPDATED_EVENT = "maia-profile-updated";
-
-type StoredBaby = {
-  id: string;
-  userId: string;
-  birthDate: string;
-  createdAt: string;
-  updatedAt: string;
-};
 
 const profileCodeByHomeProfile: Record<HomeProfile, UserProfileCode> = {
   "experienced-mother": "MMT",
@@ -30,12 +19,12 @@ const profileCodeByHomeProfile: Record<HomeProfile, UserProfileCode> = {
   "recent-mother": "PUE",
 };
 
-function emitProfileUpdated() {
-  if (typeof window === "undefined") {
-    return;
-  }
+let currentUserProfile: User | null = null;
 
-  window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+function emitProfileUpdated() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
+  }
 }
 
 function normalizeName(value: string) {
@@ -77,7 +66,11 @@ function getProfessionalCouncilValue(value?: string): ProfessionalCouncil {
   return "OTHER";
 }
 
-function formatDateForProfile(value: string) {
+function formatDateForProfile(value?: string) {
+  if (!value) {
+    return "";
+  }
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
@@ -111,66 +104,6 @@ function splitTextList(value: string) {
     .filter(Boolean);
 }
 
-function getPrimaryBabyId(user: User) {
-  return user.recentMother?.babyIds[0] ?? `mock-baby-${user.id}`;
-}
-
-function getDefaultBabyBirthDate(profile: HomeProfile) {
-  return profile === "recent-mother" ? "2026-04-10" : "";
-}
-
-function getStoredBabies() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const storedBabies = window.localStorage.getItem(PROFILE_BABIES_STORAGE_KEY);
-    const parsedBabies = storedBabies ? (JSON.parse(storedBabies) as unknown) : [];
-
-    return Array.isArray(parsedBabies) ? (parsedBabies as StoredBaby[]) : [];
-  } catch {
-    window.localStorage.removeItem(PROFILE_BABIES_STORAGE_KEY);
-    return [];
-  }
-}
-
-function getPrimaryBabyBirthDate(user: User, profile: HomeProfile) {
-  if (profile !== "recent-mother") {
-    return "";
-  }
-
-  const babyId = getPrimaryBabyId(user);
-  const storedBaby = getStoredBabies().find((baby) => baby.id === babyId && baby.userId === user.id);
-
-  return formatDateForProfile(storedBaby?.birthDate ?? getDefaultBabyBirthDate(profile));
-}
-
-function savePrimaryBabyBirthDate(user: User, babyBirthDate: string) {
-  if (typeof window === "undefined" || !babyBirthDate.trim()) {
-    return;
-  }
-
-  const babyId = getPrimaryBabyId(user);
-  const now = getIsoTimestamp();
-  const storedBabies = getStoredBabies();
-  const nextBaby: StoredBaby = {
-    id: babyId,
-    userId: user.id,
-    birthDate: parseProfileDate(babyBirthDate),
-    createdAt:
-      storedBabies.find((baby) => baby.id === babyId && baby.userId === user.id)?.createdAt ??
-      now,
-    updatedAt: now,
-  };
-  const nextBabies = [
-    nextBaby,
-    ...storedBabies.filter((baby) => !(baby.id === babyId && baby.userId === user.id)),
-  ];
-
-  window.localStorage.setItem(PROFILE_BABIES_STORAGE_KEY, JSON.stringify(nextBabies));
-}
-
 function getDefaultProfessionalVerificationStatus(
   profile: HomeProfile
 ): ProfessionalVerificationStatus {
@@ -179,20 +112,20 @@ function getDefaultProfessionalVerificationStatus(
 
 export function getDefaultUserProfile(profile: HomeProfile): User {
   const code = getProfileCode(profile);
-  const now = mockAuthenticatedUser.createdAt;
-  const fullName = mockAuthenticatedUser.fullName;
+  const now = getIsoTimestamp();
+  const fullName = "Usuaria Maia";
 
   return {
-    id: `mock-user-${code.toLowerCase()}-001`,
-    authUid: `mock-user-${code.toLowerCase()}-001`,
+    id: `user-${code.toLowerCase()}`,
+    authUid: `user-${code.toLowerCase()}`,
     fullName,
     normalizedName: normalizeName(fullName),
     firstName: getFirstName(fullName),
-    email: mockAuthenticatedUser.email,
-    emailVerified: true,
-    phone: "(85) 99999-0000",
-    birthDate: "1995-05-12",
-    avatarUrl: mockAuthenticatedUser.avatarUrl,
+    email: "",
+    emailVerified: false,
+    phone: "",
+    birthDate: "",
+    avatarUrl: undefined,
     profileCode: code,
     profileSlug: getProfileSlug(profile),
     roles: [code],
@@ -210,24 +143,24 @@ export function getDefaultUserProfile(profile: HomeProfile): User {
     recentMother:
       profile === "recent-mother"
         ? {
-            babyIds: ["mock-baby-001"],
-            bio: "Vivendo o puerpério com apoio da Maia e da minha rede.",
+            babyIds: [],
+            bio: "",
           }
         : undefined,
     futureMother:
       profile === "future-mother"
         ? {
-            interests: ["Conteúdos sobre preparo emocional", "rede de apoio", "planejamento"],
-            journeyMoment: "Planejando a maternidade",
+            interests: [],
+            journeyMoment: "",
           }
         : undefined,
     mentor:
       profile === "experienced-mother"
         ? {
             availableForSupport: true,
-            mentorBio: "Gosto de acolher mães que estão vivendo os primeiros meses com o bebê.",
-            motherhoodExperience: "Mãe há 5 anos",
-            supportTopics: ["acolhimento", "rotina", "rede de apoio"],
+            mentorBio: "",
+            motherhoodExperience: "",
+            supportTopics: [],
           }
         : undefined,
     privacy: {
@@ -250,25 +183,18 @@ export function getDefaultUserProfile(profile: HomeProfile): User {
     },
     onboarding: {
       completed: true,
-      completedSteps: ["mock"],
       completedAt: now,
+      completedSteps: [],
     },
-    acceptedTermsVersion: "mock-2026-06",
-    acceptedPrivacyVersion: "mock-2026-06",
+    acceptedTermsVersion: "pending",
+    acceptedPrivacyVersion: "pending",
     createdAt: now,
     updatedAt: now,
-    lastLoginAt: now,
   };
 }
 
 function isStoredUserProfile(value: unknown): value is Partial<User> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "profileCode" in value &&
-    "profileSlug" in value &&
-    "privacy" in value
-  );
+  return typeof value === "object" && value !== null && "profileCode" in value;
 }
 
 function mergeUserWithProfileDefaults(user: Partial<User>, profile: HomeProfile): User {
@@ -276,14 +202,6 @@ function mergeUserWithProfileDefaults(user: Partial<User>, profile: HomeProfile)
   const code = getProfileCode(profile);
   const profileSlug = getProfileSlug(profile);
   const fullName = user.fullName?.trim() || defaults.fullName;
-  const professionalVerificationStatus =
-    profile === "health-professional"
-      ? user.professionalVerificationStatus === "verified" ||
-        user.professionalVerificationStatus === "pending" ||
-        user.professionalVerificationStatus === "rejected"
-        ? user.professionalVerificationStatus
-        : defaults.professionalVerificationStatus
-      : "not-required";
 
   return {
     ...defaults,
@@ -294,12 +212,13 @@ function mergeUserWithProfileDefaults(user: Partial<User>, profile: HomeProfile)
     email: user.email ?? defaults.email,
     phone: user.phone ?? defaults.phone,
     birthDate: user.birthDate ?? defaults.birthDate,
-    avatarUrl: user.avatarUrl ?? defaults.avatarUrl,
     profileCode: code,
     profileSlug,
     roles: Array.from(new Set([...(user.roles ?? []), code])),
-    status: user.status ?? defaults.status,
-    professionalVerificationStatus,
+    professionalVerificationStatus:
+      profile === "health-professional"
+        ? (user.professionalVerificationStatus ?? defaults.professionalVerificationStatus)
+        : "not-required",
     professional:
       profile === "health-professional"
         ? {
@@ -310,36 +229,11 @@ function mergeUserWithProfileDefaults(user: Partial<User>, profile: HomeProfile)
               "",
             state: user.professional?.state ?? defaults.professional?.state ?? "",
             specialty: user.professional?.specialty ?? defaults.professional?.specialty ?? "",
-            verifiedAt: user.professional?.verifiedAt ?? defaults.professional?.verifiedAt,
-            verifiedBy: user.professional?.verifiedBy ?? defaults.professional?.verifiedBy,
-            publicBio: user.professional?.publicBio ?? defaults.professional?.publicBio,
+            verifiedAt: user.professional?.verifiedAt,
+            verifiedBy: user.professional?.verifiedBy,
+            publicBio: user.professional?.publicBio,
           }
         : user.professional,
-    recentMother:
-      profile === "recent-mother"
-        ? {
-            babyIds: user.recentMother?.babyIds ?? defaults.recentMother?.babyIds ?? [],
-            ...user.recentMother,
-          }
-        : user.recentMother,
-    futureMother:
-      profile === "future-mother"
-        ? {
-            ...defaults.futureMother,
-            ...user.futureMother,
-          }
-        : user.futureMother,
-    mentor:
-      profile === "experienced-mother"
-        ? {
-            availableForSupport:
-              user.mentor?.availableForSupport ?? defaults.mentor?.availableForSupport ?? true,
-            supportTopics: user.mentor?.supportTopics ?? defaults.mentor?.supportTopics ?? [],
-            mentorBio: user.mentor?.mentorBio ?? defaults.mentor?.mentorBio,
-            motherhoodExperience:
-              user.mentor?.motherhoodExperience ?? defaults.mentor?.motherhoodExperience,
-          }
-        : user.mentor,
     privacy: {
       ...defaults.privacy,
       ...user.privacy,
@@ -356,12 +250,23 @@ function mergeUserWithProfileDefaults(user: Partial<User>, profile: HomeProfile)
       ...defaults.onboarding,
       ...user.onboarding,
     },
-    acceptedTermsVersion: user.acceptedTermsVersion ?? defaults.acceptedTermsVersion,
-    acceptedPrivacyVersion: user.acceptedPrivacyVersion ?? defaults.acceptedPrivacyVersion,
-    createdAt: user.createdAt ?? defaults.createdAt,
-    updatedAt: user.updatedAt ?? defaults.updatedAt,
-    lastLoginAt: user.lastLoginAt ?? defaults.lastLoginAt,
   };
+}
+
+export function getUserProfileFromSnapshot(snapshot: string, profile: HomeProfile): User {
+  if (!snapshot) {
+    return getDefaultUserProfile(profile);
+  }
+
+  try {
+    const parsedProfile = JSON.parse(snapshot) as unknown;
+
+    return isStoredUserProfile(parsedProfile)
+      ? mergeUserWithProfileDefaults(parsedProfile, profile)
+      : getDefaultUserProfile(profile);
+  } catch {
+    return getDefaultUserProfile(profile);
+  }
 }
 
 export function userProfileToFormValues(user: User, profile: HomeProfile): ProfileFormValues {
@@ -373,7 +278,7 @@ export function userProfileToFormValues(user: User, profile: HomeProfile): Profi
 
   return {
     avatarUrl: user.avatarUrl ?? "",
-    babyBirthDate: getPrimaryBabyBirthDate(user, profile),
+    babyBirthDate: "",
     bio: recentMother?.bio ?? "",
     birthDate: formatDateForProfile(user.birthDate),
     council: professional?.council ?? "",
@@ -400,52 +305,43 @@ export function profileFormValuesToUser(
   const profileSlug = getProfileSlug(profile);
   const fullName = values.fullName.trim() || currentUser.fullName;
   const now = getIsoTimestamp();
-  const currentBabyIds = currentUser.recentMother?.babyIds ?? [];
-  const professionalVerificationStatus =
-    profile === "health-professional"
-      ? currentUser.professionalVerificationStatus === "verified"
-        ? "verified"
-        : "pending"
-      : "not-required";
 
   return {
     ...currentUser,
     fullName,
     normalizedName: normalizeName(fullName),
     firstName: getFirstName(fullName),
-    email: values.email.trim() || currentUser.email,
     phone: values.phone.trim(),
     birthDate: parseProfileDate(values.birthDate) || currentUser.birthDate,
     avatarUrl: values.avatarUrl || undefined,
     profileCode: code,
     profileSlug,
     roles: Array.from(new Set([...(currentUser.roles ?? []), code])),
-    professionalVerificationStatus,
+    professionalVerificationStatus:
+      profile === "health-professional"
+        ? currentUser.professionalVerificationStatus === "verified"
+          ? "verified"
+          : "pending"
+        : "not-required",
     professional:
       profile === "health-professional"
         ? {
-            council: getProfessionalCouncilValue(
-              values.council.trim() || currentUser.professional?.council || "CRM"
-            ),
+            ...(currentUser.professional ?? {
+              council: "CRM",
+              registrationNumber: "",
+              state: "",
+              specialty: "",
+            }),
+            council: getProfessionalCouncilValue(values.council.trim()),
             registrationNumber: values.registrationNumber.trim(),
             state: values.state.trim(),
             specialty: values.specialty.trim(),
-            verifiedAt:
-              professionalVerificationStatus === "verified"
-                ? (currentUser.professional?.verifiedAt ?? now)
-                : undefined,
-            verifiedBy:
-              professionalVerificationStatus === "verified"
-                ? (currentUser.professional?.verifiedBy ?? "mock-admin-001")
-                : undefined,
-            publicBio: currentUser.professional?.publicBio,
           }
         : currentUser.professional,
     recentMother:
       profile === "recent-mother"
         ? {
             ...(currentUser.recentMother ?? { babyIds: [] }),
-            babyIds: currentBabyIds.length > 0 ? currentBabyIds : [getPrimaryBabyId(currentUser)],
             bio: values.bio.trim(),
           }
         : currentUser.recentMother,
@@ -472,48 +368,14 @@ export function profileFormValuesToUser(
   };
 }
 
-export function getUserProfileFromSnapshot(snapshot: string, profile: HomeProfile): User {
-  if (!snapshot) {
-    return getDefaultUserProfile(profile);
-  }
-
-  try {
-    const parsedProfile = JSON.parse(snapshot) as unknown;
-
-    if (isStoredUserProfile(parsedProfile)) {
-      return mergeUserWithProfileDefaults(parsedProfile, profile);
-    }
-
-    const legacyValues = parsedProfile as Partial<ProfileFormValues>;
-    const defaultUser = getDefaultUserProfile(profile);
-    const legacyFormValues = {
-      ...userProfileToFormValues(defaultUser, profile),
-      ...legacyValues,
-    };
-
-    return profileFormValuesToUser(legacyFormValues, profile, defaultUser);
-  } catch {
-    return getDefaultUserProfile(profile);
-  }
-}
-
 export function getDefaultProfileValues(profile: HomeProfile): ProfileFormValues {
   return userProfileToFormValues(getDefaultUserProfile(profile), profile);
 }
 
 export function getStoredUserProfile(profile: HomeProfile): User {
-  if (typeof window === "undefined") {
-    return getDefaultUserProfile(profile);
-  }
-
-  const storedProfile = window.localStorage.getItem(PROFILE_STORAGE_KEY) ?? "";
-  const userProfile = getUserProfileFromSnapshot(storedProfile, profile);
-
-  if (storedProfile) {
-    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(userProfile));
-  }
-
-  return userProfile;
+  return currentUserProfile
+    ? mergeUserWithProfileDefaults(currentUserProfile, profile)
+    : getDefaultUserProfile(profile);
 }
 
 export function getStoredProfileValues(profile: HomeProfile): ProfileFormValues {
@@ -521,16 +383,12 @@ export function getStoredProfileValues(profile: HomeProfile): ProfileFormValues 
 }
 
 export function saveUserProfile(user: User) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(user));
+  currentUserProfile = user;
   emitProfileUpdated();
 }
 
 export function saveAuthenticatedUserProfile(user: unknown) {
-  if (typeof window === "undefined" || !isStoredUserProfile(user)) {
+  if (!isStoredUserProfile(user)) {
     return;
   }
 
@@ -538,29 +396,13 @@ export function saveAuthenticatedUserProfile(user: unknown) {
 }
 
 export function saveProfileValues(values: ProfileFormValues, profile: HomeProfile = "recent-mother") {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const nextUser = profileFormValuesToUser(values, profile, getStoredUserProfile(profile));
-
-  if (profile === "recent-mother") {
-    savePrimaryBabyBirthDate(nextUser, values.babyBirthDate);
-  }
-
-  saveUserProfile(nextUser);
+  saveUserProfile(profileFormValuesToUser(values, profile, getStoredUserProfile(profile)));
 }
 
 export function saveRegisteredUserProfile(data: RegisterFormData) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const currentValues = getStoredProfileValues("recent-mother");
-
   saveProfileValues(
     {
-      ...currentValues,
+      ...getStoredProfileValues("recent-mother"),
       birthDate: data.birthDate,
       email: data.email,
       fullName: data.name,

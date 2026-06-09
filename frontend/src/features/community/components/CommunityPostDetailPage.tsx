@@ -1,29 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowBigDown, ArrowLeft, ArrowBigUp, EyeOff, MessageCircle, Send } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowBigDown, ArrowBigUp, ArrowLeft, EyeOff, Send } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
-import { getCommunityAuthorRole } from "@/features/community/data/community-composer";
-import { communityComments } from "@/features/community/data/community-comments";
 import {
-  COMMUNITY_COMMENTS_UPDATED_EVENT,
-  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
-  COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
-  getStoredCommunityComments,
-  getStoredCreatedCommunityPosts,
-  getStoredRemovedPostIds,
-  saveStoredCommunityComments,
-} from "@/features/community/data/community-storage";
+  createCommunityComment,
+  fetchCommunityPostDetail,
+  sendCommentFeedback,
+} from "@/features/community/services";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
-import {
-  useStoredProfileValues,
-  useStoredUserProfile,
-} from "@/features/profile/hooks/useStoredProfileValues";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
@@ -33,70 +23,8 @@ type CommunityPostDetailPageProps = {
   profile: HomeProfile;
 };
 
-function subscribeToPostDetailStorage(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(COMMUNITY_COMMENTS_UPDATED_EVENT, onStoreChange);
-  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-  window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(COMMUNITY_COMMENTS_UPDATED_EVENT, onStoreChange);
-    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-    window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getPostDetailStorageSnapshot() {
-  return JSON.stringify({
-    createdPosts: getStoredCreatedCommunityPosts(),
-    removedPostIds: getStoredRemovedPostIds(),
-    storedComments: getStoredCommunityComments(),
-  });
-}
-
-function getPostDetailServerSnapshot() {
-  return JSON.stringify({
-    createdPosts: [],
-    removedPostIds: [],
-    storedComments: [],
-  });
-}
-
-function parsePostDetailStorageSnapshot(snapshot: string) {
-  try {
-    const parsedSnapshot = JSON.parse(snapshot) as {
-      createdPosts?: CommunityPost[];
-      removedPostIds?: string[];
-      storedComments?: CommunityComment[];
-    };
-
-    return {
-      createdPosts: Array.isArray(parsedSnapshot.createdPosts)
-        ? parsedSnapshot.createdPosts.filter((post) => typeof post.id === "string")
-        : [],
-      removedPostIds: Array.isArray(parsedSnapshot.removedPostIds)
-        ? parsedSnapshot.removedPostIds.filter((postId): postId is string => typeof postId === "string")
-        : [],
-      storedComments: Array.isArray(parsedSnapshot.storedComments)
-        ? parsedSnapshot.storedComments.filter((comment) => typeof comment.id === "string")
-        : [],
-    };
-  } catch {
-    return {
-      createdPosts: [],
-      removedPostIds: [],
-      storedComments: [],
-    };
-  }
-}
-
 function getDisplayName(comment: CommunityComment) {
-  return comment.isAnonymous ? "Usuária" : comment.authorName;
+  return comment.isAnonymous ? "Usuaria" : comment.authorName;
 }
 
 function getCommentSupportBalance(comment: CommunityComment) {
@@ -121,41 +49,19 @@ export function CommunityPostDetailPage({
   postId,
   profile,
 }: CommunityPostDetailPageProps) {
-  const router = useRouter();
   const commentsSectionRef = useRef<HTMLElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
-  const postDetailStorageSnapshot = useSyncExternalStore(
-    subscribeToPostDetailStorage,
-    getPostDetailStorageSnapshot,
-    getPostDetailServerSnapshot
-  );
-  const { createdPosts, removedPostIds, storedComments } = useMemo(
-    () => parsePostDetailStorageSnapshot(postDetailStorageSnapshot),
-    [postDetailStorageSnapshot]
-  );
-  const post = useMemo<CommunityPost | null>(() => {
-    if (removedPostIds.includes(postId)) {
-      return null;
-    }
-
-    return initialPost ?? createdPosts.find((currentPost) => currentPost.id === postId) ?? null;
-  }, [createdPosts, initialPost, postId, removedPostIds]);
-  const [message, setMessage] = useState("");
   const storedProfile = useStoredProfileValues(profile);
-  const storedUser = useStoredUserProfile(profile);
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
-  const fixedPostComments = useMemo(
-    () => communityComments.filter((comment) => comment.postId === postId),
-    [postId]
-  );
-  const storedPostComments = useMemo(
-    () => storedComments.filter((comment) => comment.postId === postId),
-    [postId, storedComments]
-  );
-  const comments = storedPostComments.length > 0 ? storedPostComments : fixedPostComments;
-  const sortedComments = sortCommentsBySupport(comments);
+  const [post, setPost] = useState<CommunityPost | null>(initialPost ?? null);
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const sortedComments = useMemo(() => sortCommentsBySupport(comments), [comments]);
   const highlightedComment = sortedComments[0];
   const highlightedPost = post
     ? {
@@ -164,7 +70,7 @@ export function CommunityPostDetailPage({
           ? {
               authorName: getDisplayName(highlightedComment),
               authorRole: highlightedComment.isAnonymous
-                ? "Publicação protegida"
+                ? "Publicacao protegida"
                 : highlightedComment.authorRole,
               message: highlightedComment.message,
             }
@@ -172,61 +78,81 @@ export function CommunityPostDetailPage({
       }
     : null;
 
-  function savePostComments(nextPostComments: CommunityComment[]) {
-    saveStoredCommunityComments([
-      ...nextPostComments,
-      ...storedComments.filter((comment) => comment.postId !== postId),
-    ]);
-  }
-
   const focusComments = useCallback(() => {
     commentsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     messageInputRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
-    if (window.location.hash !== "#comentarios") {
-      return;
+    let isMounted = true;
+
+    async function loadPostDetail() {
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const detail = await fetchCommunityPostDetail(postId);
+
+        if (isMounted) {
+          setPost(detail.post);
+          setComments(detail.comments);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(
+            error instanceof Error ? error.message : "Nao foi possivel carregar esta conversa."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
 
-    focusComments();
+    void loadPostDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [postId]);
+
+  useEffect(() => {
+    if (window.location.hash === "#comentarios") {
+      focusComments();
+    }
   }, [focusComments]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedMessage = message.trim();
+    setSubmitError("");
 
     if (trimmedMessage.length < 2) {
       return;
     }
 
-    const initials = storedProfile.fullName
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((name) => name.charAt(0).toUpperCase())
-      .join("");
+    try {
+      const comment = await createCommunityComment(postId, trimmedMessage);
 
-    savePostComments([
-      {
-        id: `mock-comment-${Date.now()}`,
-        postId,
-        authorName: storedProfile.fullName || "Usuária Maia",
-        authorRole: getCommunityAuthorRole(profile, storedUser.professionalVerificationStatus),
-        avatarInitials: initials || avatarInitial,
-        message: trimmedMessage,
-        timeAgo: "agora",
-        helpfulCount: 0,
-        notHelpfulCount: 0,
-      },
-      ...comments,
-    ]);
-    setMessage("");
+      if (comment) {
+        setComments((currentComments) => [...currentComments, comment]);
+      }
+
+      setMessage("");
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Nao foi possivel enviar sua resposta agora."
+      );
+    }
   }
 
-  function handleCommentVote(commentId: string, vote: NonNullable<CommunityComment["userVote"]>) {
-    savePostComments(
-      comments.map((comment) => {
+  async function handleCommentVote(
+    commentId: string,
+    vote: NonNullable<CommunityComment["userVote"]>
+  ) {
+    setComments((currentComments) =>
+      currentComments.map((comment) => {
         if (comment.id !== commentId) {
           return comment;
         }
@@ -254,20 +180,25 @@ export function CommunityPostDetailPage({
         return nextComment;
       })
     );
+
+    try {
+      await sendCommentFeedback(commentId, vote);
+    } catch {
+      // Mantem o feedback visual quando a sincronizacao falha momentaneamente.
+    }
   }
 
   return (
     <main className="min-h-dvh bg-background text-text">
-      <div className="mx-auto min-h-dvh w-full max-w-[26rem] pb-[7.5rem] md:max-w-[48rem] md:px-8 md:pb-32">
+      <div className="mx-auto min-h-dvh w-full max-w-[26rem] overflow-hidden pb-[7.5rem] md:max-w-[72rem] md:overflow-visible md:px-8 md:pb-32 lg:px-10">
         <header className="flex h-[4.4rem] items-center justify-between bg-white px-6 md:mt-6 md:h-20 md:rounded-[2rem] md:px-8 md:shadow-[0_12px_36px_rgb(140_64_84_/_0.08)]">
-          <button
-            aria-label="Voltar para a comunidade"
+          <Link
+            aria-label="Voltar para comunidade"
             className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            onClick={() => router.push(getProfileScopedHref("/comunidade", profile))}
-            type="button"
+            href={getProfileScopedHref("/comunidade", profile)}
           >
             <ArrowLeft aria-hidden size={21} strokeWidth={2.4} />
-          </button>
+          </Link>
 
           <MaiaBrand imageClassName="size-13" imageSize={54} textClassName="text-2xl" />
 
@@ -275,74 +206,69 @@ export function CommunityPostDetailPage({
             aria-label={`Perfil de ${firstName}`}
             className="grid size-11 place-items-center rounded-full border-[3px] border-primary bg-primary/10 bg-cover bg-center font-title text-base font-extrabold text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.14)]"
             href={getProfileScopedHref("/perfil", profile)}
-            title={`Perfil de ${firstName}`}
             style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
           >
             {avatarUrl ? null : avatarInitial}
           </Link>
         </header>
 
-        <div className="px-6 pb-8 pt-7 md:px-0 md:pt-9">
-          <section aria-labelledby="community-post-title">
-            <p className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
-              <MessageCircle aria-hidden size={14} strokeWidth={2.4} />
-              Conversa aberta
-            </p>
-            <h1
-              className="mt-4 font-title text-2xl font-extrabold leading-tight text-title md:text-3xl"
-              id="community-post-title"
-            >
-              Publicação da comunidade
-            </h1>
+        <div className="px-6 pb-8 pt-7 md:grid md:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] md:items-start md:gap-10 md:px-0 md:pt-10 lg:gap-12">
+          <section aria-label="Publicacao da comunidade">
+            {highlightedPost ? (
+              <CommunityPostCard
+                onReply={focusComments}
+                post={highlightedPost}
+                profile={profile}
+                variant="detail"
+              />
+            ) : (
+              <div className="rounded-[2rem] bg-white px-6 py-8 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
+                  Conversa indisponivel
+                </p>
+                <h2 className="mt-2 font-title text-2xl font-extrabold leading-tight text-title">
+                  Publicacao nao encontrada
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-text">
+                  Essa conversa pode ter sido removida ou ainda nao esta disponivel.
+                </p>
+              </div>
+            )}
           </section>
-
-          {highlightedPost ? (
-            <section className="mt-6" aria-label="Publicação aberta">
-              <CommunityPostCard onReply={focusComments} post={highlightedPost} variant="detail" />
-            </section>
-          ) : null}
 
           <section
             aria-labelledby="comments-title"
-            className="mt-7 rounded-[2rem] bg-white px-6 py-6 shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65 md:px-7"
+            className="mt-7 rounded-[2rem] bg-white px-5 py-6 shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65 md:mt-0 md:px-7"
             id="comentarios"
             ref={commentsSectionRef}
-            tabIndex={-1}
           >
-            {!post ? (
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
-                  Conversa indisponível
+                  Comentarios
                 </p>
-                <h2 className="mt-2 font-title text-2xl font-extrabold leading-tight text-title">
-                  Publicação não encontrada
+                <h2
+                  className="mt-2 font-title text-2xl font-extrabold leading-tight text-title"
+                  id="comments-title"
+                >
+                  Respostas da comunidade
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-text">
-                  Essa conversa pode ter sido removida ou ainda não está sincronizada com os dados
-                  mockados.
-                </p>
               </div>
-            ) : null}
+              <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-extrabold text-primary">
+                {comments.length}
+              </span>
+            </div>
 
-            {post ? (
+            {isLoading ? (
+              <p className="mt-5 rounded-[1.45rem] bg-background px-4 py-4 text-sm leading-6 text-text">
+                Carregando respostas...
+              </p>
+            ) : loadError ? (
+              <p className="mt-5 rounded-[1.45rem] bg-primary/10 px-4 py-4 text-sm font-bold leading-6 text-primary">
+                {loadError}
+              </p>
+            ) : post ? (
               <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
-                      Comentários
-                    </p>
-                    <h2
-                      className="mt-2 font-title text-2xl font-extrabold leading-tight text-title"
-                      id="comments-title"
-                    >
-                      Respostas da comunidade
-                    </h2>
-                  </div>
-                  <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-extrabold text-primary">
-                    {comments.length}
-                  </span>
-                </div>
-
                 <form className="mt-5" onSubmit={handleSubmit}>
                   <label className="block">
                     <span className="text-sm font-extrabold text-title">Escrever resposta</span>
@@ -350,7 +276,7 @@ export function CommunityPostDetailPage({
                       className="mt-2 min-h-28 w-full resize-none rounded-[1.35rem] border border-border bg-background px-4 py-4 text-base leading-7 text-title outline-none transition placeholder:text-text/45 focus:border-primary focus:ring-4 focus:ring-primary/15"
                       maxLength={360}
                       onChange={(event) => setMessage(event.target.value)}
-                      placeholder="Compartilhe apoio, experiência ou uma ideia simples."
+                      placeholder="Compartilhe apoio, experiencia ou uma ideia simples."
                       ref={messageInputRef}
                       value={message}
                     />
@@ -366,6 +292,11 @@ export function CommunityPostDetailPage({
                       Enviar
                     </button>
                   </div>
+                  {submitError ? (
+                    <p className="mt-3 rounded-2xl bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
+                      {submitError}
+                    </p>
+                  ) : null}
                 </form>
 
                 <div className="mt-6 grid gap-4">
@@ -389,14 +320,8 @@ export function CommunityPostDetailPage({
                             </span>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <h3
-                                  aria-label={
-                                    comment.isAnonymous ? "Usuária com nome oculto" : undefined
-                                  }
-                                  className="font-title text-sm font-extrabold text-title"
-                                >
+                                <h3 className="font-title text-sm font-extrabold text-title">
                                   <span
-                                    aria-hidden={comment.isAnonymous ? true : undefined}
                                     className={cn(
                                       comment.isAnonymous && "inline-block select-none blur-[2px]"
                                     )}
@@ -408,20 +333,12 @@ export function CommunityPostDetailPage({
                                   - {comment.timeAgo}
                                 </span>
                               </div>
-                              <p
-                                className={cn(
-                                  "mt-0.5 text-xs font-semibold text-text",
-                                  comment.isAnonymous &&
-                                    "inline-flex max-w-full items-center gap-1.5 whitespace-nowrap"
-                                )}
-                              >
+                              <p className="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs font-semibold text-text">
                                 {comment.isAnonymous ? (
                                   <EyeOff aria-hidden size={12} strokeWidth={2.4} />
                                 ) : null}
                                 <span>
-                                  {comment.isAnonymous
-                                    ? "Publicação protegida"
-                                    : comment.authorRole}
+                                  {comment.isAnonymous ? "Publicacao protegida" : comment.authorRole}
                                 </span>
                               </p>
                             </div>
@@ -437,11 +354,11 @@ export function CommunityPostDetailPage({
                               ) : null}
                             </div>
 
-                            <div className="flex items-center gap-4 place-items-center rounded-full bg-white text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.08)] ring-1 ring-border transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                            <div className="flex items-center gap-3 rounded-full bg-white px-2 text-primary shadow-[0_8px_20px_rgb(140_64_84_/_0.08)] ring-1 ring-border">
                               <button
-                                aria-label={`Marcar resposta de ${displayName} como útil`}
+                                aria-label={`Marcar resposta de ${displayName} como util`}
                                 className={cn(
-                                  "size-10 flex items-center justify-center rounded-full",
+                                  "grid size-10 place-items-center rounded-full",
                                   comment.userVote === "helpful" &&
                                     "bg-primary text-white hover:bg-primary/90"
                                 )}
@@ -452,16 +369,16 @@ export function CommunityPostDetailPage({
                               </button>
                               <p
                                 className={cn(
-                                  "mt-1 text-sm font-extrabold",
+                                  "text-sm font-extrabold",
                                   supportBalance < 0 ? "text-danger" : "text-title"
                                 )}
                               >
                                 {supportBalance > 0 ? `+${supportBalance}` : supportBalance}
                               </p>
                               <button
-                                aria-label={`Marcar resposta de ${displayName} como não útil`}
+                                aria-label={`Marcar resposta de ${displayName} como nao util`}
                                 className={cn(
-                                  "size-10 flex items-center justify-center rounded-full",
+                                  "grid size-10 place-items-center rounded-full",
                                   comment.userVote === "not-helpful" &&
                                     "bg-danger text-white hover:bg-danger/90"
                                 )}
@@ -477,7 +394,7 @@ export function CommunityPostDetailPage({
                     })
                   ) : (
                     <p className="rounded-[1.45rem] bg-background px-4 py-4 text-sm leading-6 text-text">
-                      Ainda não há respostas. Você pode ser a primeira pessoa a acolher essa
+                      Ainda nao ha respostas. Voce pode ser a primeira pessoa a acolher essa
                       conversa.
                     </p>
                   )}

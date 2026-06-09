@@ -40,7 +40,7 @@ const verificationFilters = [
 export function AdminProfessionalVerificationsPage() {
   const [activeFilter, setActiveFilter] = useState<ProfessionalVerificationFilter>("all");
   const [search, setSearch] = useState("");
-  const verifications = useProfessionalVerifications();
+  const { error, isLoading, verifications } = useProfessionalVerifications();
   const normalizedSearch = normalizeAdminSearch(search);
   const filteredVerifications = useMemo(
     () =>
@@ -126,7 +126,20 @@ export function AdminProfessionalVerificationsPage() {
         </div>
 
         <div className="mt-5 grid gap-4">
-          {filteredVerifications.length > 0 ? (
+          {isLoading ? (
+            <div className="rounded-[1.9rem] bg-white px-6 py-8 text-center shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65">
+              <h3 className="font-title text-lg font-extrabold text-title">
+                Carregando solicitações
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text">
+                Buscando profissionais pendentes no backend.
+              </p>
+            </div>
+          ) : error ? (
+            <div className="rounded-[1.9rem] bg-primary/10 px-6 py-6 text-sm font-bold leading-6 text-primary">
+              {error}
+            </div>
+          ) : filteredVerifications.length > 0 ? (
             filteredVerifications.map((verification) => (
               <ProfessionalVerificationCard key={verification.id} verification={verification} />
             ))

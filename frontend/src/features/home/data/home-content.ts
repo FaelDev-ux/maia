@@ -1,4 +1,3 @@
-import { mockAuthenticatedUser } from "@/data/authenticated-user";
 import type {
   CommunityPreview,
   EmotionOption,
@@ -9,7 +8,8 @@ import type {
   WeeklyInsight,
 } from "@/features/home/types";
 
-const mockUserAvatarUrl = mockAuthenticatedUser.avatarUrl;
+const fallbackUserAvatarUrl =
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80";
 
 export const homeEmotions: EmotionOption[] = [
   { id: "happy", emoji: "😊", label: "Feliz" },
@@ -132,7 +132,7 @@ export const homeContentByProfile: Record<HomeProfile, HomeContent> = {
     firstName: "Maria",
     displayName: "Dra. Maria",
     avatarLabel: "Perfil de Dra. Maria",
-    avatarUrl: mockUserAvatarUrl,
+    avatarUrl: fallbackUserAvatarUrl,
     titleSuffix: "",
     intro: "Seu conhecimento está fazendo diferença na jornada de muitas mães.",
     badge: "Especialista verificada",
@@ -149,7 +149,7 @@ export const homeContentByProfile: Record<HomeProfile, HomeContent> = {
     variant: "mentor",
     firstName: "Maria",
     avatarLabel: "Perfil de Maria",
-    avatarUrl: mockUserAvatarUrl,
+    avatarUrl: fallbackUserAvatarUrl,
     titleSuffix: "",
     intro: "Sua experiência está fazendo diferença na jornada de muitas mães.",
     badge: "Mentora da comunidade",
@@ -166,7 +166,7 @@ export const homeContentByProfile: Record<HomeProfile, HomeContent> = {
     variant: "wellbeing",
     firstName: "Maria",
     avatarLabel: "Perfil de Maria",
-    avatarUrl: mockUserAvatarUrl,
+    avatarUrl: fallbackUserAvatarUrl,
     titleSuffix: "Como você está hoje?",
     intro: "Tire um momento para respirar e reconhecer seus sentimentos agora.",
     emotions: futureMotherEmotions,
@@ -178,7 +178,7 @@ export const homeContentByProfile: Record<HomeProfile, HomeContent> = {
     variant: "wellbeing",
     firstName: "Maria",
     avatarLabel: "Perfil de Maria",
-    avatarUrl: mockUserAvatarUrl,
+    avatarUrl: fallbackUserAvatarUrl,
     titleSuffix: "Como você está hoje?",
     intro: "Tire um momento para respirar e reconhecer seus sentimentos agora.",
     emotions: homeEmotions,
