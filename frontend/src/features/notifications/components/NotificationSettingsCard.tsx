@@ -35,7 +35,7 @@ export function NotificationSettingsCard() {
     setIsUpdating(true);
 
     if (isEnabled) {
-      disableDailyCheckInNotifications();
+      await disableDailyCheckInNotifications();
       setIsUpdating(false);
       return;
     }

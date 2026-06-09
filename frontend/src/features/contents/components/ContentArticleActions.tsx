@@ -1,14 +1,9 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { Bookmark, Heart, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
 
-const CONTENT_FEEDBACK_STORAGE_KEY = "maia-content-feedback";
-const SAVED_CONTENTS_STORAGE_KEY = "maia-saved-contents";
-const CONTENT_ACTIONS_UPDATED_EVENT = "maia-content-actions-updated";
-
 type FeedbackValue = "yes" | "no" | "love";
-type StoredFeedback = Partial<Record<string, FeedbackValue>>;
 
 type ContentArticleActionsProps = {
   articleId: string;
@@ -17,71 +12,10 @@ type ContentArticleActionsProps = {
 };
 
 const feedbackMessages: Record<FeedbackValue, string> = {
-  yes: "Obrigada pelo retorno. Vamos priorizar conteúdos parecidos para apoiar sua jornada.",
-  no: "Obrigada por avisar. Esse retorno ajuda a ajustar as recomendações com mais cuidado.",
-  love: "Que bom que esse conteúdo fez sentido para você. Ele ficará marcado como especial por aqui.",
+  yes: "Obrigada pelo retorno. Vamos priorizar conteudos parecidos para apoiar sua jornada.",
+  no: "Obrigada por avisar. Esse retorno ajuda a ajustar as recomendacoes com mais cuidado.",
+  love: "Que bom que esse conteudo fez sentido para voce.",
 };
-
-function readJsonValue<T>(storageKey: string, fallback: T): T {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(storageKey);
-
-    return storedValue ? (JSON.parse(storedValue) as T) : fallback;
-  } catch {
-    window.localStorage.removeItem(storageKey);
-    return fallback;
-  }
-}
-
-function parseJsonSnapshot<T>(snapshot: string, fallback: T): T {
-  try {
-    return snapshot ? (JSON.parse(snapshot) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function subscribeToContentActions(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(CONTENT_ACTIONS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(CONTENT_ACTIONS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getFeedbackSnapshot() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(CONTENT_FEEDBACK_STORAGE_KEY) ?? "";
-}
-
-function getSavedContentsSnapshot() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(SAVED_CONTENTS_STORAGE_KEY) ?? "";
-}
-
-function getServerSnapshot() {
-  return "";
-}
-
-function notifyContentActionsUpdated() {
-  window.dispatchEvent(new Event(CONTENT_ACTIONS_UPDATED_EVENT));
-}
 
 function getAbsoluteShareUrl(sharePath: string) {
   if (typeof window === "undefined") {
@@ -108,19 +42,15 @@ async function copyToClipboard(text: string) {
   document.body.removeChild(textarea);
 }
 
-export function ContentArticleActions({ articleId, articleTitle, sharePath }: ContentArticleActionsProps) {
+export function ContentArticleActions({
+  articleId,
+  articleTitle,
+  sharePath,
+}: ContentArticleActionsProps) {
   const [shareStatus, setShareStatus] = useState("");
-  const feedbackSnapshot = useSyncExternalStore(
-    subscribeToContentActions,
-    getFeedbackSnapshot,
-    getServerSnapshot,
-  );
-  const savedContentsSnapshot = useSyncExternalStore(
-    subscribeToContentActions,
-    getSavedContentsSnapshot,
-    getServerSnapshot,
-  );
-
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackValue | null>(null);
+  const [savedArticleIds, setSavedArticleIds] = useState<string[]>([]);
+  const isSaved = savedArticleIds.includes(articleId);
   const feedbackOptions = useMemo(
     () =>
       [
@@ -131,7 +61,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
         },
         {
           icon: ThumbsDown,
-          label: "Não",
+          label: "Nao",
           value: "no",
         },
         {
@@ -144,46 +74,22 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
         label: string;
         value: FeedbackValue;
       }>,
-    [],
+    []
   );
-
-  const storedFeedback = useMemo(
-    () => parseJsonSnapshot<StoredFeedback>(feedbackSnapshot, {}),
-    [feedbackSnapshot],
-  );
-  const savedContents = useMemo(
-    () => parseJsonSnapshot<string[]>(savedContentsSnapshot, []),
-    [savedContentsSnapshot],
-  );
-  const selectedFeedback = storedFeedback[articleId] ?? null;
-  const isSaved = savedContents.includes(articleId);
-
-  function handleFeedback(value: FeedbackValue) {
-    const storedFeedback = readJsonValue<StoredFeedback>(CONTENT_FEEDBACK_STORAGE_KEY, {});
-    const nextFeedback = {
-      ...storedFeedback,
-      [articleId]: value,
-    };
-
-    window.localStorage.setItem(CONTENT_FEEDBACK_STORAGE_KEY, JSON.stringify(nextFeedback));
-    notifyContentActionsUpdated();
-  }
 
   function handleSaveToggle() {
-    const currentSavedContents = readJsonValue<string[]>(SAVED_CONTENTS_STORAGE_KEY, []);
-    const nextSavedContents = isSaved
-      ? currentSavedContents.filter((savedArticleId) => savedArticleId !== articleId)
-      : [...new Set([...currentSavedContents, articleId])];
-
-    window.localStorage.setItem(SAVED_CONTENTS_STORAGE_KEY, JSON.stringify(nextSavedContents));
-    notifyContentActionsUpdated();
+    setSavedArticleIds((currentIds) =>
+      currentIds.includes(articleId)
+        ? currentIds.filter((savedArticleId) => savedArticleId !== articleId)
+        : [...currentIds, articleId]
+    );
   }
 
   async function handleShare() {
     const shareUrl = getAbsoluteShareUrl(sharePath);
     const shareData = {
       title: articleTitle,
-      text: "Encontrei este conteúdo no Maia e achei que pode ajudar.",
+      text: "Encontrei este conteudo no Maia e achei que pode ajudar.",
       url: shareUrl,
     };
 
@@ -206,7 +112,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
         await copyToClipboard(shareUrl);
         setShareStatus("Link copiado para compartilhar quando quiser.");
       } catch {
-        setShareStatus("Não consegui compartilhar agora. Você pode copiar o link pela barra do navegador.");
+        setShareStatus("Nao consegui compartilhar agora. Voce pode copiar o link pela barra do navegador.");
       }
     }
   }
@@ -216,7 +122,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
       <section className="mt-10 rounded-[2.5rem] bg-white px-8 py-10 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
         <h2 className="font-title text-2xl font-extrabold text-title">Isso te ajudou?</h2>
         <p className="mx-auto mt-3 max-w-[17rem] text-base leading-6 text-text">
-          Sua reação nos ajuda a criar conteúdos mais acolhedores.
+          Sua reacao nos ajuda a criar conteudos mais acolhedores.
         </p>
         <div className="mt-8 grid gap-4 sm:mx-auto sm:max-w-[15rem]">
           {feedbackOptions.map(({ icon: Icon, label, value }) => {
@@ -232,7 +138,7 @@ export function ContentArticleActions({ articleId, articleTitle, sharePath }: Co
                     : "bg-surface text-title hover:bg-primary/10"
                 }`}
                 key={value}
-                onClick={() => handleFeedback(value)}
+                onClick={() => setSelectedFeedback(value)}
                 type="button"
               >
                 <Icon

@@ -1,29 +1,34 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
-import {
-  getAdminCommunityPostsServerSnapshot,
-  getAdminCommunityPostsSnapshot,
-  subscribeToAdminCommunityPosts,
-} from "@/features/admin/data/community-moderation";
+import { useCallback, useEffect, useState } from "react";
+import { fetchAdminCommunityPosts } from "@/features/admin/services";
 import type { CommunityPost } from "@/features/community/types";
 
-function parseCommunityPosts(snapshot: string) {
-  try {
-    const parsedPosts = JSON.parse(snapshot) as unknown;
-
-    return Array.isArray(parsedPosts) ? (parsedPosts as CommunityPost[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export function useAdminCommunityPosts() {
-  const postsSnapshot = useSyncExternalStore(
-    subscribeToAdminCommunityPosts,
-    getAdminCommunityPostsSnapshot,
-    getAdminCommunityPostsServerSnapshot
-  );
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
 
-  return useMemo(() => parseCommunityPosts(postsSnapshot), [postsSnapshot]);
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      setPosts(await fetchAdminCommunityPosts());
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel carregar posts para moderacao."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(reload);
+  }, [reload]);
+
+  return { error, isLoading, posts, reload };
 }

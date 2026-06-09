@@ -17,9 +17,9 @@ import { useAdminCommunityPosts } from "@/features/admin/hooks/useAdminCommunity
 import { formatAdminDateTime } from "@/features/admin/utils";
 
 export function AdminOverviewPage() {
-  const verifications = useProfessionalVerifications();
+  const { error: verificationsError, verifications } = useProfessionalVerifications();
   const actions = useProfessionalVerificationActions();
-  const communityPosts = useAdminCommunityPosts();
+  const { posts: communityPosts } = useAdminCommunityPosts();
   const metrics = getProfessionalVerificationMetrics(verifications);
   const overviewMetrics = [
     ...metrics,
@@ -40,6 +40,11 @@ export function AdminOverviewPage() {
       title="Administração"
     >
       <section aria-label="Indicadores de verificação profissional">
+        {verificationsError ? (
+          <p className="mb-4 rounded-[1.35rem] bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
+            {verificationsError}
+          </p>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {overviewMetrics.map((metric) => (
             <AdminMetricCard key={metric.id} metric={metric} />
@@ -93,7 +98,7 @@ export function AdminOverviewPage() {
             <h2 className="font-title text-xl font-extrabold text-title" id="admin-activity-title">
               Atividade recente
             </h2>
-            <p className="mt-1 text-sm leading-6 text-text">Últimas decisões salvas localmente.</p>
+            <p className="mt-1 text-sm leading-6 text-text">Últimas decisões administrativas.</p>
           </div>
         </div>
 
@@ -128,7 +133,7 @@ export function AdminOverviewPage() {
                 Nenhuma decisão registrada
               </h3>
               <p className="mt-2 text-sm leading-6 text-text">
-                Quando uma solicitação for aprovada ou rejeitada, o histórico local aparecerá aqui.
+                Quando o backend expuser o histórico administrativo, ele aparecerá aqui.
               </p>
             </div>
           )}

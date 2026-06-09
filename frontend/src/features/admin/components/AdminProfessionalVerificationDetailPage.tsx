@@ -18,8 +18,8 @@ import { ProfessionalStatusBadge } from "@/features/admin/components/Professiona
 import {
   professionalVerificationStatusLabels,
   professionalVerificationStatusDescriptions,
-  updateProfessionalVerificationStatus,
 } from "@/features/admin/data/professional-verifications";
+import { updateProfessionalVerificationStatusApi } from "@/features/admin/services";
 import { useProfessionalVerifications } from "@/features/admin/hooks/useProfessionalVerifications";
 import type {
   ProfessionalVerification,
@@ -93,7 +93,7 @@ function getFeedbackClassName(tone: FeedbackState["tone"]) {
 function NotFoundState() {
   return (
     <AdminShell
-      description="A solicitação pode ter sido removida do armazenamento local ou ainda não foi criada."
+      description="A solicitacao pode ter sido removida ou ainda nao esta disponivel."
       eyebrow="Verificação profissional"
       title="Solicitação não encontrada"
     >
@@ -122,7 +122,7 @@ function NotFoundState() {
 export function AdminProfessionalVerificationDetailPage({
   verificationId,
 }: AdminProfessionalVerificationDetailPageProps) {
-  const verifications = useProfessionalVerifications();
+  const { reload, verifications } = useProfessionalVerifications();
   const verification = useMemo<ProfessionalVerification | undefined>(
     () => verifications.find((currentVerification) => currentVerification.id === verificationId),
     [verificationId, verifications]
@@ -188,6 +188,7 @@ export function AdminProfessionalVerificationDetailPage({
 
         <ProfessionalVerificationDecisionPanel
           key={verification.id}
+          onUpdated={reload}
           verification={verification}
           verificationId={verificationId}
         />
@@ -199,7 +200,9 @@ export function AdminProfessionalVerificationDetailPage({
 function ProfessionalVerificationDecisionPanel({
   verification,
   verificationId,
+  onUpdated,
 }: {
+  onUpdated: () => Promise<void>;
   verification: ProfessionalVerification;
   verificationId: string;
 }) {
@@ -209,7 +212,7 @@ function ProfessionalVerificationDecisionPanel({
   );
   const [rejectionReason, setRejectionReason] = useState(verification.rejectionReason ?? "");
 
-  function updateVerification() {
+  async function updateVerification() {
     if (selectedStatus === "rejected" && rejectionReason.trim().length < 8) {
       setFeedback({
         tone: "danger",
@@ -218,24 +221,38 @@ function ProfessionalVerificationDecisionPanel({
       return;
     }
 
-    const updatedVerification = updateProfessionalVerificationStatus({
-      rejectionReason: selectedStatus === "rejected" ? rejectionReason : undefined,
-      status: selectedStatus,
-      verificationId,
-    });
+    let updatedVerification: ProfessionalVerification | null = null;
 
-    if (!updatedVerification) {
+    try {
+      updatedVerification = await updateProfessionalVerificationStatusApi(
+        verificationId,
+        selectedStatus
+      );
+    } catch (error) {
       setFeedback({
         tone: "danger",
-        message: "Não foi possível atualizar essa solicitação localmente.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel atualizar essa solicitacao agora.",
       });
       return;
     }
 
+    if (!updatedVerification) {
+      setFeedback({
+        tone: "danger",
+        message: "Nao foi possivel atualizar essa solicitacao agora.",
+      });
+      return;
+    }
+
+    await onUpdated();
+
     if (selectedStatus === "verified") {
       setFeedback({
         tone: "success",
-        message: "Profissional verificada. O status do usuário local foi atualizado quando aplicável.",
+        message: "Profissional verificada. O status foi atualizado no backend.",
       });
       return;
     }
@@ -243,7 +260,7 @@ function ProfessionalVerificationDecisionPanel({
     if (selectedStatus === "rejected") {
       setFeedback({
         tone: "danger",
-        message: "Solicitação rejeitada e registrada no histórico local.",
+        message: "Solicitacao rejeitada no backend.",
       });
       return;
     }

@@ -26,9 +26,9 @@ import {
 import {
   getDailyCheckInDateKey,
   getTodayDateKey,
-  updateDailyCheckIn,
-} from "@/features/check-in/data/check-in-storage";
+} from "@/features/check-in/date";
 import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
+import { updateDailyCheckInRecord } from "@/features/check-in/services";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -45,7 +45,7 @@ type CalendarDay = {
 
 type CheckInEditFormProps = {
   onCancel: () => void;
-  onSave: (record: DailyCheckInRecord) => void;
+  onSave: (record: DailyCheckInRecord) => Promise<void>;
   record: DailyCheckInRecord;
 };
 
@@ -157,8 +157,8 @@ function CheckInEditForm({ onCancel, onSave, record }: CheckInEditFormProps) {
     setValue("secondaryEmotionIds", nextOptions, { shouldDirty: true, shouldValidate: true });
   }
 
-  function handleSave(data: CheckInFormData) {
-    onSave({
+  async function handleSave(data: CheckInFormData) {
+    await onSave({
       ...record,
       emotionId: data.emotionId,
       intensity: data.intensity,
@@ -358,11 +358,12 @@ function CheckInEditForm({ onCancel, onSave, record }: CheckInEditFormProps) {
 export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
   const storedProfile = useStoredProfileValues(profile);
   const [todayKey] = useState(getTodayDateKey);
-  const records = useStoredDailyCheckIns();
+  const { error: recordsError, isLoading, records, reload } = useStoredDailyCheckIns();
   const [monthDate, setMonthDate] = useState(getInitialMonthDate);
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
   const [isEditing, setIsEditing] = useState(false);
   const [lockedNotice, setLockedNotice] = useState(false);
+  const [editError, setEditError] = useState("");
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
@@ -401,10 +402,26 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
     setLockedNotice(true);
   }
 
-  function handleSaveEdit(record: DailyCheckInRecord) {
-    updateDailyCheckIn(record);
-    setIsEditing(false);
-    setLockedNotice(false);
+  async function handleSaveEdit(record: DailyCheckInRecord) {
+    setEditError("");
+
+    try {
+      await updateDailyCheckInRecord(record.id, {
+        emotionId: record.emotionId,
+        intensity: record.intensity,
+        note: record.note ?? "",
+        receivedSupport: record.receivedSupport,
+        secondaryEmotionIds: record.secondaryEmotionIds,
+        sleepQuality: record.sleepQuality,
+      });
+      await reload();
+      setIsEditing(false);
+      setLockedNotice(false);
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "Nao foi possivel atualizar seu check-in agora."
+      );
+    }
   }
 
   return (
@@ -523,7 +540,20 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
               {getReadableDate(selectedDateKey)}
             </p>
 
-            {selectedRecord ? (
+            {isLoading ? (
+              <div className="mt-5 rounded-[1.7rem] bg-background px-5 py-6 text-center">
+                <p className="font-title text-xl font-extrabold text-title">
+                  Carregando seu histÃ³rico
+                </p>
+                <p className="mt-3 text-sm leading-6 text-text">
+                  Estamos buscando seus registros salvos com seguranÃ§a.
+                </p>
+              </div>
+            ) : recordsError ? (
+              <div className="mt-5 rounded-[1.7rem] bg-primary/10 px-5 py-5 text-sm font-bold leading-6 text-primary">
+                {recordsError}
+              </div>
+            ) : selectedRecord ? (
               <>
                 <div className="mt-4 flex items-start justify-between gap-4">
                   <div>
@@ -586,12 +616,19 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
                 ) : null}
 
                 {isEditing ? (
-                  <CheckInEditForm
-                    key={selectedRecord.id}
-                    onCancel={() => setIsEditing(false)}
-                    onSave={handleSaveEdit}
-                    record={selectedRecord}
-                  />
+                  <>
+                    <CheckInEditForm
+                      key={selectedRecord.id}
+                      onCancel={() => setIsEditing(false)}
+                      onSave={handleSaveEdit}
+                      record={selectedRecord}
+                    />
+                    {editError ? (
+                      <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-center text-sm font-bold leading-6 text-primary">
+                        {editError}
+                      </p>
+                    ) : null}
+                  </>
                 ) : (
                   <button
                     className="mt-6 inline-flex min-h-[3.5rem] w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"

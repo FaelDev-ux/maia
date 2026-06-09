@@ -18,7 +18,7 @@ const moreItems = [
     href: "/privacidade-e-dados",
     icon: ShieldCheck,
     title: "Privacidade e dados",
-    description: "Controle informações, armazenamento local e segurança.",
+    description: "Controle informações, privacidade e segurança.",
   },
   {
     href: "/ajuda-e-suporte",

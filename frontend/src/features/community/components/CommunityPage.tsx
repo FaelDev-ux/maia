@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useId, useState } from "react";
 import { PenLine, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -10,14 +10,9 @@ import { CommunityComposerCard } from "@/features/community/components/Community
 import { CommunityFilterChips } from "@/features/community/components/CommunityFilterChips";
 import { CommunityPostCard } from "@/features/community/components/CommunityPostCard";
 import { getCommunityComposerCopy } from "@/features/community/data/community-composer";
-import { communityFilters, communityPosts } from "@/features/community/data/community-posts";
-import {
-  COMMUNITY_CREATED_POSTS_UPDATED_EVENT,
-  COMMUNITY_REMOVED_POSTS_UPDATED_EVENT,
-  getStoredCreatedCommunityPosts,
-  getStoredRemovedPostIds,
-  saveStoredCreatedCommunityPosts,
-} from "@/features/community/data/community-storage";
+import { communityFilters } from "@/features/community/data/community-posts";
+import { useCommunityPosts } from "@/features/community/hooks/useCommunityPosts";
+import { deleteCommunityPost } from "@/features/community/services";
 import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -33,69 +28,6 @@ const filterCategoryById: Record<string, CommunityPostCategory | "all"> = {
   sleep: "sono",
   network: "rede",
 };
-
-function getStoredCreatedPosts() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const fixedPostIds = new Set(communityPosts.map((post) => post.id));
-
-  return getStoredCreatedCommunityPosts().filter((post) => !fixedPostIds.has(post.id));
-}
-
-function subscribeToCommunityPosts(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-  window.addEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(COMMUNITY_CREATED_POSTS_UPDATED_EVENT, onStoreChange);
-    window.removeEventListener(COMMUNITY_REMOVED_POSTS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getCommunityPostsSnapshot() {
-  return JSON.stringify({
-    createdPosts: getStoredCreatedPosts(),
-    removedPostIds: getStoredRemovedPostIds(),
-  });
-}
-
-function getCommunityPostsServerSnapshot() {
-  return JSON.stringify({
-    createdPosts: [],
-    removedPostIds: [],
-  });
-}
-
-function parseCommunityPostsSnapshot(snapshot: string) {
-  try {
-    const parsedSnapshot = JSON.parse(snapshot) as {
-      createdPosts?: CommunityPost[];
-      removedPostIds?: string[];
-    };
-
-    return {
-      createdPosts: Array.isArray(parsedSnapshot.createdPosts)
-        ? parsedSnapshot.createdPosts.filter((post) => typeof post.id === "string")
-        : [],
-      removedPostIds: Array.isArray(parsedSnapshot.removedPostIds)
-        ? parsedSnapshot.removedPostIds.filter((postId): postId is string => typeof postId === "string")
-        : [],
-    };
-  } catch {
-    return {
-      createdPosts: [],
-      removedPostIds: [],
-    };
-  }
-}
 
 function normalizeSearchValue(value: string) {
   return value
@@ -147,7 +79,7 @@ function DeletePostConfirmationModal({
           Excluir publicação?
         </h2>
         <p className="mt-3 text-sm leading-6 text-text">
-          O post “{postTitle}” será removido do seu mural local e não aparecerá mais na comunidade.
+          O post “{postTitle}” sera removido da comunidade.
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
@@ -173,23 +105,10 @@ function DeletePostConfirmationModal({
 export function CommunityPage({ profile }: CommunityPageProps) {
   const router = useRouter();
   const searchInputId = useId();
-  const communityPostsSnapshot = useSyncExternalStore(
-    subscribeToCommunityPosts,
-    getCommunityPostsSnapshot,
-    getCommunityPostsServerSnapshot
-  );
+  const { error: postsError, isLoading: postsAreLoading, posts, reload: reloadPosts } = useCommunityPosts();
   const [activeFilterId, setActiveFilterId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [postPendingDeletion, setPostPendingDeletion] = useState<CommunityPost | null>(null);
-  const { createdPosts, removedPostIds } = useMemo(
-    () => parseCommunityPostsSnapshot(communityPostsSnapshot),
-    [communityPostsSnapshot]
-  );
-  const posts = useMemo(() => {
-    const removedPostIdsSet = new Set(removedPostIds);
-
-    return [...createdPosts, ...communityPosts].filter((post) => !removedPostIdsSet.has(post.id));
-  }, [createdPosts, removedPostIds]);
   const storedProfile = useStoredProfileValues(profile);
   const composerCopy = getCommunityComposerCopy(profile);
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
@@ -197,7 +116,7 @@ export function CommunityPage({ profile }: CommunityPageProps) {
   const avatarUrl = storedProfile.avatarUrl;
   const activeCategory = filterCategoryById[activeFilterId] ?? "all";
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
-  const userPosts = posts.filter((post) => post.id.startsWith("mock-post-"));
+  const userPosts = posts.filter((post) => !post.isAnonymous && post.authorName === storedProfile.fullName);
   const visiblePosts = posts.filter((post) => {
     const matchesFilter = activeCategory === "all" || post.category === activeCategory;
     const matchesSearch =
@@ -206,14 +125,13 @@ export function CommunityPage({ profile }: CommunityPageProps) {
     return matchesFilter && matchesSearch;
   });
 
-  function handleConfirmDeletePost() {
+  async function handleConfirmDeletePost() {
     if (!postPendingDeletion) {
       return;
     }
 
-    saveStoredCreatedCommunityPosts(
-      createdPosts.filter((post) => post.id !== postPendingDeletion.id)
-    );
+    await deleteCommunityPost(postPendingDeletion.id);
+    await reloadPosts();
     setPostPendingDeletion(null);
   }
 
@@ -352,7 +270,20 @@ export function CommunityPage({ profile }: CommunityPageProps) {
               </div>
 
               <div className="mt-6 grid gap-5">
-                {visiblePosts.length > 0 ? (
+                {postsAreLoading ? (
+                  <div className="rounded-[2rem] bg-white px-6 py-8 text-center shadow-[0_18px_52px_rgb(140_64_84_/_0.1)] ring-1 ring-border/65">
+                    <p className="font-title text-xl font-extrabold text-title">
+                      Carregando conversas
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-text">
+                      Estamos buscando as publicacoes da comunidade.
+                    </p>
+                  </div>
+                ) : postsError ? (
+                  <div className="rounded-[2rem] bg-primary/10 px-6 py-6 text-sm font-bold leading-6 text-primary">
+                    {postsError}
+                  </div>
+                ) : visiblePosts.length > 0 ? (
                   visiblePosts.map((post) => (
                     <CommunityPostCard key={post.id} post={post} profile={profile} />
                   ))
