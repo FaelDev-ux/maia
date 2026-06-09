@@ -6,6 +6,7 @@ const publicRoutes = new Set([
   "/auth/login",
   "/auth/register",
   "/auth/forgot-password",
+  "/auth/new-password",
   "/auth/select-type",
 ]);
 

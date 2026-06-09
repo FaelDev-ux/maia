@@ -2,12 +2,15 @@ from django.urls import path
 
 from .views import (
     CadastroUsuarioView,
+    ChangePasswordView,
+    ForgotPasswordView,
     LoginUsuarioView,
     LogoutUsuarioView,
     MeView,
     OnboardingUsuarioView,
     RefreshUsuarioView,
     UsuarioDetailView,
+    ResetPasswordView,
 )
 from .domain_views import (
     AdminCommunityPostsView,
@@ -36,6 +39,9 @@ from .domain_views import (
 urlpatterns = [
     path("cadastro/", CadastroUsuarioView.as_view(), name="api_cadastro"),
     path("login/", LoginUsuarioView.as_view(), name="api_login"),
+    path("password/forgot/", ForgotPasswordView.as_view(), name="api_password_forgot"),
+    path("password/reset/", ResetPasswordView.as_view(), name="api_password_reset"),
+    path("password/change/", ChangePasswordView.as_view(), name="api_password_change"),
     path("refresh/", RefreshUsuarioView.as_view(), name="api_refresh"),
     path("logout/", LogoutUsuarioView.as_view(), name="api_logout"),
     path("me/", MeView.as_view(), name="api_me"),

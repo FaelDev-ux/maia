@@ -110,6 +110,70 @@ def sign_in_with_password(email, password):
     raise FirebaseAuthRequestError("Nao foi possivel autenticar com o Firebase.")
 
 
+def send_password_reset_email(email):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    response = requests.post(
+        "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        json={
+            "requestType": "PASSWORD_RESET",
+            "email": email,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message == "EMAIL_NOT_FOUND":
+        return {"email": email}
+
+    raise FirebaseAuthRequestError("Nao foi possivel enviar o e-mail de recuperacao.")
+
+
+def reset_password_with_oob_code(oob_code, new_password):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    if not oob_code:
+        raise FirebaseAuthRequestError("Codigo de recuperacao invalido.")
+
+    response = requests.post(
+        "https://identitytoolkit.googleapis.com/v1/accounts:resetPassword",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        json={
+            "oobCode": oob_code,
+            "newPassword": new_password,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message in {"EXPIRED_OOB_CODE", "INVALID_OOB_CODE"}:
+        raise FirebaseAuthRequestError("Link de recuperacao expirado ou invalido.")
+
+    if error_message == "WEAK_PASSWORD":
+        raise FirebaseAuthRequestError("A nova senha precisa ter pelo menos 8 caracteres.")
+
+    raise FirebaseAuthRequestError("Nao foi possivel redefinir a senha.")
+
+
 def refresh_id_token(refresh_token):
     if not settings.FIREBASE_WEB_API_KEY:
         raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")

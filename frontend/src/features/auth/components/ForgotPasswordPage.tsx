@@ -3,12 +3,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/schemas/auth.schema";
 import { AuthInput } from "./AuthInput";
 
 export function ForgotPasswordPage() {
+  const [feedback, setFeedback] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -20,8 +23,31 @@ export function ForgotPasswordPage() {
     },
   });
 
-  async function onSubmit(_data: ForgotPasswordFormData) {
-    await Promise.resolve();
+  async function onSubmit(data: ForgotPasswordFormData) {
+    setFeedback("");
+    setSubmitError("");
+
+    const response = await fetch("/api/auth/forgot-password", {
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const result = (await response.json().catch(() => ({}))) as {
+      erro?: string;
+      mensagem?: string;
+    };
+
+    if (!response.ok) {
+      setSubmitError(result.erro ?? "Nao foi possivel enviar as instrucoes agora.");
+      return;
+    }
+
+    setFeedback(
+      result.mensagem ??
+        "Se este e-mail estiver cadastrado, enviaremos instrucoes para recuperar a senha."
+    );
   }
 
   const recoveryForm = (
@@ -45,8 +71,20 @@ export function ForgotPasswordPage() {
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? "Enviando..." : "Enviar instruções"}
+          {isSubmitting ? "Enviando..." : "Enviar instrucoes"}
         </button>
+
+        {feedback ? (
+          <p className="mt-4 rounded-[1.15rem] bg-success/[0.12] px-4 py-3 text-sm font-semibold leading-6 text-emerald-700">
+            {feedback}
+          </p>
+        ) : null}
+
+        {submitError ? (
+          <p className="mt-4 rounded-[1.15rem] bg-primary/10 px-4 py-3 text-sm font-semibold leading-6 text-primary">
+            {submitError}
+          </p>
+        ) : null}
       </form>
 
       <Link
@@ -75,19 +113,15 @@ function ForgotPasswordCopy() {
   return (
     <section className="w-full max-w-[28rem]">
       <header className="mb-7 flex items-center gap-4 md:mb-6">
-        <MaiaBrand
-          imageClassName="size-12"
-          imageSize={48}
-          textClassName="text-3xl font-bold"
-        />
+        <MaiaBrand imageClassName="size-12" imageSize={48} textClassName="text-3xl font-bold" />
       </header>
 
       <h1 className="font-title text-[2rem] font-extrabold leading-tight text-title md:text-5xl">
-        Recupere o acesso do <span className="text-primary">seu espaço.</span>
+        Recupere o acesso do <span className="text-primary">seu espaco.</span>
       </h1>
 
       <p className="mt-4 max-w-96 text-sm leading-6 text-text md:text-base">
-        Informe seu e-mail para iniciarmos a recuperação da sua conta.
+        Informe seu e-mail para iniciarmos a recuperacao da sua conta.
       </p>
     </section>
   );

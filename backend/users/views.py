@@ -14,6 +14,8 @@ from .firebase import (
     get_firebase_auth,
     get_firestore_client,
     refresh_id_token,
+    reset_password_with_oob_code,
+    send_password_reset_email,
     server_timestamp,
     sign_in_with_password,
 )
@@ -500,6 +502,93 @@ class RefreshUsuarioView(APIView):
             return firebase_error_response(exc)
         except Exception:
             return error_response("Nao foi possivel renovar a sessao.")
+
+
+class ForgotPasswordView(APIView):
+    def post(self, request):
+        email = get_value(request.data, "email")
+
+        if not email:
+            return error_response("E-mail e obrigatorio.")
+
+        try:
+            send_password_reset_email(email)
+
+            return Response(
+                {
+                    "mensagem": (
+                        "Se este e-mail estiver cadastrado, enviaremos instrucoes para recuperar a senha."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+        except (FirebaseNotConfiguredError, FirebaseAuthRequestError) as exc:
+            return firebase_error_response(exc)
+        except Exception:
+            logger.exception("Erro inesperado ao solicitar recuperacao de senha.")
+            return error_response("Nao foi possivel solicitar a recuperacao de senha.")
+
+
+class ResetPasswordView(APIView):
+    def post(self, request):
+        oob_code = get_value(request.data, "oobCode", "oob_code", "code")
+        new_password = get_value(request.data, "newPassword", "new_password", "password")
+
+        if not oob_code or not new_password:
+            return error_response("Codigo de recuperacao e nova senha sao obrigatorios.")
+
+        try:
+            reset_password_with_oob_code(oob_code, new_password)
+
+            return Response(
+                {"mensagem": "Senha redefinida com sucesso."},
+                status=status.HTTP_200_OK,
+            )
+        except (FirebaseNotConfiguredError, FirebaseAuthRequestError) as exc:
+            return firebase_error_response(exc)
+        except Exception:
+            logger.exception("Erro inesperado ao redefinir senha.")
+            return error_response("Nao foi possivel redefinir a senha.")
+
+
+class ChangePasswordView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current_password = get_value(request.data, "currentPassword", "current_password")
+        new_password = get_value(request.data, "newPassword", "new_password", "password")
+
+        if not current_password or not new_password:
+            return error_response("Senha atual e nova senha sao obrigatorias.")
+
+        if current_password == new_password:
+            return error_response("A nova senha precisa ser diferente da senha atual.")
+
+        try:
+            user = get_user_payload(request.user.uid)
+
+            if not user or not user.get("email"):
+                return error_response("Usuario nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+            sign_in_with_password(user["email"], current_password)
+            get_firebase_auth().update_user(request.user.uid, password=new_password)
+
+            return Response(
+                {"mensagem": "Senha atualizada com sucesso."},
+                status=status.HTTP_200_OK,
+            )
+        except FirebaseAuthRequestError:
+            return error_response("Senha atual invalida.", status.HTTP_401_UNAUTHORIZED)
+        except FirebaseNotConfiguredError as exc:
+            return firebase_error_response(exc)
+        except (firebase_admin_exceptions.FirebaseError, ValueError):
+            return error_response(
+                "A nova senha nao atende aos requisitos. Use pelo menos 8 caracteres."
+            )
+        except Exception:
+            logger.exception("Erro inesperado ao alterar senha.")
+            return error_response("Nao foi possivel alterar a senha.")
 
 
 class UsuarioDetailView(APIView):
