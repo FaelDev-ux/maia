@@ -201,6 +201,15 @@ Validacao de dominio ja realizada:
 - Frontend `npm run build`: OK.
 - Teste integrado Cloud Run -> Firebase: check-ins, summary, contents, recommendations, community, notifications, privacy, admin 403 para usuario comum e avatar JPG/PNG/WebP-only: OK.
 - Teste local do Next BFF em `localhost:3002` apontando para Cloud Run: cookies httpOnly, `/api/check-ins/` e `/api/users/me/avatar`: OK.
+- 2026-06-09: Fluxos pendentes fechados para MVP tecnico:
+  - Recuperacao de senha: `POST /api/password/forgot/` no Django e `/api/auth/forgot-password` no Next BFF.
+  - Nova senha por `oobCode`: `POST /api/password/reset/`, `/api/auth/reset-password` e tela `/auth/new-password`.
+  - Troca de senha conhecida: `POST /api/password/change/` e card autenticado em `/mais`.
+  - Admin: metricas agregadas reais, historico `GET /api/admin/actions/` e registro de acoes de validacao/moderacao.
+  - Conteudos PRO/ADM: profissional envia conteudo para revisao; admin pode publicar/arquivar.
+  - Push: service worker recebe push, frontend registra subscription quando `NEXT_PUBLIC_VAPID_PUBLIC_KEY` existe, backend dispara via `POST /api/notifications/dispatch-daily-check-ins/` protegido por `X-Maia-Dispatch-Secret`.
+  - Testes automatizados iniciais criados em `backend/users/tests.py`.
+  - Mojibake visivel no app removido de `frontend/src`/`backend`.
 
 ## 11. Estrutura atual conhecida
 
