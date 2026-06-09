@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchProfessionalVerifications } from "@/features/admin/services";
+import { fetchAdminActions, fetchProfessionalVerifications } from "@/features/admin/services";
 import type {
   ProfessionalVerification,
   ProfessionalVerificationAction,
@@ -37,5 +37,31 @@ export function useProfessionalVerifications() {
 }
 
 export function useProfessionalVerificationActions(): ProfessionalVerificationAction[] {
-  return [];
+  const [actions, setActions] = useState<ProfessionalVerificationAction[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadActions() {
+      try {
+        const nextActions = await fetchAdminActions();
+
+        if (isMounted) {
+          setActions(nextActions);
+        }
+      } catch {
+        if (isMounted) {
+          setActions([]);
+        }
+      }
+    }
+
+    void loadActions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return actions;
 }

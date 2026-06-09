@@ -113,6 +113,8 @@ function Grant-SecretAccess {
 $firebaseSecret = "maia-firebase-service-account"
 $djangoSecret = "maia-django-secret-key"
 $firebaseWebApiKeySecret = "maia-firebase-web-api-key"
+$vapidPrivateKeySecret = "maia-vapid-private-key"
+$notificationDispatchSecret = "maia-notification-dispatch-secret"
 $firebaseKeyPath = Join-Path $PSScriptRoot "..\firebase.json"
 $djangoSecretKey = Get-LocalEnvValue "DJANGO_SECRET_KEY"
 $firebaseWebApiKey = Get-LocalEnvValue "FIREBASE_WEB_API_KEY"
@@ -135,6 +137,8 @@ $revisionServiceAccount = "$projectNumber-compute@developer.gserviceaccount.com"
 Grant-SecretAccess -Name $firebaseSecret -ServiceAccount $revisionServiceAccount
 Grant-SecretAccess -Name $djangoSecret -ServiceAccount $revisionServiceAccount
 Grant-SecretAccess -Name $firebaseWebApiKeySecret -ServiceAccount $revisionServiceAccount
+Grant-SecretAccess -Name $vapidPrivateKeySecret -ServiceAccount $revisionServiceAccount
+Grant-SecretAccess -Name $notificationDispatchSecret -ServiceAccount $revisionServiceAccount
 
 $sourcePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
@@ -148,5 +152,5 @@ $sourcePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
   --cpu 1 `
   --min-instances 0 `
   --max-instances 3 `
-  --set-env-vars "DJANGO_DEBUG=false,DJANGO_ALLOWED_HOSTS=.run.app,DJANGO_CORS_ALLOW_ALL_ORIGINS=false,DJANGO_TIME_ZONE=America/Fortaleza,FIREBASE_STORAGE_BUCKET=maia-86c23.firebasestorage.app" `
-  --update-secrets "FIREBASE_CREDENTIALS_JSON=${firebaseSecret}:latest,DJANGO_SECRET_KEY=${djangoSecret}:latest,FIREBASE_WEB_API_KEY=${firebaseWebApiKeySecret}:latest"
+  --set-env-vars "DJANGO_DEBUG=false,DJANGO_ALLOWED_HOSTS=.run.app,DJANGO_CORS_ALLOW_ALL_ORIGINS=false,DJANGO_TIME_ZONE=America/Fortaleza,FIREBASE_STORAGE_BUCKET=maia-86c23.firebasestorage.app,VAPID_CLAIMS_EMAIL=mailto:suporte@maia.app" `
+  --update-secrets "FIREBASE_CREDENTIALS_JSON=${firebaseSecret}:latest,DJANGO_SECRET_KEY=${djangoSecret}:latest,FIREBASE_WEB_API_KEY=${firebaseWebApiKeySecret}:latest,VAPID_PRIVATE_KEY=${vapidPrivateKeySecret}:latest,NOTIFICATION_DISPATCH_SECRET=${notificationDispatchSecret}:latest"

@@ -36,3 +36,14 @@ export async function updateNotificationPreferences(preferences: NotificationPre
     ...data.preferences,
   } satisfies NotificationPreferences;
 }
+
+export async function saveNotificationSubscription(subscription: PushSubscription) {
+  return apiFetch(
+    "/api/notifications/subscriptions",
+    {
+      body: JSON.stringify(subscription.toJSON()),
+      method: "POST",
+    },
+    "Nao foi possivel salvar sua inscricao de notificacao."
+  );
+}

@@ -10,6 +10,7 @@ export type ContentArticle = {
   imageUrl: string;
   imageAlt: string;
   quote: string;
+  status?: "archived" | "pending-review" | "published";
   sections: Array<{
     title?: string;
     paragraphs?: string[];

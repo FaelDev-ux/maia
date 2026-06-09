@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ClipboardCheck, History, RotateCcw } from "lucide-react";
 import { AdminMetricCard } from "@/features/admin/components/AdminMetricCard";
 import { AdminShell } from "@/features/admin/components/AdminShell";
@@ -13,33 +14,50 @@ import {
   useProfessionalVerificationActions,
   useProfessionalVerifications,
 } from "@/features/admin/hooks/useProfessionalVerifications";
-import { useAdminCommunityPosts } from "@/features/admin/hooks/useAdminCommunityPosts";
+import { fetchAdminMetrics } from "@/features/admin/services";
+import type { AdminMetric } from "@/features/admin/types";
 import { formatAdminDateTime } from "@/features/admin/utils";
 
 export function AdminOverviewPage() {
   const { error: verificationsError, verifications } = useProfessionalVerifications();
   const actions = useProfessionalVerificationActions();
-  const { posts: communityPosts } = useAdminCommunityPosts();
-  const metrics = getProfessionalVerificationMetrics(verifications);
-  const overviewMetrics = [
-    ...metrics,
-    {
-      id: "community-posts",
-      label: "Posts ativos",
-      value: communityPosts.length,
-      description: "Publicações disponíveis para revisão no controle da comunidade.",
-    },
-  ];
+  const [metrics, setMetrics] = useState<AdminMetric[]>([]);
+  const fallbackMetrics = getProfessionalVerificationMetrics(verifications);
+  const overviewMetrics = metrics.length > 0 ? metrics : fallbackMetrics;
   const pendingVerifications = verifications
     .filter((verification) => verification.status === "pending")
     .slice(0, 3);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMetrics() {
+      try {
+        const nextMetrics = await fetchAdminMetrics();
+
+        if (isMounted) {
+          setMetrics(nextMetrics);
+        }
+      } catch {
+        if (isMounted) {
+          setMetrics([]);
+        }
+      }
+    }
+
+    void loadMetrics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <AdminShell
-      description="Acompanhe a fila de validação profissional, revise documentos e controle os posts da comunidade para manter uma experiência segura."
-      title="Administração"
+      description="Acompanhe a fila de validacao profissional, revise documentos e controle os posts da comunidade para manter uma experiencia segura."
+      title="Administracao"
     >
-      <section aria-label="Indicadores de verificação profissional">
+      <section aria-label="Indicadores administrativos">
         {verificationsError ? (
           <p className="mb-4 rounded-[1.35rem] bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
             {verificationsError}
@@ -62,7 +80,7 @@ export function AdminOverviewPage() {
               className="mt-4 font-title text-[1.55rem] font-extrabold text-title"
               id="pending-verifications-title"
             >
-              Verificações pendentes
+              Verificacoes pendentes
             </h2>
           </div>
         </div>
@@ -78,10 +96,10 @@ export function AdminOverviewPage() {
                 <ClipboardCheck aria-hidden size={24} strokeWidth={2.3} />
               </div>
               <h3 className="mt-4 font-title text-lg font-extrabold text-title">
-                Nenhuma solicitação pendente
+                Nenhuma solicitacao pendente
               </h3>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text">
-                A fila está em dia. Novas profissionais aparecerão aqui quando enviarem seus dados
+                A fila esta em dia. Novas profissionais aparecerao aqui quando enviarem seus dados
                 de registro.
               </p>
             </div>
@@ -98,7 +116,7 @@ export function AdminOverviewPage() {
             <h2 className="font-title text-xl font-extrabold text-title" id="admin-activity-title">
               Atividade recente
             </h2>
-            <p className="mt-1 text-sm leading-6 text-text">Últimas decisões administrativas.</p>
+            <p className="mt-1 text-sm leading-6 text-text">Ultimas decisoes administrativas.</p>
           </div>
         </div>
 
@@ -122,7 +140,7 @@ export function AdminOverviewPage() {
                   </div>
                   <p className="mt-1 text-sm leading-6 text-text">
                     {formatAdminDateTime(action.createdAt)}
-                    {action.reason ? ` · ${action.reason}` : ""}
+                    {action.reason ? ` - ${action.reason}` : ""}
                   </p>
                 </div>
               </article>
@@ -130,10 +148,10 @@ export function AdminOverviewPage() {
           ) : (
             <div className="rounded-[1.7rem] bg-white px-6 py-7 shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65">
               <h3 className="font-title text-lg font-extrabold text-title">
-                Nenhuma decisão registrada
+                Nenhuma decisao registrada
               </h3>
               <p className="mt-2 text-sm leading-6 text-text">
-                Quando o backend expuser o histórico administrativo, ele aparecerá aqui.
+                As proximas aprovacoes, rejeicoes e moderacoes aparecerao aqui.
               </p>
             </div>
           )}

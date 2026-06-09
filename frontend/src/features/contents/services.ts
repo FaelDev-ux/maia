@@ -10,6 +10,7 @@ type ApiContent = Partial<ContentArticle> & {
   body?: string;
   contentId?: string;
   readingTimeMinutes?: number;
+  status?: ContentArticle["status"];
 };
 
 type ContentsResponse = {
@@ -69,10 +70,48 @@ export function normalizeContent(content: ApiContent, index = 0): ContentArticle
     quote: content.quote ?? "Um passo de cada vez tambem e cuidado.",
     readTime: getReadTime(content),
     sections: toParagraphs(content),
+    status: content.status,
     summary: content.summary ?? "",
     tags: Array.isArray(content.tags) ? content.tags : [],
     title: content.title ?? "Conteudo Maia",
   };
+}
+
+export async function createContent(payload: {
+  body: string;
+  category: string;
+  readingTimeMinutes: number;
+  status?: "published";
+  summary: string;
+  tags: string[];
+  title: string;
+}) {
+  const data = await apiFetch<ContentResponse>(
+    "/api/contents",
+    {
+      body: JSON.stringify(payload),
+      method: "POST",
+    },
+    "Nao foi possivel criar este conteudo."
+  );
+
+  return data.content ? normalizeContent(data.content) : null;
+}
+
+export async function updateContentStatus(
+  contentId: string,
+  status: "archived" | "pending-review" | "published"
+) {
+  const data = await apiFetch<ContentResponse>(
+    `/api/contents/${contentId}`,
+    {
+      body: JSON.stringify({ status }),
+      method: "PATCH",
+    },
+    "Nao foi possivel atualizar este conteudo."
+  );
+
+  return data.content ? normalizeContent(data.content) : null;
 }
 
 export async function fetchContents() {

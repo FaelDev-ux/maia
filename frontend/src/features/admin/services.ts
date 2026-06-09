@@ -1,7 +1,7 @@
 import { apiFetch } from "@/services/api/client";
 import { normalizeCommunityPost } from "@/features/community/services";
 import type { CommunityPost } from "@/features/community/types";
-import type { ProfessionalVerification } from "@/features/admin/types";
+import type { AdminMetric, ProfessionalVerification, ProfessionalVerificationAction } from "@/features/admin/types";
 import type { ProfessionalProfile, User } from "@/types/user";
 
 type AdminMetricsResponse = {
@@ -11,6 +11,10 @@ type AdminMetricsResponse = {
     pendingProfessionalsCount?: number;
     usersCount?: number;
   };
+};
+
+type AdminActionsResponse = {
+  actions?: unknown[];
 };
 
 type ProfessionalVerificationsResponse = {
@@ -27,6 +31,10 @@ type AdminCommunityPostsResponse = {
   items?: unknown[];
   posts?: unknown[];
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 function isUser(value: unknown): value is Partial<User> {
   return typeof value === "object" && value !== null;
@@ -60,6 +68,65 @@ function normalizeProfessionalVerification(value: unknown): ProfessionalVerifica
   };
 }
 
+function normalizeAdminAction(value: unknown): ProfessionalVerificationAction {
+  const action = isRecord(value) ? value : {};
+  const previousStatus =
+    action.previousStatus === "verified" || action.previousStatus === "rejected"
+      ? action.previousStatus
+      : "pending";
+  const nextStatus =
+    action.nextStatus === "verified" || action.nextStatus === "rejected"
+      ? action.nextStatus
+      : "pending";
+  const actionName =
+    nextStatus === "verified"
+      ? "approve"
+      : nextStatus === "rejected"
+        ? "reject"
+        : "return-to-review";
+
+  return {
+    id: String(action.id ?? `action-${action.createdAt ?? Date.now()}`),
+    action: actionName,
+    adminId: String(action.adminId ?? ""),
+    createdAt: String(action.createdAt ?? new Date().toISOString()),
+    nextStatus,
+    previousStatus,
+    reason: typeof action.reason === "string" ? action.reason : undefined,
+    userId: String(action.targetId ?? ""),
+    verificationId: String(action.targetId ?? ""),
+  };
+}
+
+export function normalizeAdminMetrics(metrics: AdminMetricsResponse["metrics"] = {}): AdminMetric[] {
+  return [
+    {
+      id: "users",
+      label: "Usuarios",
+      value: Number(metrics.usersCount ?? 0),
+      description: "Contas cadastradas no Maia.",
+    },
+    {
+      id: "pending-professionals",
+      label: "Profissionais pendentes",
+      value: Number(metrics.pendingProfessionalsCount ?? 0),
+      description: "Validacoes profissionais aguardando decisao.",
+    },
+    {
+      id: "community-posts",
+      label: "Posts da comunidade",
+      value: Number(metrics.communityPostsCount ?? 0),
+      description: "Publicacoes registradas para moderacao.",
+    },
+    {
+      id: "check-ins",
+      label: "Check-ins",
+      value: Number(metrics.checkInsCount ?? 0),
+      description: "Registros emocionais salvos no backend.",
+    },
+  ];
+}
+
 export async function fetchAdminMetrics() {
   const data = await apiFetch<AdminMetricsResponse>(
     "/api/admin/metrics",
@@ -67,7 +134,17 @@ export async function fetchAdminMetrics() {
     "Nao foi possivel carregar metricas administrativas."
   );
 
-  return data.metrics ?? {};
+  return normalizeAdminMetrics(data.metrics);
+}
+
+export async function fetchAdminActions() {
+  const data = await apiFetch<AdminActionsResponse>(
+    "/api/admin/actions",
+    undefined,
+    "Nao foi possivel carregar historico administrativo."
+  );
+
+  return (data.actions ?? []).map(normalizeAdminAction);
 }
 
 export async function fetchProfessionalVerifications() {

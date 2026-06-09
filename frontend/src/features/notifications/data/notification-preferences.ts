@@ -39,6 +39,34 @@ export function getBrowserNotificationPermission(): NotificationPermissionState 
   return Notification.permission;
 }
 
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+
+  return Uint8Array.from([...rawData].map((character) => character.charCodeAt(0)));
+}
+
+async function registerPushSubscription() {
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+  if (!vapidPublicKey || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const { saveNotificationSubscription } = await import("@/features/notifications/services");
+  const registration = await navigator.serviceWorker.ready;
+  const existingSubscription = await registration.pushManager.getSubscription();
+  const subscription =
+    existingSubscription ??
+    (await registration.pushManager.subscribe({
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      userVisibleOnly: true,
+    }));
+
+  await saveNotificationSubscription(subscription);
+}
+
 export function getStoredNotificationPreferences(): NotificationPreferences {
   return currentNotificationPreferences;
 }
@@ -99,6 +127,10 @@ export async function requestDailyCheckInNotifications() {
 
   saveNotificationPreferences(preferences);
   await updateNotificationPreferences(preferences);
+
+  if (nextPermission === "granted") {
+    await registerPushSubscription().catch(() => undefined);
+  }
 
   return nextPermission;
 }

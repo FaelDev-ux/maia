@@ -1,4 +1,5 @@
 import mimetypes
+import json
 import uuid
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -405,7 +406,9 @@ class ContentsListView(APIView):
         ensure_content_seeded()
         items = list_collection(
             CONTENT_COLLECTION,
-            lambda item: item.get("status", "published") == "published" or user_is_admin(request.user),
+            lambda item: item.get("status", "published") == "published"
+            or user_is_admin(request.user)
+            or (item.get("author") or {}).get("uid") == request.user.uid,
         )
 
         return success_response({"contents": sort_by_created_at(items, reverse=False)})
@@ -435,7 +438,7 @@ class ContentsListView(APIView):
                 "name": user.get("fullName") or "Maia",
                 "role": user.get("profileCode") or "PRO",
             },
-            "status": "published" if user_is_admin(request.user) else request.data.get("status", "pending-review"),
+            "status": request.data.get("status", "published") if user_is_admin(request.user) else "pending-review",
             "createdAt": server_timestamp(),
             "updatedAt": server_timestamp(),
         }
@@ -456,7 +459,11 @@ class ContentDetailView(APIView):
         if not item:
             return ref, None, error_response("Conteudo nao encontrado.", status.HTTP_404_NOT_FOUND)
 
-        if item.get("status") != "published" and not user_is_admin(request.user):
+        if (
+            item.get("status") != "published"
+            and not user_is_admin(request.user)
+            and (item.get("author") or {}).get("uid") != request.user.uid
+        ):
             return ref, item, error_response("Conteudo indisponivel.", status.HTTP_404_NOT_FOUND)
 
         return ref, item, None
@@ -829,6 +836,67 @@ class NotificationSubscriptionView(APIView):
         return success_response({"subscription": get_document_payload(ref.get())}, status.HTTP_201_CREATED)
 
 
+class NotificationDispatchView(APIView):
+    def post(self, request):
+        configured_secret = getattr(settings, "NOTIFICATION_DISPATCH_SECRET", "")
+        request_secret = request.headers.get("X-Maia-Dispatch-Secret", "")
+
+        if configured_secret and request_secret != configured_secret:
+            return error_response("Chave de disparo invalida.", status.HTTP_403_FORBIDDEN)
+
+        if not settings.VAPID_PRIVATE_KEY:
+            return success_response(
+                {
+                    "sent": 0,
+                    "skipped": True,
+                    "message": "Configure VAPID_PRIVATE_KEY para ativar push real.",
+                }
+            )
+
+        try:
+            from pywebpush import WebPushException, webpush
+        except ImportError:
+            return error_response("Dependencia pywebpush indisponivel.", status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        users = list_collection(
+            "users",
+            lambda user: (user.get("notificationSummary") or {}).get("dailyCheckInEnabled")
+            and (user.get("notificationSummary") or {}).get("pushEnabled")
+            and user.get("status", "active") == "active",
+        )
+        enabled_user_ids = {user.get("id") or user.get("authUid") for user in users}
+        subscriptions = list_collection(
+            NOTIFICATION_SUBSCRIPTION_COLLECTION,
+            lambda item: item.get("userId") in enabled_user_ids,
+        )
+        payload = json.dumps(
+            {
+                "title": "Maia",
+                "body": "Um check-in gentil pode ajudar voce a perceber como esta hoje.",
+                "url": "/check-in",
+            }
+        )
+        sent = 0
+        failed = 0
+
+        for subscription in subscriptions:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": subscription.get("endpoint"),
+                        "keys": subscription.get("keys") or {},
+                    },
+                    data=payload,
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": settings.VAPID_CLAIMS_EMAIL},
+                )
+                sent += 1
+            except WebPushException:
+                failed += 1
+
+        return success_response({"sent": sent, "failed": failed, "subscriptions": len(subscriptions)})
+
+
 class AdminMetricsView(APIView):
     authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsAuthenticated]
@@ -892,23 +960,48 @@ class AdminProfessionalVerificationDetailView(APIView):
             return error_response("Status de validacao invalido.")
 
         user_ref = get_db().collection("users").document(verification_id)
+        previous_user = get_document_payload(user_ref.get())
 
-        if not user_ref.get().exists:
+        if not previous_user:
             return error_response("Profissional nao encontrado.", status.HTTP_404_NOT_FOUND)
 
         user_ref.update(
             {
                 "professionalVerificationStatus": next_status,
                 "professional": {
-                    **((user_ref.get().to_dict() or {}).get("professional") or {}),
+                    **(previous_user.get("professional") or {}),
                     "verifiedAt": server_timestamp() if next_status == "verified" else None,
                     "verifiedBy": request.user.uid if next_status == "verified" else None,
                 },
                 "updatedAt": server_timestamp(),
             }
         )
+        get_db().collection(ADMIN_ACTION_COLLECTION).document().set(
+            {
+                "type": "professional-verification",
+                "targetId": verification_id,
+                "previousStatus": previous_user.get("professionalVerificationStatus", "pending"),
+                "nextStatus": next_status,
+                "reason": request.data.get("reason") or "",
+                "adminId": request.user.uid,
+                "createdAt": server_timestamp(),
+            }
+        )
 
         return success_response({"message": "Validacao profissional atualizada.", "user": get_document_payload(user_ref.get())})
+
+
+class AdminActionsView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        return success_response({"actions": sort_by_created_at(list_collection(ADMIN_ACTION_COLLECTION))[:25]})
 
 
 class AdminCommunityPostsView(APIView):

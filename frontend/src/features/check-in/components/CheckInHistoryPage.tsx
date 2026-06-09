@@ -543,10 +543,10 @@ export function CheckInHistoryPage({ profile }: CheckInHistoryPageProps) {
             {isLoading ? (
               <div className="mt-5 rounded-[1.7rem] bg-background px-5 py-6 text-center">
                 <p className="font-title text-xl font-extrabold text-title">
-                  Carregando seu histÃ³rico
+                  Carregando seu historico
                 </p>
                 <p className="mt-3 text-sm leading-6 text-text">
-                  Estamos buscando seus registros salvos com seguranÃ§a.
+                  Estamos buscando seus registros salvos com seguranca.
                 </p>
               </div>
             ) : recordsError ? (

@@ -9,10 +9,11 @@ from .views import (
     MeView,
     OnboardingUsuarioView,
     RefreshUsuarioView,
-    UsuarioDetailView,
     ResetPasswordView,
+    UsuarioDetailView,
 )
 from .domain_views import (
+    AdminActionsView,
     AdminCommunityPostsView,
     AdminMetricsView,
     AdminProfessionalVerificationDetailView,
@@ -28,6 +29,7 @@ from .domain_views import (
     ContentDetailView,
     ContentsListView,
     NotificationPreferencesView,
+    NotificationDispatchView,
     NotificationSubscriptionView,
     PrivacyDeleteRequestView,
     PrivacyExportView,
@@ -70,7 +72,9 @@ urlpatterns = [
     ),
     path("notifications/preferences/", NotificationPreferencesView.as_view(), name="api_notification_preferences"),
     path("notifications/subscriptions/", NotificationSubscriptionView.as_view(), name="api_notification_subscriptions"),
+    path("notifications/dispatch-daily-check-ins/", NotificationDispatchView.as_view(), name="api_notification_dispatch_daily"),
     path("admin/metrics/", AdminMetricsView.as_view(), name="api_admin_metrics"),
+    path("admin/actions/", AdminActionsView.as_view(), name="api_admin_actions"),
     path(
         "admin/professional-verifications/",
         AdminProfessionalVerificationsView.as_view(),
