@@ -1,8 +1,16 @@
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 from unittest.mock import patch
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from .domain_views import NavigationView, check_in_payload
+from .domain_views import (
+    NavigationView,
+    check_in_payload,
+    get_user_local_now,
+    user_has_check_in_on_local_date,
+    user_notification_is_due,
+)
 from .views import ForgotPasswordView, ResetPasswordView
 
 
@@ -106,3 +114,43 @@ class NavigationViewTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("admin", item_ids)
         current_user.assert_called_once()
+
+
+class DailyNotificationScheduleTests(SimpleTestCase):
+    def test_notification_is_due_after_user_local_time(self):
+        user = {
+            "notificationSummary": {
+                "dailyCheckInTime": "20:00",
+                "timezone": "America/Sao_Paulo",
+            }
+        }
+        local_now = get_user_local_now(
+            user,
+            datetime(2026, 6, 10, 23, 15, tzinfo=ZoneInfo("UTC")),
+        )
+
+        self.assertEqual(local_now.strftime("%H:%M"), "20:15")
+        self.assertTrue(user_notification_is_due(user, local_now))
+
+    def test_notification_is_not_due_twice_on_same_day(self):
+        user = {
+            "notificationSummary": {
+                "dailyCheckInTime": "20:00",
+                "lastDailyCheckInNotificationDate": "2026-06-10",
+            }
+        }
+        local_now = datetime(2026, 6, 10, 20, 30, tzinfo=ZoneInfo("America/Sao_Paulo"))
+
+        self.assertFalse(user_notification_is_due(user, local_now))
+
+    def test_check_in_on_local_date_prevents_reminder(self):
+        local_now = datetime(2026, 6, 10, 20, 30, tzinfo=ZoneInfo("America/Sao_Paulo"))
+        check_ins = [
+            {
+                "userId": "uid-123",
+                "recordedAt": "2026-06-10T23:00:00Z",
+                "status": "active",
+            }
+        ]
+
+        self.assertTrue(user_has_check_in_on_local_date("uid-123", local_now, check_ins))

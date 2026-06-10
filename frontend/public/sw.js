@@ -100,16 +100,53 @@ self.addEventListener("push", (event) => {
     body: payload.body || "Hora de fazer um check-in gentil.",
     data: {
       url: payload.url || "/check-in",
+      type: payload.type || "daily-check-in",
     },
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
+    tag: payload.tag || "maia-daily-check-in",
+    renotify: false,
+    requireInteraction: false,
+    actions: [
+      {
+        action: "check-in",
+        title: "Fazer check-in",
+      },
+      {
+        action: "later",
+        title: "Depois",
+      },
+    ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) =>
+        Promise.all(
+          clients.map((client) =>
+            client.postMessage({
+              type: "MAIA_PUSH_RECEIVED",
+              payload: {
+                body: options.body,
+                title,
+                url: options.data.url,
+              },
+            })
+          )
+        )
+      ),
+    ])
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+
+  if (event.action === "later") {
+    return;
+  }
+
   const targetUrl = event.notification.data?.url || "/home";
 
   event.waitUntil(

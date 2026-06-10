@@ -18,6 +18,7 @@ const profileLabels: Record<UserProfileCode, string> = {
 export function AdminUsersPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingUserId, setUpdatingUserId] = useState("");
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const normalizedQuery = normalizeAdminSearch(query);
@@ -81,8 +82,21 @@ export function AdminUsersPage() {
   );
 
   async function handleStatus(userId: string, status: "active" | "blocked") {
-    await updateAdminUserStatus(userId, status);
-    await reloadUsers();
+    setUpdatingUserId(userId);
+    setError("");
+
+    try {
+      await updateAdminUserStatus(userId, status);
+      await reloadUsers();
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel atualizar este usuario."
+      );
+    } finally {
+      setUpdatingUserId("");
+    }
   }
 
   return (
@@ -154,20 +168,22 @@ export function AdminUsersPage() {
                 {user.status === "active" ? (
                   <button
                     className="inline-flex h-11 items-center gap-2 rounded-full bg-danger px-4 text-sm font-extrabold text-white"
+                    disabled={updatingUserId === user.id}
                     onClick={() => void handleStatus(user.id, "blocked")}
                     type="button"
                   >
                     <ShieldOff aria-hidden size={17} strokeWidth={2.3} />
-                    Bloquear
+                    {updatingUserId === user.id ? "Atualizando..." : "Bloquear"}
                   </button>
                 ) : (
                   <button
                     className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold text-white"
+                    disabled={updatingUserId === user.id}
                     onClick={() => void handleStatus(user.id, "active")}
                     type="button"
                   >
                     <ShieldCheck aria-hidden size={17} strokeWidth={2.3} />
-                    Reativar
+                    {updatingUserId === user.id ? "Atualizando..." : "Reativar"}
                   </button>
                 )}
               </footer>

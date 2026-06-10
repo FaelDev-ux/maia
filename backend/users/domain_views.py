@@ -3,6 +3,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from rest_framework import status
@@ -117,8 +118,15 @@ def serialize_firestore_value(value):
     return value
 
 
-def error_response(message, http_status=status.HTTP_400_BAD_REQUEST):
-    return Response({"erro": message}, status=http_status)
+def error_response(message, http_status=status.HTTP_400_BAD_REQUEST, code="request_error"):
+    return Response(
+        {
+            "erro": message,
+            "code": code,
+            "status": http_status,
+        },
+        status=http_status,
+    )
 
 
 def success_response(payload=None, http_status=status.HTTP_200_OK):
@@ -982,10 +990,33 @@ class NotificationPreferencesView(APIView):
         allowed = {"dailyCheckInEnabled", "pushEnabled", "timezone", "dailyCheckInTime"}
         target_user_id = request.data.get("userId") if user_is_admin(request.user) else None
         current = get_user(target_user_id) if target_user_id else current_user(request)
+        requested_timezone = request.data.get("timezone")
+        requested_time = request.data.get("dailyCheckInTime")
+
+        if requested_timezone:
+            try:
+                ZoneInfo(requested_timezone)
+            except ZoneInfoNotFoundError:
+                return error_response(
+                    "Fuso horario invalido.",
+                    code="invalid_notification_timezone",
+                )
+
+        if requested_time:
+            try:
+                datetime.strptime(requested_time, "%H:%M")
+            except (TypeError, ValueError):
+                return error_response(
+                    "Horario de lembrete invalido. Use o formato HH:MM.",
+                    code="invalid_notification_time",
+                )
+
         preferences = {
             **(current.get("notificationSummary") or {}),
             **{key: value for key, value in request.data.items() if key in allowed},
         }
+        preferences.setdefault("timezone", "America/Sao_Paulo")
+        preferences.setdefault("dailyCheckInTime", "20:00")
         get_db().collection("users").document(target_user_id or request.user.uid).update(
             {"notificationSummary": preferences, "updatedAt": server_timestamp()}
         )
@@ -999,23 +1030,105 @@ class NotificationSubscriptionView(APIView):
 
     def post(self, request):
         endpoint = request.data.get("endpoint")
+        keys = request.data.get("keys") if isinstance(request.data.get("keys"), dict) else {}
 
         if not endpoint:
-            return error_response("Endpoint da subscription e obrigatorio.")
+            return error_response(
+                "Endpoint da subscription e obrigatorio.",
+                code="notification_endpoint_required",
+            )
 
-        ref = get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document()
+        if not keys.get("auth") or not keys.get("p256dh"):
+            return error_response(
+                "Chaves da subscription sao obrigatorias.",
+                code="notification_keys_required",
+            )
+
+        subscription_id = uuid.uuid5(uuid.NAMESPACE_URL, endpoint).hex
+        ref = get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document(subscription_id)
+        existing = get_document_payload(ref.get())
         ref.set(
             {
-                "id": ref.id,
+                "id": subscription_id,
                 "userId": request.user.uid,
                 "endpoint": endpoint,
-                "keys": request.data.get("keys") if isinstance(request.data.get("keys"), dict) else {},
-                "createdAt": server_timestamp(),
+                "keys": keys,
+                "status": "active",
+                "createdAt": existing.get("createdAt") if existing else server_timestamp(),
                 "updatedAt": server_timestamp(),
-            }
+            },
+            merge=True,
         )
 
         return success_response({"subscription": get_document_payload(ref.get())}, status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        deleted = 0
+
+        for subscription in list_collection(
+            NOTIFICATION_SUBSCRIPTION_COLLECTION,
+            lambda item: item.get("userId") == request.user.uid,
+        ):
+            get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document(subscription["id"]).delete()
+            deleted += 1
+
+        return success_response({"deleted": deleted})
+
+
+def get_user_local_now(user, utc_now=None):
+    preferences = user.get("notificationSummary") or {}
+    timezone_name = preferences.get("timezone") or "America/Sao_Paulo"
+
+    try:
+        user_timezone = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        user_timezone = ZoneInfo("America/Sao_Paulo")
+
+    current_utc = utc_now or datetime.now(ZoneInfo("UTC"))
+
+    if current_utc.tzinfo is None:
+        current_utc = current_utc.replace(tzinfo=ZoneInfo("UTC"))
+
+    return current_utc.astimezone(user_timezone)
+
+
+def user_notification_is_due(user, local_now):
+    preferences = user.get("notificationSummary") or {}
+    configured_time = preferences.get("dailyCheckInTime") or "20:00"
+
+    try:
+        reminder_time = datetime.strptime(configured_time, "%H:%M").time()
+    except (TypeError, ValueError):
+        reminder_time = datetime.strptime("20:00", "%H:%M").time()
+
+    local_date = local_now.date().isoformat()
+    last_sent_date = preferences.get("lastDailyCheckInNotificationDate")
+
+    return local_now.time() >= reminder_time and last_sent_date != local_date
+
+
+def user_has_check_in_on_local_date(user_id, local_now, check_ins):
+    for check_in in check_ins:
+        if check_in.get("userId") != user_id or check_in.get("status") == "deleted":
+            continue
+
+        recorded_at = check_in.get("recordedAt") or check_in.get("createdAt")
+
+        if not recorded_at:
+            continue
+
+        try:
+            recorded_datetime = datetime.fromisoformat(str(recorded_at).replace("Z", "+00:00"))
+
+            if recorded_datetime.tzinfo is None:
+                recorded_datetime = recorded_datetime.replace(tzinfo=ZoneInfo("UTC"))
+
+            if recorded_datetime.astimezone(local_now.tzinfo).date() == local_now.date():
+                return True
+        except (TypeError, ValueError):
+            continue
+
+    return False
 
 
 class NotificationDispatchView(APIView):
@@ -1046,20 +1159,43 @@ class NotificationDispatchView(APIView):
             and (user.get("notificationSummary") or {}).get("pushEnabled")
             and user.get("status", "active") == "active",
         )
-        enabled_user_ids = {user.get("id") or user.get("authUid") for user in users}
+        check_ins = list_collection(CHECK_IN_COLLECTION)
+        due_users = []
+
+        for user in users:
+            user_id = user.get("id") or user.get("authUid")
+
+            if not user_id:
+                continue
+
+            local_now = get_user_local_now(user)
+
+            if not user_notification_is_due(user, local_now):
+                continue
+
+            if user_has_check_in_on_local_date(user_id, local_now, check_ins):
+                continue
+
+            due_users.append((user_id, user, local_now))
+
+        enabled_user_ids = {user_id for user_id, _, _ in due_users}
         subscriptions = list_collection(
             NOTIFICATION_SUBSCRIPTION_COLLECTION,
-            lambda item: item.get("userId") in enabled_user_ids,
+            lambda item: item.get("userId") in enabled_user_ids and item.get("status", "active") == "active",
         )
         payload = json.dumps(
             {
                 "title": "Maia",
                 "body": "Um check-in gentil pode ajudar voce a perceber como esta hoje.",
                 "url": "/check-in",
+                "tag": "maia-daily-check-in",
+                "type": "daily-check-in",
             }
         )
         sent = 0
         failed = 0
+        expired = 0
+        notified_user_ids = set()
 
         for subscription in subscriptions:
             try:
@@ -1071,12 +1207,46 @@ class NotificationDispatchView(APIView):
                     data=payload,
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": settings.VAPID_CLAIMS_EMAIL},
+                    ttl=3600,
                 )
                 sent += 1
-            except WebPushException:
+                notified_user_ids.add(subscription.get("userId"))
+            except WebPushException as exc:
                 failed += 1
+                response_status = getattr(getattr(exc, "response", None), "status_code", None)
 
-        return success_response({"sent": sent, "failed": failed, "subscriptions": len(subscriptions)})
+                if response_status in {404, 410}:
+                    get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document(
+                        subscription["id"]
+                    ).delete()
+                    expired += 1
+
+        for user_id, user, local_now in due_users:
+            if user_id not in notified_user_ids:
+                continue
+
+            preferences = {
+                **(user.get("notificationSummary") or {}),
+                "lastDailyCheckInNotificationDate": local_now.date().isoformat(),
+                "lastDailyCheckInNotificationAt": now_iso(),
+            }
+            get_db().collection("users").document(user_id).update(
+                {
+                    "notificationSummary": preferences,
+                    "updatedAt": server_timestamp(),
+                }
+            )
+
+        return success_response(
+            {
+                "eligibleUsers": len(users),
+                "dueUsers": len(due_users),
+                "sent": sent,
+                "failed": failed,
+                "expiredSubscriptions": expired,
+                "subscriptions": len(subscriptions),
+            }
+        )
 
 
 class AdminMetricsView(APIView):
@@ -1137,23 +1307,60 @@ class AdminProfessionalVerificationDetailView(APIView):
             return permission_error
 
         next_status = request.data.get("status")
+        reason = (request.data.get("reason") or "").strip()
 
         if next_status not in {"verified", "rejected", "pending"}:
-            return error_response("Status de validacao invalido.")
+            return error_response(
+                "Status de validacao invalido.",
+                code="invalid_professional_verification_status",
+            )
+
+        if next_status == "rejected" and len(reason) < 8:
+            return error_response(
+                "Informe uma justificativa com pelo menos 8 caracteres para rejeitar.",
+                code="professional_rejection_reason_required",
+            )
 
         user_ref = get_db().collection("users").document(verification_id)
         previous_user = get_document_payload(user_ref.get())
 
         if not previous_user:
-            return error_response("Profissional nao encontrado.", status.HTTP_404_NOT_FOUND)
+            return error_response(
+                "Profissional nao encontrado.",
+                status.HTTP_404_NOT_FOUND,
+                code="professional_not_found",
+            )
+
+        if previous_user.get("profileCode") != "PRO":
+            return error_response(
+                "Este usuario nao possui perfil profissional.",
+                status.HTTP_409_CONFLICT,
+                code="user_is_not_professional",
+            )
+
+        professional = previous_user.get("professional") or {}
+
+        if next_status == "verified":
+            required_fields = ("registrationNumber", "council", "state", "specialty")
+            missing_fields = [field for field in required_fields if not professional.get(field)]
+
+            if missing_fields:
+                return error_response(
+                    "Complete os dados profissionais antes da aprovacao.",
+                    status.HTTP_409_CONFLICT,
+                    code="professional_profile_incomplete",
+                )
 
         user_ref.update(
             {
                 "professionalVerificationStatus": next_status,
                 "professional": {
-                    **(previous_user.get("professional") or {}),
+                    **professional,
                     "verifiedAt": server_timestamp() if next_status == "verified" else None,
                     "verifiedBy": request.user.uid if next_status == "verified" else None,
+                    "reviewedAt": server_timestamp(),
+                    "reviewedBy": request.user.uid,
+                    "rejectionReason": reason if next_status == "rejected" else "",
                 },
                 "updatedAt": server_timestamp(),
             }
@@ -1164,7 +1371,7 @@ class AdminProfessionalVerificationDetailView(APIView):
                 "targetId": verification_id,
                 "previousStatus": previous_user.get("professionalVerificationStatus", "pending"),
                 "nextStatus": next_status,
-                "reason": request.data.get("reason") or "",
+                "reason": reason,
                 "adminId": request.user.uid,
                 "createdAt": server_timestamp(),
             }

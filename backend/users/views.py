@@ -204,8 +204,15 @@ def build_profile_update_data(data, current_user):
     return updated_data
 
 
-def error_response(message, http_status=status.HTTP_400_BAD_REQUEST):
-    return Response({"erro": message}, status=http_status)
+def error_response(message, http_status=status.HTTP_400_BAD_REQUEST, code="request_error"):
+    return Response(
+        {
+            "erro": message,
+            "code": code,
+            "status": http_status,
+        },
+        status=http_status,
+    )
 
 
 def firebase_error_response(exc, http_status=status.HTTP_503_SERVICE_UNAVAILABLE):

@@ -3,8 +3,8 @@ param(
   [string]$Region = "southamerica-east1",
   [string]$JobName = "maia-daily-check-in-notifications",
   [string]$BackendUrl = "https://maia-backend-33fbqbgqka-rj.a.run.app",
-  [string]$Schedule = "0 20 * * *",
-  [string]$TimeZone = "America/Sao_Paulo"
+  [string]$Schedule = "*/15 * * * *",
+  [string]$TimeZone = "Etc/UTC"
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,7 +43,7 @@ if ($jobExists) {
     --time-zone $TimeZone `
     --uri $uri `
     --http-method POST `
-    --headers $headers `
+    --update-headers $headers `
     --message-body "{}"
 } else {
   & $GCloud scheduler jobs create http $JobName `

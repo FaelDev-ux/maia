@@ -50,12 +50,17 @@ function urlBase64ToUint8Array(value: string) {
 async function registerPushSubscription() {
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-  if (!vapidPublicKey || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
-    return;
+  if (!vapidPublicKey) {
+    throw new Error("A chave publica de notificacoes nao esta configurada.");
+  }
+
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    throw new Error("Este dispositivo nao oferece suporte a notificacoes push.");
   }
 
   const { saveNotificationSubscription } = await import("@/features/notifications/services");
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  await navigator.serviceWorker.ready;
   const existingSubscription = await registration.pushManager.getSubscription();
   const subscription =
     existingSubscription ??
@@ -125,18 +130,20 @@ export async function requestDailyCheckInNotifications() {
     pushEnabled: nextPermission === "granted",
   };
 
+  if (nextPermission === "granted") {
+    await registerPushSubscription();
+  }
+
   saveNotificationPreferences(preferences);
   await updateNotificationPreferences(preferences);
-
-  if (nextPermission === "granted") {
-    await registerPushSubscription().catch(() => undefined);
-  }
 
   return nextPermission;
 }
 
 export async function disableDailyCheckInNotifications() {
-  const { updateNotificationPreferences } = await import("@/features/notifications/services");
+  const { deleteNotificationSubscriptions, updateNotificationPreferences } = await import(
+    "@/features/notifications/services"
+  );
   const preferences = {
     ...getStoredNotificationPreferences(),
     dailyCheckInEnabled: false,
@@ -145,4 +152,30 @@ export async function disableDailyCheckInNotifications() {
 
   saveNotificationPreferences(preferences);
   await updateNotificationPreferences(preferences);
+
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+  }
+
+  await deleteNotificationSubscriptions();
+}
+
+export async function updateDailyCheckInReminderTime(dailyCheckInTime: string) {
+  const { updateNotificationPreferences } = await import("@/features/notifications/services");
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+  const preferences = {
+    ...getStoredNotificationPreferences(),
+    dailyCheckInTime,
+    timezone,
+  };
+  const updatedPreferences = await updateNotificationPreferences(preferences);
+
+  saveNotificationPreferences(updatedPreferences);
+
+  return updatedPreferences;
 }

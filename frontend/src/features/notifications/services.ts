@@ -47,3 +47,13 @@ export async function saveNotificationSubscription(subscription: PushSubscriptio
     "Nao foi possivel salvar sua inscricao de notificacao."
   );
 }
+
+export async function deleteNotificationSubscriptions() {
+  return apiFetch(
+    "/api/notifications/subscriptions",
+    {
+      method: "DELETE",
+    },
+    "Nao foi possivel remover sua inscricao de notificacao."
+  );
+}

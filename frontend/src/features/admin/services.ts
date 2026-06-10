@@ -48,6 +48,12 @@ type AdminCommentResponse = {
   comment?: unknown;
 };
 
+type AdminProfessionalData = Partial<ProfessionalProfile> & {
+  rejectionReason?: unknown;
+  reviewedAt?: string;
+  reviewedBy?: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -58,7 +64,7 @@ function isUser(value: unknown): value is Partial<User> {
 
 function normalizeProfessionalVerification(value: unknown): ProfessionalVerification {
   const user = isUser(value) ? value : {};
-  const professional = (user.professional ?? {}) as Partial<ProfessionalProfile>;
+  const professional = (user.professional ?? {}) as AdminProfessionalData;
   const submittedAt = user.createdAt ?? new Date().toISOString();
 
   return {
@@ -70,9 +76,10 @@ function normalizeProfessionalVerification(value: unknown): ProfessionalVerifica
     fullName: user.fullName ?? "Profissional Maia",
     phone: user.phone ?? "",
     registrationNumber: professional.registrationNumber ?? "",
-    rejectionReason: undefined,
-    reviewedAt: professional.verifiedAt,
-    reviewedBy: professional.verifiedBy,
+    rejectionReason:
+      typeof professional.rejectionReason === "string" ? professional.rejectionReason : undefined,
+    reviewedAt: professional.reviewedAt ?? professional.verifiedAt,
+    reviewedBy: professional.reviewedBy ?? professional.verifiedBy,
     specialty: professional.specialty ?? "Especialidade nao informada",
     state: professional.state ?? "",
     status:
@@ -175,12 +182,13 @@ export async function fetchProfessionalVerifications() {
 
 export async function updateProfessionalVerificationStatusApi(
   verificationId: string,
-  status: ProfessionalVerification["status"]
+  status: ProfessionalVerification["status"],
+  reason?: string
 ): Promise<ProfessionalVerification | null> {
   const data = await apiFetch<ProfessionalVerificationResponse>(
     `/api/admin/professional-verifications/${verificationId}`,
     {
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ reason, status }),
       method: "PATCH",
     },
     "Nao foi possivel atualizar a validacao profissional."
