@@ -29,6 +29,29 @@ COMMUNITY_SUPPORT_COLLECTION = "communitySupports"
 NOTIFICATION_SUBSCRIPTION_COLLECTION = "notificationSubscriptions"
 ADMIN_ACTION_COLLECTION = "adminActions"
 
+CONTENT_IMAGE_PRESETS = {
+    "sono": {
+        "imageUrl": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=1200&q=82",
+        "imageAlt": "Bebe dormindo tranquilo com manta clara",
+    },
+    "respiracao": {
+        "imageUrl": "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=82",
+        "imageAlt": "Pessoa respirando com calma em ambiente iluminado",
+    },
+    "apoio": {
+        "imageUrl": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=82",
+        "imageAlt": "Maos unidas representando rede de apoio",
+    },
+    "preparacao": {
+        "imageUrl": "https://images.unsplash.com/photo-1537673156864-5d2c72de7824?auto=format&fit=crop&w=1200&q=82",
+        "imageAlt": "Quarto de bebe preparado com luz suave",
+    },
+    "default": {
+        "imageUrl": "https://images.unsplash.com/photo-1492725764893-90b379c2b6e7?auto=format&fit=crop&w=1200&q=82",
+        "imageAlt": "Mae segurando um bebe em momento de cuidado",
+    },
+}
+
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -47,6 +70,7 @@ SEED_CONTENTS = [
         "body": "Dormir com um bebê pequeno pode ser desafiador. Pequenas pausas, divisão de tarefas e apoio da rede podem ajudar a proteger janelas de descanso.",
         "author": {"name": "Equipe Maia", "role": "editorial"},
         "status": "published",
+        **CONTENT_IMAGE_PRESETS["sono"],
     },
     {
         "id": "respiracao-para-ansiedade",
@@ -58,6 +82,7 @@ SEED_CONTENTS = [
         "body": "Respire com calma, observe o corpo e escolha um ponto de apoio no ambiente. Se o desconforto persistir, considere buscar apoio profissional.",
         "author": {"name": "Equipe Maia", "role": "editorial"},
         "status": "published",
+        **CONTENT_IMAGE_PRESETS["respiracao"],
     },
     {
         "id": "rede-de-apoio",
@@ -69,6 +94,7 @@ SEED_CONTENTS = [
         "body": "Pedir ajuda pode começar por tarefas pequenas e concretas, como preparar uma refeição, cuidar de uma roupa ou ficar alguns minutos com o bebê.",
         "author": {"name": "Equipe Maia", "role": "editorial"},
         "status": "published",
+        **CONTENT_IMAGE_PRESETS["apoio"],
     },
 ]
 
@@ -152,6 +178,33 @@ def is_professional_or_admin(user, request):
     return user_is_admin(request.user) or "PRO" in user_roles(user)
 
 
+def get_content_image_payload(data):
+    tags = data.get("tags") if isinstance(data.get("tags"), list) else []
+    searchable = " ".join(
+        [
+            str(data.get("category") or ""),
+            str(data.get("title") or ""),
+            " ".join(str(tag) for tag in tags),
+        ]
+    ).lower()
+
+    if "sono" in searchable or "descanso" in searchable or "cansaco" in searchable:
+        preset = CONTENT_IMAGE_PRESETS["sono"]
+    elif "respir" in searchable or "ansiedade" in searchable or "medo" in searchable:
+        preset = CONTENT_IMAGE_PRESETS["respiracao"]
+    elif "prepar" in searchable or "gesta" in searchable or "bebe" in searchable:
+        preset = CONTENT_IMAGE_PRESETS["preparacao"]
+    elif "apoio" in searchable or "rede" in searchable or "culpa" in searchable:
+        preset = CONTENT_IMAGE_PRESETS["apoio"]
+    else:
+        preset = CONTENT_IMAGE_PRESETS["default"]
+
+    return {
+        "imageUrl": data.get("imageUrl") or preset["imageUrl"],
+        "imageAlt": data.get("imageAlt") or preset["imageAlt"],
+    }
+
+
 def ensure_admin(request):
     if user_is_admin(request.user):
         return None
@@ -166,6 +219,13 @@ def ensure_content_seeded():
         ref = db.collection(CONTENT_COLLECTION).document(content["id"])
 
         if ref.get().exists:
+            ref.set(
+                {
+                    **get_content_image_payload(content),
+                    "updatedAt": server_timestamp(),
+                },
+                merge=True,
+            )
             continue
 
         ref.set(
@@ -233,9 +293,16 @@ class CheckInListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        admin_user = user_is_admin(request.user)
+        requested_user_id = request.GET.get("userId")
+
         items = list_collection(
             CHECK_IN_COLLECTION,
-            lambda item: item.get("userId") == request.user.uid and item.get("status") != "deleted",
+            lambda item: item.get("status") != "deleted"
+            and (
+                item.get("userId") == request.user.uid
+                or (admin_user and (not requested_user_id or item.get("userId") == requested_user_id))
+            ),
         )
 
         return success_response({"checkIns": sort_by_created_at(items)})
@@ -322,9 +389,15 @@ class CheckInSummaryView(APIView):
         period = request.GET.get("period", "weekly")
         days = 30 if period == "monthly" else 7
         start = datetime.utcnow() - timedelta(days=days)
+        admin_user = user_is_admin(request.user)
+        requested_user_id = request.GET.get("userId")
         check_ins = list_collection(
             CHECK_IN_COLLECTION,
-            lambda item: item.get("userId") == request.user.uid and item.get("status") != "deleted",
+            lambda item: item.get("status") != "deleted"
+            and (
+                item.get("userId") == request.user.uid
+                or (admin_user and (not requested_user_id or item.get("userId") == requested_user_id))
+            ),
         )
         recent = []
 
@@ -438,6 +511,7 @@ class ContentsListView(APIView):
                 "name": user.get("fullName") or "Maia",
                 "role": user.get("profileCode") or "PRO",
             },
+            **get_content_image_payload(request.data),
             "status": request.data.get("status", "published") if user_is_admin(request.user) else "pending-review",
             "createdAt": server_timestamp(),
             "updatedAt": server_timestamp(),
@@ -793,18 +867,20 @@ class NotificationPreferencesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = current_user(request)
+        target_user_id = request.GET.get("userId") if user_is_admin(request.user) else None
+        user = get_user(target_user_id) if target_user_id else current_user(request)
 
         return success_response({"preferences": user.get("notificationSummary") or {}})
 
     def put(self, request):
         allowed = {"dailyCheckInEnabled", "pushEnabled", "timezone", "dailyCheckInTime"}
-        current = current_user(request)
+        target_user_id = request.data.get("userId") if user_is_admin(request.user) else None
+        current = get_user(target_user_id) if target_user_id else current_user(request)
         preferences = {
             **(current.get("notificationSummary") or {}),
             **{key: value for key, value in request.data.items() if key in allowed},
         }
-        get_db().collection("users").document(request.user.uid).update(
+        get_db().collection("users").document(target_user_id or request.user.uid).update(
             {"notificationSummary": preferences, "updatedAt": server_timestamp()}
         )
 
@@ -1022,7 +1098,7 @@ class PrivacyExportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user_id = request.user.uid
+        user_id = request.GET.get("userId") if user_is_admin(request.user) else request.user.uid
 
         export_payload = {
             "user": get_user(user_id),
