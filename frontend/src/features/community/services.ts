@@ -129,6 +129,8 @@ export function normalizeCommunityComment(comment: ApiComment): CommunityComment
     isAnonymous: comment.isAnonymous,
     message: comment.message ?? comment.body ?? "",
     notHelpfulCount: Number(comment.notHelpfulCount ?? 0),
+    status:
+      comment.status === "hidden" || comment.status === "removed" ? comment.status : "active",
     timeAgo: comment.timeAgo ?? getTimeAgo(comment.createdAt),
     userVote: comment.userVote,
   };

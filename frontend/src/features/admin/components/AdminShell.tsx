@@ -1,7 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ClipboardCheck, LayoutDashboard, MessageSquare, ShieldCheck } from "lucide-react";
+import {
+  BookOpenText,
+  ClipboardCheck,
+  Home,
+  LayoutDashboard,
+  MessageSquare,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
@@ -26,9 +34,24 @@ const adminNavigationItems = [
     icon: ClipboardCheck,
   },
   {
+    href: "/admin/usuarios",
+    label: "Usuarios",
+    icon: UsersRound,
+  },
+  {
     href: "/admin/comunidade",
     label: "Comunidade",
     icon: MessageSquare,
+  },
+  {
+    href: "/home",
+    label: "App",
+    icon: Home,
+  },
+  {
+    href: "/conteudos",
+    label: "Conteudos",
+    icon: BookOpenText,
   },
 ] as const;
 
@@ -48,7 +71,7 @@ function AdminBottomNavigation() {
       aria-label="Navegação administrativa"
       className="fixed inset-x-0 bottom-0 z-40 px-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
     >
-      <ul className="mx-auto flex h-20 max-w-[22.4rem] items-center justify-center gap-6 rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[26rem]">
+      <ul className="mx-auto grid h-20 max-w-[25.5rem] grid-cols-6 items-center rounded-full border border-border/75 bg-white px-2 shadow-[0_18px_48px_rgb(140_64_84_/_0.14)] md:max-w-[34rem]">
         {adminNavigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = isActiveRoute(pathname, item.href);

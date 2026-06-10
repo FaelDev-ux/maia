@@ -1,9 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, MessageSquare, Search, Trash2, X } from "lucide-react";
 import { AdminShell } from "@/features/admin/components/AdminShell";
-import { moderateCommunityPost } from "@/features/admin/services";
+import {
+  fetchAdminCommunityComments,
+  moderateCommunityComment,
+  moderateCommunityPost,
+} from "@/features/admin/services";
 import { useAdminCommunityPosts } from "@/features/admin/hooks/useAdminCommunityPosts";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import { normalizeAdminSearch } from "@/features/admin/utils";
@@ -34,7 +38,58 @@ function AdminCommunityPostModal({
   onClose: () => void;
   post: CommunityPost;
 }) {
-  const comments: CommunityComment[] = [];
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [commentsError, setCommentsError] = useState("");
+  const [commentsAreLoading, setCommentsAreLoading] = useState(true);
+
+  async function reloadComments() {
+    setCommentsAreLoading(true);
+    setCommentsError("");
+
+    try {
+      setComments(await fetchAdminCommunityComments(post.id));
+    } catch (error) {
+      setCommentsError(error instanceof Error ? error.message : "Nao foi possivel carregar comentarios.");
+    } finally {
+      setCommentsAreLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadComments() {
+      setCommentsAreLoading(true);
+      setCommentsError("");
+
+      try {
+        const nextComments = await fetchAdminCommunityComments(post.id);
+
+        if (isMounted) {
+          setComments(nextComments);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setCommentsError(error instanceof Error ? error.message : "Nao foi possivel carregar comentarios.");
+        }
+      } finally {
+        if (isMounted) {
+          setCommentsAreLoading(false);
+        }
+      }
+    }
+
+    void loadComments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [post.id]);
+
+  async function handleCommentStatus(commentId: string, status: "active" | "hidden" | "removed") {
+    await moderateCommunityComment(commentId, status);
+    await reloadComments();
+  }
 
   return (
     <div
@@ -107,7 +162,15 @@ function AdminCommunityPostModal({
               Comentários
             </h3>
             <div className="mt-3 grid gap-3">
-              {comments.length > 0 ? (
+              {commentsAreLoading ? (
+                <p className="rounded-[1.35rem] bg-white px-4 py-4 text-sm leading-6 text-text ring-1 ring-border/65">
+                  Carregando comentarios.
+                </p>
+              ) : commentsError ? (
+                <p className="rounded-[1.35rem] bg-primary/10 px-4 py-4 text-sm font-bold leading-6 text-primary">
+                  {commentsError}
+                </p>
+              ) : comments.length > 0 ? (
                 comments.map((comment) => (
                   <article
                     className="rounded-[1.35rem] bg-white px-4 py-4 ring-1 ring-border/65"
@@ -135,6 +198,38 @@ function AdminCommunityPostModal({
                       </span>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-text">{comment.message}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-background px-3 py-1 text-xs font-extrabold text-text ring-1 ring-border/65">
+                        Status: {comment.status ?? "active"}
+                      </span>
+                      {comment.status !== "hidden" ? (
+                        <button
+                          className="h-9 rounded-full bg-surface px-3 text-xs font-extrabold text-title"
+                          onClick={() => void handleCommentStatus(comment.id, "hidden")}
+                          type="button"
+                        >
+                          Ocultar
+                        </button>
+                      ) : null}
+                      {comment.status !== "removed" ? (
+                        <button
+                          className="h-9 rounded-full bg-danger px-3 text-xs font-extrabold text-white"
+                          onClick={() => void handleCommentStatus(comment.id, "removed")}
+                          type="button"
+                        >
+                          Remover
+                        </button>
+                      ) : null}
+                      {comment.status !== "active" ? (
+                        <button
+                          className="h-9 rounded-full bg-primary px-3 text-xs font-extrabold text-white"
+                          onClick={() => void handleCommentStatus(comment.id, "active")}
+                          type="button"
+                        >
+                          Restaurar
+                        </button>
+                      ) : null}
+                    </div>
                   </article>
                 ))
               ) : (

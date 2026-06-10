@@ -1,5 +1,5 @@
 import { apiFetch } from "@/services/api/client";
-import { normalizeCommunityPost } from "@/features/community/services";
+import { normalizeCommunityComment, normalizeCommunityPost } from "@/features/community/services";
 import type { CommunityPost } from "@/features/community/types";
 import type { AdminMetric, ProfessionalVerification, ProfessionalVerificationAction } from "@/features/admin/types";
 import type { ProfessionalProfile, User } from "@/types/user";
@@ -30,6 +30,22 @@ type ProfessionalVerificationResponse = {
 type AdminCommunityPostsResponse = {
   items?: unknown[];
   posts?: unknown[];
+};
+
+type AdminUsersResponse = {
+  users?: unknown[];
+};
+
+type AdminUserResponse = {
+  user?: unknown;
+};
+
+type AdminCommentsResponse = {
+  comments?: unknown[];
+};
+
+type AdminCommentResponse = {
+  comment?: unknown;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -184,6 +200,60 @@ export async function fetchAdminCommunityPosts(): Promise<CommunityPost[]> {
   return (data.posts ?? data.items ?? []).map((post) =>
     normalizeCommunityPost(post as Parameters<typeof normalizeCommunityPost>[0])
   );
+}
+
+export async function fetchAdminUsers(): Promise<User[]> {
+  const data = await apiFetch<AdminUsersResponse>(
+    "/api/admin/users",
+    undefined,
+    "Nao foi possivel carregar usuarios."
+  );
+
+  return (data.users ?? []).filter(isUser).map((user) => user as User);
+}
+
+export async function updateAdminUserStatus(userId: string, status: "active" | "blocked") {
+  const data = await apiFetch<AdminUserResponse>(
+    `/api/admin/users/${userId}`,
+    {
+      body: JSON.stringify({ status }),
+      method: "PATCH",
+    },
+    "Nao foi possivel atualizar este usuario."
+  );
+
+  return isUser(data.user) ? (data.user as User) : null;
+}
+
+export async function fetchAdminCommunityComments(postId: string) {
+  const searchParams = new URLSearchParams({ postId });
+  const data = await apiFetch<AdminCommentsResponse>(
+    `/api/admin/community/comments?${searchParams.toString()}`,
+    undefined,
+    "Nao foi possivel carregar comentarios."
+  );
+
+  return (data.comments ?? []).map((comment) =>
+    normalizeCommunityComment(comment as Parameters<typeof normalizeCommunityComment>[0])
+  );
+}
+
+export async function moderateCommunityComment(
+  commentId: string,
+  status: "active" | "hidden" | "removed"
+) {
+  const data = await apiFetch<AdminCommentResponse>(
+    `/api/admin/community/comments/${commentId}`,
+    {
+      body: JSON.stringify({ status }),
+      method: "PATCH",
+    },
+    "Nao foi possivel moderar este comentario."
+  );
+
+  return data.comment
+    ? normalizeCommunityComment(data.comment as Parameters<typeof normalizeCommunityComment>[0])
+    : null;
 }
 
 export async function moderateCommunityPost(postId: string, status: "hidden" | "removed") {

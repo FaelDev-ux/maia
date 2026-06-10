@@ -92,6 +92,22 @@ export async function createContent(payload: {
   return data.content ? normalizeContent(data.content) : null;
 }
 
+export async function uploadContentImage(contentId: string, image: File) {
+  const formData = new FormData();
+  formData.append("image", image);
+
+  const data = await apiFetch<ContentResponse>(
+    `/api/contents/${contentId}/image`,
+    {
+      body: formData,
+      method: "POST",
+    },
+    "Nao foi possivel enviar a imagem deste conteudo."
+  );
+
+  return data.content ? normalizeContent(data.content) : null;
+}
+
 export async function updateContentStatus(
   contentId: string,
   status: "archived" | "pending-review" | "published"

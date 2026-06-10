@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { ContentArticleCard } from "@/features/contents/components/ContentArticleCard";
 import { ContentHeader } from "@/features/contents/components/ContentHeader";
-import { createContent, fetchContents, updateContentStatus } from "@/features/contents/services";
+import {
+  createContent,
+  fetchContents,
+  updateContentStatus,
+  uploadContentImage,
+} from "@/features/contents/services";
 import type { ContentArticle } from "@/features/contents/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredUserProfile } from "@/features/profile/hooks/useStoredProfileValues";
@@ -144,6 +149,7 @@ function ContentManagerPanel({
   const [tags, setTags] = useState("");
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +157,7 @@ function ContentManagerPanel({
     setMessage("");
 
     try {
-      await createContent({
+      const createdContent = await createContent({
         body,
         category,
         readingTimeMinutes: 6,
@@ -163,7 +169,13 @@ function ContentManagerPanel({
           .filter(Boolean),
         title,
       });
+
+      if (createdContent && image) {
+        await uploadContentImage(createdContent.id, image);
+      }
+
       setBody("");
+      setImage(null);
       setSummary("");
       setTags("");
       setTitle("");
@@ -229,6 +241,27 @@ function ContentManagerPanel({
           required
           value={body}
         />
+        <label className="grid gap-2 text-sm font-extrabold text-title">
+          Imagem do conteudo
+          <input
+            accept="image/jpeg,image/png,image/webp"
+            className="block w-full text-sm font-semibold text-text file:mr-3 file:h-10 file:rounded-full file:border-0 file:bg-primary file:px-4 file:text-sm file:font-extrabold file:text-white"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+
+              if (file && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+                setMessage("Envie apenas imagens JPG, PNG ou WebP.");
+                event.target.value = "";
+                setImage(null);
+                return;
+              }
+
+              setMessage("");
+              setImage(file);
+            }}
+            type="file"
+          />
+        </label>
         <button
           className="h-12 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button disabled:cursor-not-allowed disabled:opacity-70"
           disabled={isSubmitting}

@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from .authentication import FirebaseAuthentication
 from .firebase import (
     FirebaseNotConfiguredError,
+    get_firebase_auth,
     get_firestore_client,
     get_storage_bucket,
     server_timestamp,
@@ -176,6 +177,14 @@ def user_roles(user):
 
 def is_professional_or_admin(user, request):
     return user_is_admin(request.user) or "PRO" in user_roles(user)
+
+
+def is_pending_professional(user, request):
+    return (
+        not user_is_admin(request.user)
+        and "PRO" in user_roles(user)
+        and user.get("professionalVerificationStatus") != "verified"
+    )
 
 
 def get_content_image_payload(data):
@@ -521,6 +530,65 @@ class ContentsListView(APIView):
         return success_response({"content": get_document_payload(ref.get())}, status.HTTP_201_CREATED)
 
 
+class ContentImageUploadView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, content_id):
+        ref = get_db().collection(CONTENT_COLLECTION).document(content_id)
+        item = get_document_payload(ref.get())
+
+        if not item:
+            return error_response("Conteudo nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+        author_uid = (item.get("author") or {}).get("uid")
+
+        if author_uid != request.user.uid and not user_is_admin(request.user):
+            return error_response("Voce nao tem permissao para alterar esta imagem.", status.HTTP_403_FORBIDDEN)
+
+        image = request.FILES.get("image") or request.FILES.get("file")
+
+        if not image:
+            return error_response("Envie uma imagem para o conteudo.")
+
+        content_type = image.content_type or mimetypes.guess_type(image.name)[0] or ""
+
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            return error_response("Envie apenas imagens JPG, PNG ou WebP.", status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+        if image.size > MAX_AVATAR_SIZE_BYTES:
+            return error_response("A imagem deve ter no maximo 5 MB.", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+        try:
+            bucket = get_storage_bucket()
+            token = str(uuid.uuid4())
+            extension = ALLOWED_IMAGE_TYPES[content_type]
+            storage_path = f"contents/{content_id}/{uuid.uuid4().hex}{extension}"
+            blob = bucket.blob(storage_path)
+            blob.metadata = {"firebaseStorageDownloadTokens": token}
+            blob.upload_from_file(image, content_type=content_type)
+
+            image_url = (
+                f"https://firebasestorage.googleapis.com/v0/b/{settings.FIREBASE_STORAGE_BUCKET}/o/"
+                f"{quote(storage_path, safe='')}?alt=media&token={token}"
+            )
+            ref.update(
+                {
+                    "imageUrl": image_url,
+                    "imageAlt": request.data.get("imageAlt") or item.get("imageAlt") or item.get("title") or "Imagem do conteudo Maia",
+                    "imageStoragePath": storage_path,
+                    "updatedAt": server_timestamp(),
+                }
+            )
+
+            return success_response({"content": get_document_payload(ref.get())})
+        except FirebaseNotConfiguredError as exc:
+            return error_response(str(exc), status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception:
+            return error_response("Nao foi possivel salvar a imagem do conteudo.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class ContentDetailView(APIView):
     authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsAuthenticated]
@@ -674,6 +742,13 @@ class CommunityPostsView(APIView):
             return error_response("Titulo e mensagem sao obrigatorios.")
 
         user = current_user(request)
+
+        if is_pending_professional(user, request):
+            return error_response(
+                "Seu perfil profissional ainda esta em analise. Enquanto isso, voce pode ler a comunidade e enviar conteudos para revisao.",
+                status.HTTP_403_FORBIDDEN,
+            )
+
         anonymous = bool(request.data.get("anonymous"))
         ref = get_db().collection(COMMUNITY_POST_COLLECTION).document()
         payload = {
@@ -783,6 +858,13 @@ class CommunityCommentCreateView(APIView):
             return error_response("Mensagem da resposta e obrigatoria.")
 
         user = current_user(request)
+
+        if is_pending_professional(user, request):
+            return error_response(
+                "Seu perfil profissional ainda esta em analise. Aguarde a verificacao para responder na comunidade.",
+                status.HTTP_403_FORBIDDEN,
+            )
+
         ref = get_db().collection(COMMUNITY_COMMENT_COLLECTION).document()
         payload = {
             "id": ref.id,
@@ -1091,6 +1173,150 @@ class AdminCommunityPostsView(APIView):
             return permission_error
 
         return success_response({"posts": sort_by_created_at(list_collection(COMMUNITY_POST_COLLECTION))})
+
+
+class AdminUsersView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        profile_code = request.GET.get("profileCode")
+        status_value = request.GET.get("status")
+        query = (request.GET.get("q") or "").strip().lower()
+
+        users = list_collection(
+            "users",
+            lambda user: (
+                (not profile_code or user.get("profileCode") == profile_code)
+                and (not status_value or user.get("status") == status_value)
+                and (
+                    not query
+                    or query in str(user.get("fullName") or "").lower()
+                    or query in str(user.get("email") or "").lower()
+                )
+            ),
+        )
+
+        return success_response({"users": sort_by_created_at(users)})
+
+
+class AdminUserDetailView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        user = get_user(user_id)
+
+        if not user:
+            return error_response("Usuario nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+        return success_response({"user": user})
+
+    def patch(self, request, user_id):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        next_status = request.data.get("status")
+
+        if next_status not in {"active", "blocked", "pending-deletion"}:
+            return error_response("Status de usuario invalido.")
+
+        user_ref = get_db().collection("users").document(user_id)
+        previous_user = get_document_payload(user_ref.get())
+
+        if not previous_user:
+            return error_response("Usuario nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+        if user_id == request.user.uid and next_status != "active":
+            return error_response("Voce nao pode bloquear sua propria conta administrativa.")
+
+        user_ref.update({"status": next_status, "updatedAt": server_timestamp()})
+
+        try:
+            get_firebase_auth().update_user(user_id, disabled=next_status != "active")
+        except Exception:
+            pass
+
+        get_db().collection(ADMIN_ACTION_COLLECTION).document().set(
+            {
+                "type": "user-status",
+                "targetId": user_id,
+                "previousStatus": previous_user.get("status"),
+                "nextStatus": next_status,
+                "reason": request.data.get("reason") or "",
+                "adminId": request.user.uid,
+                "createdAt": server_timestamp(),
+            }
+        )
+
+        return success_response({"user": get_document_payload(user_ref.get())})
+
+
+class AdminCommunityCommentsView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        post_id = request.GET.get("postId")
+        comments = list_collection(
+            COMMUNITY_COMMENT_COLLECTION,
+            lambda item: not post_id or item.get("postId") == post_id,
+        )
+
+        return success_response({"comments": sort_by_created_at(comments, reverse=False)})
+
+
+class AdminCommunityCommentDetailView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, comment_id):
+        permission_error = ensure_admin(request)
+
+        if permission_error:
+            return permission_error
+
+        status_value = request.data.get("status")
+
+        if status_value not in {"active", "hidden", "removed"}:
+            return error_response("Status de comentario invalido.")
+
+        ref = get_db().collection(COMMUNITY_COMMENT_COLLECTION).document(comment_id)
+        comment = get_document_payload(ref.get())
+
+        if not comment:
+            return error_response("Comentario nao encontrado.", status.HTTP_404_NOT_FOUND)
+
+        ref.update({"status": status_value, "moderatedBy": request.user.uid, "updatedAt": server_timestamp()})
+        get_db().collection(ADMIN_ACTION_COLLECTION).document().set(
+            {
+                "type": "community-comment-moderation",
+                "targetId": comment_id,
+                "postId": comment.get("postId"),
+                "status": status_value,
+                "adminId": request.user.uid,
+                "createdAt": server_timestamp(),
+            }
+        )
+
+        return success_response({"comment": get_document_payload(ref.get())})
 
 
 class PrivacyExportView(APIView):
