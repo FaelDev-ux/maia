@@ -1,9 +1,18 @@
 from django.test import SimpleTestCase
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from unittest.mock import patch
 
-from .domain_views import check_in_payload
+from .domain_views import NavigationView, check_in_payload
 from .views import ForgotPasswordView, ResetPasswordView
+
+
+class TestFirebaseUser:
+    is_authenticated = True
+
+    def __init__(self, uid, decoded_token=None):
+        self.uid = uid
+        self.email = f"{uid}@example.com"
+        self.decoded_token = decoded_token or {"uid": uid, "email": self.email}
 
 
 class CheckInPayloadTests(SimpleTestCase):
@@ -56,3 +65,44 @@ class PasswordRecoveryTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         reset_password_with_oob_code.assert_called_once_with("abc123", "NovaSenha123")
+
+
+class NavigationViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch("users.domain_views.current_user", return_value={"roles": ["ADM"]})
+    def test_admin_navigation_includes_admin_item(self, current_user):
+        request = self.factory.get("/api/navigation/")
+        force_authenticate(
+            request,
+            user=TestFirebaseUser(
+                "admin-uid",
+                {"uid": "admin-uid", "email": "admin@example.com", "admin": True, "role": "ADM"},
+            ),
+        )
+
+        response = NavigationView.as_view()(request)
+        item_ids = [item["id"] for item in response.data["navigation"]]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("admin", item_ids)
+        current_user.assert_called_once()
+
+    @patch("users.domain_views.current_user", return_value={"roles": ["PUE"]})
+    def test_regular_navigation_does_not_include_admin_item(self, current_user):
+        request = self.factory.get("/api/navigation/")
+        force_authenticate(
+            request,
+            user=TestFirebaseUser(
+                "regular-uid",
+                {"uid": "regular-uid", "email": "regular@example.com", "roles": ["PUE"]},
+            ),
+        )
+
+        response = NavigationView.as_view()(request)
+        item_ids = [item["id"] for item in response.data["navigation"]]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("admin", item_ids)
+        current_user.assert_called_once()

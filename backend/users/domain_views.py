@@ -390,6 +390,30 @@ class CheckInDetailView(APIView):
         return success_response({"mensagem": "Check-in removido."})
 
 
+class NavigationView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = current_user(request)
+        roles = set(user_roles(user))
+        items = [
+            {"id": "home", "href": "/home", "label": "Home"},
+            {"id": "community", "href": "/comunidade", "label": "Comunidade"},
+            {"id": "contents", "href": "/conteudos", "label": "Conteudos"},
+            {"id": "profile", "href": "/perfil", "label": "Perfil"},
+            {"id": "more", "href": "/mais", "label": "Mais"},
+        ]
+
+        if "PUE" in roles or user_is_admin(request.user):
+            items.insert(1, {"id": "history", "href": "/historico", "label": "Historico"})
+
+        if user_is_admin(request.user):
+            items.append({"id": "admin", "href": "/admin", "label": "Admin"})
+
+        return success_response({"navigation": items})
+
+
 class CheckInSummaryView(APIView):
     authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsAuthenticated]
