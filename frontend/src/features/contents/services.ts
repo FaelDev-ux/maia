@@ -27,12 +27,6 @@ type RecommendationsResponse = {
   recommendations?: ApiContent[];
 };
 
-const fallbackImages = [
-  "https://images.unsplash.com/photo-1543342384-1f1350e27861?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1492725764893-90b379c2b6e7?auto=format&fit=crop&w=900&q=80",
-];
-
 function toParagraphs(content: ApiContent) {
   if (content.sections?.length) {
     return content.sections;
@@ -65,8 +59,8 @@ export function normalizeContent(content: ApiContent, index = 0): ContentArticle
     badge: content.badge ?? content.author?.role,
     category: content.category ?? "Bem-estar",
     highlightWord: content.highlightWord,
-    imageAlt: content.imageAlt ?? `Imagem do conteudo ${content.title ?? "Maia"}`,
-    imageUrl: content.imageUrl ?? fallbackImages[index % fallbackImages.length],
+    imageAlt: content.imageAlt ?? "",
+    imageUrl: content.imageUrl ?? "",
     quote: content.quote ?? "Um passo de cada vez tambem e cuidado.",
     readTime: getReadTime(content),
     sections: toParagraphs(content),

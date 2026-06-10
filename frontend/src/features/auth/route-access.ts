@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import type { HomeProfile } from "@/features/home/types";
 import type { AuthenticatedUser, UserProfileCode } from "@/types/user";
 
-const appProfileCodes = ["PUE", "MMT", "DSM", "PRO"] as const satisfies readonly UserProfileCode[];
-const checkInProfileCodes = ["PUE"] as const satisfies readonly UserProfileCode[];
+const appProfileCodes = ["PUE", "MMT", "DSM", "PRO", "ADM"] as const satisfies readonly UserProfileCode[];
+const checkInProfileCodes = ["PUE", "ADM"] as const satisfies readonly UserProfileCode[];
 const adminProfileCodes = ["ADM"] as const satisfies readonly UserProfileCode[];
 
 export const appRouteAccess = {

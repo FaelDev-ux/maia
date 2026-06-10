@@ -20,6 +20,7 @@ const profileCodeByHomeProfile: Record<HomeProfile, UserProfileCode> = {
 };
 
 let currentUserProfile: User | null = null;
+let currentUserProfileSnapshot = "";
 
 function emitProfileUpdated() {
   if (typeof window !== "undefined") {
@@ -378,12 +379,17 @@ export function getStoredUserProfile(profile: HomeProfile): User {
     : getDefaultUserProfile(profile);
 }
 
+export function getStoredUserProfileSnapshot() {
+  return currentUserProfileSnapshot;
+}
+
 export function getStoredProfileValues(profile: HomeProfile): ProfileFormValues {
   return userProfileToFormValues(getStoredUserProfile(profile), profile);
 }
 
 export function saveUserProfile(user: User) {
   currentUserProfile = user;
+  currentUserProfileSnapshot = JSON.stringify(user);
   emitProfileUpdated();
 }
 

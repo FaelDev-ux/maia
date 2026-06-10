@@ -1,7 +1,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type { HomeProfile } from "@/features/home/types";
 import {
+  getStoredUserProfileSnapshot,
   getStoredUserProfile,
+  getUserProfileFromSnapshot,
   PROFILE_UPDATED_EVENT,
   saveAuthenticatedUserProfile,
   userProfileToFormValues,
@@ -20,11 +22,11 @@ function subscribeToProfileChanges(onStoreChange: () => void) {
 }
 
 function getProfileSnapshot() {
-  return JSON.stringify(getStoredUserProfile("recent-mother"));
+  return getStoredUserProfileSnapshot();
 }
 
 function getProfileServerSnapshot() {
-  return JSON.stringify(getStoredUserProfile("recent-mother"));
+  return "";
 }
 
 function useAuthenticatedProfileSync() {
@@ -56,7 +58,7 @@ export function useStoredProfileValues(profile: HomeProfile) {
     getProfileServerSnapshot
   );
 
-  return userProfileToFormValues(JSON.parse(snapshot), profile);
+  return userProfileToFormValues(getUserProfileFromSnapshot(snapshot, profile), profile);
 }
 
 export function useStoredUserProfile(profile: HomeProfile) {
@@ -67,5 +69,5 @@ export function useStoredUserProfile(profile: HomeProfile) {
     getProfileServerSnapshot
   );
 
-  return getStoredUserProfile(profile) ?? JSON.parse(snapshot);
+  return snapshot ? getUserProfileFromSnapshot(snapshot, profile) : getStoredUserProfile(profile);
 }
