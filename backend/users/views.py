@@ -20,6 +20,7 @@ from .firebase import (
     sign_in_with_password,
 )
 from .permissions import user_is_admin
+from .security import is_firebase_storage_url, normalize_plain_text, normalize_tag_list
 
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,15 @@ def get_value(data, *keys):
     return None
 
 
+def get_clean_text(data, keys, max_length, *, allow_newlines=False):
+    value = get_value(data, *keys)
+
+    if value is None:
+        return None, None
+
+    return normalize_plain_text(value, max_length, allow_newlines=allow_newlines)
+
+
 def get_dict_value(data, key):
     value = data.get(key)
 
@@ -97,6 +107,31 @@ def filter_known_fields(data, allowed_fields):
         return {}
 
     return {key: value for key, value in data.items() if key in allowed_fields and value is not None}
+
+
+def sanitize_nested_text_fields(data, field_limits):
+    sanitized = {}
+
+    for key, value in data.items():
+        if key not in field_limits:
+            sanitized[key] = value
+            continue
+
+        limit = field_limits[key]
+
+        if isinstance(value, list):
+            tags, error = normalize_tag_list(value, max_items=10, max_length=limit)
+            if error:
+                return None, error
+            sanitized[key] = tags
+            continue
+
+        text, error = normalize_plain_text(value, limit)
+        if error:
+            return None, error
+        sanitized[key] = text
+
+    return sanitized, None
 
 
 def get_profile_code_from_update(data, current_user):
@@ -127,11 +162,15 @@ def get_current_roles(current_user):
 
 def build_profile_update_data(data, current_user):
     updated_data = {}
-    full_name = get_value(data, "name", "fullName", "nome_completo")
-    phone = get_value(data, "phone", "telefone")
-    birth_date = get_value(data, "birthDate", "data_nascimento")
+    full_name, full_name_error = get_clean_text(data, ("name", "fullName", "nome_completo"), 120)
+    phone, phone_error = get_clean_text(data, ("phone", "telefone"), 32)
+    birth_date, birth_date_error = get_clean_text(data, ("birthDate", "data_nascimento"), 32)
     avatar_url = get_value(data, "avatarUrl")
     profile_code = get_profile_code_from_update(data, current_user)
+
+    for error in (full_name_error, phone_error, birth_date_error):
+        if error:
+            return None, error
 
     if full_name is not None:
         updated_data["fullName"] = full_name
@@ -143,6 +182,9 @@ def build_profile_update_data(data, current_user):
 
     if birth_date is not None:
         updated_data["birthDate"] = birth_date
+
+    if avatar_url is not None and avatar_url and not is_firebase_storage_url(avatar_url):
+        return None, "Use apenas fotos enviadas pelo app Maia."
 
     if avatar_url is not None:
         updated_data["avatarUrl"] = avatar_url
@@ -170,18 +212,48 @@ def build_profile_update_data(data, current_user):
 
     recent_mother = filter_known_fields(get_dict_value(data, "recentMother"), RECENT_MOTHER_FIELDS)
     if recent_mother:
+        recent_mother, error = sanitize_nested_text_fields(
+            recent_mother,
+            {"babyBirthDate": 32, "bio": 600, "supportNeeds": 80},
+        )
+        if error:
+            return None, error
         updated_data["recentMother"] = {**(current_user.get("recentMother") or {}), **recent_mother}
 
     future_mother = filter_known_fields(get_dict_value(data, "futureMother"), FUTURE_MOTHER_FIELDS)
     if future_mother:
+        future_mother, error = sanitize_nested_text_fields(
+            future_mother,
+            {"journeyMoment": 80, "interests": 80, "supportNeeds": 80},
+        )
+        if error:
+            return None, error
         updated_data["futureMother"] = {**(current_user.get("futureMother") or {}), **future_mother}
 
     mentor = filter_known_fields(get_dict_value(data, "mentor"), MENTOR_FIELDS)
     if mentor:
+        mentor, error = sanitize_nested_text_fields(
+            mentor,
+            {"motherhoodExperience": 120, "mentorBio": 600, "supportTopics": 80},
+        )
+        if error:
+            return None, error
         updated_data["mentor"] = {**(current_user.get("mentor") or {}), **mentor}
 
     professional = filter_known_fields(get_dict_value(data, "professional"), PROFESSIONAL_FIELDS)
     if professional:
+        professional, error = sanitize_nested_text_fields(
+            professional,
+            {
+                "registrationNumber": 60,
+                "council": 40,
+                "state": 2,
+                "specialty": 120,
+                "publicBio": 700,
+            },
+        )
+        if error:
+            return None, error
         updated_data["professional"] = {**(current_user.get("professional") or {}), **professional}
 
         if current_user.get("professionalVerificationStatus") != "verified":
@@ -193,6 +265,9 @@ def build_profile_update_data(data, current_user):
 
     completed_steps = get_list_value(data, "completedSteps")
     if completed_steps is not None:
+        completed_steps, error = normalize_tag_list(completed_steps, max_items=12, max_length=60)
+        if error:
+            return None, error
         updated_data["onboarding"] = {
             **(current_user.get("onboarding") or {}),
             **(updated_data.get("onboarding") or {}),
@@ -201,7 +276,7 @@ def build_profile_update_data(data, current_user):
 
     updated_data["updatedAt"] = server_timestamp()
 
-    return updated_data
+    return updated_data, None
 
 
 def error_response(message, http_status=status.HTTP_400_BAD_REQUEST, code="request_error"):
@@ -330,13 +405,17 @@ def ensure_user_can_access(request, uid):
 class CadastroUsuarioView(APIView):
     def post(self, request):
         data = request.data
-        email = get_value(data, "email")
+        email = (get_value(data, "email") or "").strip().lower()
         password = get_value(data, "password", "senha")
-        full_name = get_value(data, "name", "fullName", "nome_completo")
-        phone = get_value(data, "phone", "telefone")
-        birth_date = get_value(data, "birthDate", "data_nascimento")
+        full_name, full_name_error = get_clean_text(data, ("name", "fullName", "nome_completo"), 120)
+        phone, phone_error = get_clean_text(data, ("phone", "telefone"), 32)
+        birth_date, birth_date_error = get_clean_text(data, ("birthDate", "data_nascimento"), 32)
         profile_code = get_value(data, "profileCode", "perfil") or "PUE"
         professional = data.get("professional") if isinstance(data.get("professional"), dict) else {}
+
+        for error in (full_name_error, phone_error, birth_date_error):
+            if error:
+                return error_response(error)
 
         if not email or not password:
             return error_response("E-mail e senha sao obrigatorios.")
@@ -405,6 +484,19 @@ class CadastroUsuarioView(APIView):
             }
 
             if profile_code == "PRO":
+                professional, professional_error = sanitize_nested_text_fields(
+                    filter_known_fields(professional, PROFESSIONAL_FIELDS),
+                    {
+                        "registrationNumber": 60,
+                        "council": 40,
+                        "state": 2,
+                        "specialty": 120,
+                        "publicBio": 700,
+                    },
+                )
+                if professional_error:
+                    return error_response(professional_error)
+
                 user_data["professional"] = {
                     "registrationNumber": get_value(professional, "registrationNumber") or "",
                     "council": get_value(professional, "council") or "",
@@ -638,7 +730,11 @@ class UsuarioDetailView(APIView):
 
             data = request.data
             current_user = user_snapshot.to_dict() or {}
-            updated_data = build_profile_update_data(data, current_user)
+            updated_data, validation_error = build_profile_update_data(data, current_user)
+
+            if validation_error:
+                return error_response(validation_error)
+
             user_ref.update(updated_data)
 
             if "fullName" in updated_data:
@@ -732,11 +828,28 @@ class OnboardingUsuarioView(APIView):
             data = request.data
             onboarding = filter_known_fields(data, ONBOARDING_FIELDS)
 
+            if "completedSteps" in onboarding:
+                completed_steps, error = normalize_tag_list(
+                    onboarding["completedSteps"],
+                    max_items=12,
+                    max_length=60,
+                )
+                if error:
+                    return error_response(error)
+                onboarding["completedSteps"] = completed_steps
+
             if "completed" not in onboarding:
                 onboarding["completed"] = True
 
             if "completedSteps" not in onboarding:
-                onboarding["completedSteps"] = data.get("completedSteps") or ["select-type"]
+                completed_steps, error = normalize_tag_list(
+                    data.get("completedSteps") or ["select-type"],
+                    max_items=12,
+                    max_length=60,
+                )
+                if error:
+                    return error_response(error)
+                onboarding["completedSteps"] = completed_steps
 
             updated_data = {
                 "onboarding": {

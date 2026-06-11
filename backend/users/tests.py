@@ -13,7 +13,8 @@ from .domain_views import (
     user_has_check_in_on_local_date,
     user_notification_is_due,
 )
-from .views import ForgotPasswordView, ResetPasswordView
+from .security import is_firebase_storage_url, normalize_plain_text, normalize_tag_list
+from .views import ForgotPasswordView, ResetPasswordView, build_profile_update_data
 
 
 class TestFirebaseUser:
@@ -27,19 +28,75 @@ class TestFirebaseUser:
 
 class CheckInPayloadTests(SimpleTestCase):
     def test_partial_update_preserves_existing_emotion(self):
-        payload = check_in_payload(
+        payload, error = check_in_payload(
             {"intensity": 5, "note": "editado"},
             "uid-123",
             {"emotion": "tired", "emotionId": "tired", "intensity": 3},
         )
 
+        self.assertIsNone(error)
         self.assertEqual(payload["emotion"], "tired")
         self.assertEqual(payload["emotionId"], "tired")
         self.assertEqual(payload["intensity"], 5)
         self.assertEqual(payload["note"], "editado")
 
     def test_create_requires_main_emotion(self):
-        self.assertIsNone(check_in_payload({"intensity": 3}, "uid-123"))
+        payload, error = check_in_payload({"intensity": 3}, "uid-123")
+
+        self.assertIsNone(error)
+        self.assertIsNone(payload)
+
+    def test_rejects_html_in_note(self):
+        payload, error = check_in_payload(
+            {"emotion": "calma", "note": "<script>alert(1)</script>"},
+            "uid-123",
+        )
+
+        self.assertIsNone(payload)
+        self.assertIn("HTML", error)
+
+
+class InputSecurityTests(SimpleTestCase):
+    def test_plain_text_rejects_html_tags(self):
+        value, error = normalize_plain_text("<img src=x onerror=alert(1)>", 120)
+
+        self.assertEqual(value, "")
+        self.assertIn("HTML", error)
+
+    def test_plain_text_removes_control_characters(self):
+        value, error = normalize_plain_text("Mae\x00 acolhida", 120)
+
+        self.assertIsNone(error)
+        self.assertEqual(value, "Mae acolhida")
+
+    def test_tag_list_limits_items_and_duplicates(self):
+        value, error = normalize_tag_list(["sono", "sono", "apoio", "rede"], max_items=3)
+
+        self.assertIsNone(error)
+        self.assertEqual(value, ["sono", "apoio"])
+
+    def test_profile_rejects_external_avatar_url(self):
+        payload, error = build_profile_update_data(
+            {"avatarUrl": "https://example.com/avatar.png"},
+            {"profileCode": "PUE", "roles": ["PUE"]},
+        )
+
+        self.assertIsNone(payload)
+        self.assertIn("fotos enviadas pelo app", error)
+
+    def test_profile_accepts_firebase_storage_avatar_url(self):
+        avatar_url = (
+            "https://firebasestorage.googleapis.com/v0/b/maia-86c23.firebasestorage.app/o/"
+            "profile-avatars%2Fuid%2Favatar.png?alt=media&token=token"
+        )
+        payload, error = build_profile_update_data(
+            {"avatarUrl": avatar_url},
+            {"profileCode": "PUE", "roles": ["PUE"]},
+        )
+
+        self.assertIsNone(error)
+        self.assertEqual(payload["avatarUrl"], avatar_url)
+        self.assertTrue(is_firebase_storage_url(avatar_url))
 
 
 class RecommendationPatternTests(SimpleTestCase):

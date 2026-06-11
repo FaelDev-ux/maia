@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /profile-avatars/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    match /contents/{contentId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

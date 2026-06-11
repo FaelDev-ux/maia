@@ -23,6 +23,12 @@ from .firebase import (
     server_timestamp,
 )
 from .permissions import user_is_admin
+from .security import (
+    is_safe_content_image_url,
+    normalize_int,
+    normalize_plain_text,
+    normalize_tag_list,
+)
 
 
 CHECK_IN_COLLECTION = "checkIns"
@@ -1560,9 +1566,13 @@ def get_content_image_payload(data):
     else:
         preset = CONTENT_IMAGE_PRESETS["default"]
 
+    requested_image_url = data.get("imageUrl")
+    image_url = requested_image_url if is_safe_content_image_url(requested_image_url) else preset["imageUrl"]
+    image_alt, _ = normalize_plain_text(data.get("imageAlt") or preset["imageAlt"], 160)
+
     return {
-        "imageUrl": data.get("imageUrl") or preset["imageUrl"],
-        "imageAlt": data.get("imageAlt") or preset["imageAlt"],
+        "imageUrl": image_url,
+        "imageAlt": image_alt or preset["imageAlt"],
     }
 
 
@@ -1597,36 +1607,66 @@ def ensure_content_seeded():
 
 def check_in_payload(data, uid, existing=None):
     existing = existing or {}
-    emotion = (
+    emotion, emotion_error = normalize_plain_text(
         data.get("emotion")
         or data.get("emotionId")
         or data.get("humor")
         or existing.get("emotion")
-        or existing.get("emotionId")
+        or existing.get("emotionId"),
+        40,
     )
 
-    if not emotion:
-        return None
+    if emotion_error:
+        return None, emotion_error
 
-    intensity = data.get("intensity", data.get("energy", data.get("energia", existing.get("intensity"))))
-    energy = data.get("energy", intensity if intensity is not None else existing.get("energy"))
-    sleep_quality = (
+    if not emotion:
+        return None, None
+
+    intensity, intensity_error = normalize_int(
+        data.get("intensity", data.get("energy", data.get("energia", existing.get("intensity")))),
+        minimum=1,
+        maximum=10,
+        fallback=existing.get("intensity"),
+    )
+    energy, energy_error = normalize_int(
+        data.get("energy", intensity if intensity is not None else existing.get("energy")),
+        minimum=1,
+        maximum=10,
+        fallback=existing.get("energy"),
+    )
+    sleep_quality, sleep_error = normalize_plain_text(
         data.get("sleepQuality")
         or data.get("sleep")
         or data.get("sono")
-        or existing.get("sleepQuality")
+        or existing.get("sleepQuality"),
+        40,
     )
-    received_support = (
+    received_support, support_error = normalize_plain_text(
         data.get("receivedSupport")
         or data.get("support")
         or data.get("apoioRecebido")
-        or existing.get("receivedSupport")
+        or existing.get("receivedSupport"),
+        60,
     )
     tags = data.get("tags") or data.get("feelings") or data.get("sentimentos") or existing.get("tags") or []
-    note = data.get("note") if "note" in data else data.get("observacao", existing.get("note", ""))
+    tags, tags_error = normalize_tag_list(tags, max_items=10, max_length=40)
+    note, note_error = normalize_plain_text(
+        data.get("note") if "note" in data else data.get("observacao", existing.get("note", "")),
+        280,
+        allow_newlines=True,
+    )
 
-    if not isinstance(tags, list):
-        tags = []
+    for error in (intensity_error, energy_error, sleep_error, support_error, tags_error, note_error):
+        if error:
+            return None, error
+
+    recorded_at, recorded_at_error = normalize_plain_text(
+        data.get("recordedAt") or data.get("date") or existing.get("recordedAt") or now_iso(),
+        40,
+    )
+
+    if recorded_at_error:
+        return None, recorded_at_error
 
     payload = {
         **existing,
@@ -1637,13 +1677,13 @@ def check_in_payload(data, uid, existing=None):
         "energy": energy,
         "sleepQuality": sleep_quality,
         "receivedSupport": received_support,
-        "tags": [tag for tag in tags if isinstance(tag, str)][:10],
+        "tags": tags,
         "note": note,
-        "recordedAt": data.get("recordedAt") or data.get("date") or existing.get("recordedAt") or now_iso(),
+        "recordedAt": recorded_at,
         "updatedAt": server_timestamp(),
     }
 
-    return {key: value for key, value in payload.items() if value is not None}
+    return {key: value for key, value in payload.items() if value is not None}, None
 
 
 class CheckInListView(APIView):
@@ -1666,7 +1706,10 @@ class CheckInListView(APIView):
         return success_response({"checkIns": sort_by_created_at(items)})
 
     def post(self, request):
-        payload = check_in_payload(request.data, request.user.uid)
+        payload, validation_error = check_in_payload(request.data, request.user.uid)
+
+        if validation_error:
+            return error_response(validation_error)
 
         if not payload:
             return error_response("Informe o humor principal do check-in.")
@@ -1716,7 +1759,10 @@ class CheckInDetailView(APIView):
         if permission_error:
             return permission_error
 
-        payload = check_in_payload(request.data, request.user.uid, item)
+        payload, validation_error = check_in_payload(request.data, request.user.uid, item)
+
+        if validation_error:
+            return error_response(validation_error)
 
         if not payload:
             return error_response("Informe o humor principal do check-in.")
@@ -1874,20 +1920,38 @@ class ContentsListView(APIView):
         if not is_professional_or_admin(user, request):
             return error_response("Somente profissionais ou administradores podem criar conteudos.", status.HTTP_403_FORBIDDEN)
 
-        title = request.data.get("title")
+        title, title_error = normalize_plain_text(request.data.get("title"), 140)
+
+        if title_error:
+            return error_response(title_error)
 
         if not title:
             return error_response("Titulo e obrigatorio.")
+
+        summary, summary_error = normalize_plain_text(request.data.get("summary") or "", 240)
+        category, category_error = normalize_plain_text(request.data.get("category") or "Geral", 60)
+        body, body_error = normalize_plain_text(request.data.get("body") or "", 8000, allow_newlines=True)
+        tags, tags_error = normalize_tag_list(request.data.get("tags") or [], max_items=12, max_length=40)
+        reading_time, reading_time_error = normalize_int(
+            request.data.get("readingTimeMinutes") or request.data.get("readingTime") or 5,
+            minimum=1,
+            maximum=60,
+            fallback=5,
+        )
+
+        for error in (summary_error, category_error, body_error, tags_error, reading_time_error):
+            if error:
+                return error_response(error)
 
         ref = get_db().collection(CONTENT_COLLECTION).document()
         payload = {
             "id": ref.id,
             "title": title,
-            "summary": request.data.get("summary") or "",
-            "category": request.data.get("category") or "Geral",
-            "tags": request.data.get("tags") if isinstance(request.data.get("tags"), list) else [],
-            "readingTimeMinutes": request.data.get("readingTimeMinutes") or request.data.get("readingTime") or 5,
-            "body": request.data.get("body") or "",
+            "summary": summary,
+            "category": category,
+            "tags": tags,
+            "readingTimeMinutes": reading_time,
+            "body": body,
             "author": {
                 "uid": request.user.uid,
                 "name": user.get("fullName") or "Maia",
@@ -1949,7 +2013,10 @@ class ContentImageUploadView(APIView):
             ref.update(
                 {
                     "imageUrl": image_url,
-                    "imageAlt": request.data.get("imageAlt") or item.get("imageAlt") or item.get("title") or "Imagem do conteudo Maia",
+                    "imageAlt": normalize_plain_text(
+                        request.data.get("imageAlt") or item.get("imageAlt") or item.get("title") or "Imagem do conteudo Maia",
+                        160,
+                    )[0],
                     "imageStoragePath": storage_path,
                     "updatedAt": server_timestamp(),
                 }
@@ -2005,6 +2072,38 @@ class ContentDetailView(APIView):
 
         allowed = {"title", "summary", "category", "tags", "readingTimeMinutes", "body", "status"}
         payload = {key: value for key, value in request.data.items() if key in allowed}
+
+        field_limits = {
+            "title": 140,
+            "summary": 240,
+            "category": 60,
+            "body": 8000,
+        }
+
+        for key, limit in field_limits.items():
+            if key in payload:
+                payload[key], error = normalize_plain_text(
+                    payload[key],
+                    limit,
+                    allow_newlines=key == "body",
+                )
+                if error:
+                    return error_response(error)
+
+        if "tags" in payload:
+            payload["tags"], error = normalize_tag_list(payload["tags"], max_items=12, max_length=40)
+            if error:
+                return error_response(error)
+
+        if "readingTimeMinutes" in payload:
+            payload["readingTimeMinutes"], error = normalize_int(
+                payload["readingTimeMinutes"],
+                minimum=1,
+                maximum=60,
+                fallback=item.get("readingTimeMinutes") or 5,
+            )
+            if error:
+                return error_response(error)
 
         if "status" in payload and not user_is_admin(request.user):
             payload["status"] = "pending-review"
@@ -2394,8 +2493,16 @@ class CommunityPostsView(APIView):
         return success_response({"posts": sort_by_created_at(items)})
 
     def post(self, request):
-        body = request.data.get("body") or request.data.get("message")
-        title = request.data.get("title")
+        body, body_error = normalize_plain_text(
+            request.data.get("body") or request.data.get("message"),
+            1200,
+            allow_newlines=True,
+        )
+        title, title_error = normalize_plain_text(request.data.get("title"), 120)
+
+        for error in (body_error, title_error):
+            if error:
+                return error_response(error)
 
         if not title or not body:
             return error_response("Titulo e mensagem sao obrigatorios.")
@@ -2410,16 +2517,23 @@ class CommunityPostsView(APIView):
 
         anonymous = bool(request.data.get("anonymous"))
         ref = get_db().collection(COMMUNITY_POST_COLLECTION).document()
+        category, category_error = normalize_plain_text(request.data.get("category") or "apoio", 40)
+        tags, tags_error = normalize_tag_list(request.data.get("tags") or [], max_items=8, max_length=40)
+
+        for error in (category_error, tags_error):
+            if error:
+                return error_response(error)
+
         payload = {
             "id": ref.id,
             "authorId": request.user.uid,
             "authorName": "Usuario com identidade protegida" if anonymous else user.get("fullName", "Maia"),
             "authorRole": user.get("profileCode", "PUE"),
             "anonymous": anonymous,
-            "category": request.data.get("category") or "apoio",
+            "category": category,
             "title": title,
             "body": body,
-            "tags": request.data.get("tags") if isinstance(request.data.get("tags"), list) else [],
+            "tags": tags,
             "supportCount": 0,
             "commentsCount": 0,
             "status": "active",
@@ -2511,7 +2625,14 @@ class CommunityCommentCreateView(APIView):
         if not post or post.get("status") != "active":
             return error_response("Publicacao nao encontrada.", status.HTTP_404_NOT_FOUND)
 
-        body = request.data.get("body") or request.data.get("message")
+        body, body_error = normalize_plain_text(
+            request.data.get("body") or request.data.get("message"),
+            600,
+            allow_newlines=True,
+        )
+
+        if body_error:
+            return error_response(body_error)
 
         if not body:
             return error_response("Mensagem da resposta e obrigatoria.")

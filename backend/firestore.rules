@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function hasRole(role) {
+      return signedIn()
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.role == role
+          || (request.auth.token.roles is list && request.auth.token.roles.hasAny([role]))
+        );
+    }
+
+    function isAdmin() {
+      return hasRole("ADM");
+    }
+
+    function isPublished() {
+      return resource.data.status == "published";
+    }
+
+    function isActive() {
+      return resource.data.status == "active";
+    }
+
+    function isAuthor(fieldName) {
+      return signedIn()
+        && fieldName in resource.data
+        && resource.data[fieldName] == request.auth.uid;
+    }
+
+    function isContentAuthor() {
+      return signedIn()
+        && "author" in resource.data
+        && resource.data.author is map
+        && resource.data.author.uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /checkIns/{checkInId} {
+      allow get: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow list: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /contents/{contentId} {
+      allow get: if signedIn() && (isPublished() || isContentAuthor() || isAdmin());
+      allow list: if signedIn() && (isPublished() || isContentAuthor() || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /communityPosts/{postId} {
+      allow get: if signedIn() && (isActive() || isAuthor("authorId") || isAdmin());
+      allow list: if signedIn() && (isActive() || isAuthor("authorId") || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /communityComments/{commentId} {
+      allow get: if signedIn() && (isActive() || isAuthor("authorId") || isAdmin());
+      allow list: if signedIn() && (isActive() || isAuthor("authorId") || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /communitySupports/{supportId} {
+      allow get: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow list: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /notificationSubscriptions/{subscriptionId} {
+      allow get: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow list: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /adminActions/{actionId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
