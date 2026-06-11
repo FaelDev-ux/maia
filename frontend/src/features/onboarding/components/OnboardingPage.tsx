@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type TouchEvent } from "react";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import { onboardingSlides } from "../data/onboarding-slides";
 import { OnboardingVisual } from "./OnboardingVisual";
 import { SlideIndicators } from "./SlideIndicators";
 
+const SWIPE_MIN_DISTANCE = 48;
+const SWIPE_MAX_VERTICAL_DRIFT = 80;
+
 export function OnboardingPage() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const currentSlide = onboardingSlides[currentSlideIndex];
   const isLastSlide = currentSlideIndex === onboardingSlides.length - 1;
@@ -19,6 +23,43 @@ export function OnboardingPage() {
 
   function showNextSlide() {
     setCurrentSlideIndex((slideIndex) => Math.min(slideIndex + 1, onboardingSlides.length - 1));
+  }
+
+  function showPreviousSlide() {
+    setCurrentSlideIndex((slideIndex) => Math.max(slideIndex - 1, 0));
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
+    const touchStart = touchStartRef.current;
+    const touch = event.changedTouches[0];
+
+    touchStartRef.current = null;
+
+    if (!touchStart) {
+      return;
+    }
+
+    const horizontalDistance = touchStart.x - touch.clientX;
+    const verticalDistance = Math.abs(touchStart.y - touch.clientY);
+
+    if (verticalDistance > SWIPE_MAX_VERTICAL_DRIFT) {
+      return;
+    }
+
+    if (horizontalDistance >= SWIPE_MIN_DISTANCE && !isLastSlide) {
+      showNextSlide();
+    } else if (horizontalDistance <= -SWIPE_MIN_DISTANCE) {
+      showPreviousSlide();
+    }
   }
 
   function skipToLastSlide() {
@@ -54,7 +95,11 @@ export function OnboardingPage() {
           )}
         </header>
 
-        <main className="grid flex-1 items-center gap-8 py-5 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:py-8">
+        <main
+          className="grid flex-1 touch-pan-y items-center gap-8 py-5 sm:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:py-8"
+          onTouchEnd={handleTouchEnd}
+          onTouchStart={handleTouchStart}
+        >
           <div className="order-2 flex flex-col items-center lg:order-1">
             <div className="maia-slide-copy w-full md:w-auto lg:w-full" key={currentSlide.title}>
               <p className="mb-3 inline-flex rounded-full bg-primary/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary-hover">

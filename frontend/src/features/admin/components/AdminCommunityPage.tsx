@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, MessageSquare, Search, Trash2, X } from "lucide-react";
 import { AdminShell } from "@/features/admin/components/AdminShell";
-import { removeCommunityPost } from "@/features/admin/data/community-moderation";
+import {
+  fetchAdminCommunityComments,
+  moderateCommunityComment,
+  moderateCommunityPost,
+} from "@/features/admin/services";
 import { useAdminCommunityPosts } from "@/features/admin/hooks/useAdminCommunityPosts";
-import { communityComments } from "@/features/community/data/community-comments";
 import type { CommunityComment, CommunityPost } from "@/features/community/types";
 import { normalizeAdminSearch } from "@/features/admin/utils";
 
@@ -35,12 +38,58 @@ function AdminCommunityPostModal({
   onClose: () => void;
   post: CommunityPost;
 }) {
-  const comments = communityComments
-    .filter((comment) => comment.postId === post.id)
-    .sort(
-      (firstComment, secondComment) =>
-        getCommentBalance(secondComment) - getCommentBalance(firstComment)
-    );
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [commentsError, setCommentsError] = useState("");
+  const [commentsAreLoading, setCommentsAreLoading] = useState(true);
+
+  async function reloadComments() {
+    setCommentsAreLoading(true);
+    setCommentsError("");
+
+    try {
+      setComments(await fetchAdminCommunityComments(post.id));
+    } catch (error) {
+      setCommentsError(error instanceof Error ? error.message : "Nao foi possivel carregar comentarios.");
+    } finally {
+      setCommentsAreLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadComments() {
+      setCommentsAreLoading(true);
+      setCommentsError("");
+
+      try {
+        const nextComments = await fetchAdminCommunityComments(post.id);
+
+        if (isMounted) {
+          setComments(nextComments);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setCommentsError(error instanceof Error ? error.message : "Nao foi possivel carregar comentarios.");
+        }
+      } finally {
+        if (isMounted) {
+          setCommentsAreLoading(false);
+        }
+      }
+    }
+
+    void loadComments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [post.id]);
+
+  async function handleCommentStatus(commentId: string, status: "active" | "hidden" | "removed") {
+    await moderateCommunityComment(commentId, status);
+    await reloadComments();
+  }
 
   return (
     <div
@@ -113,7 +162,15 @@ function AdminCommunityPostModal({
               Comentários
             </h3>
             <div className="mt-3 grid gap-3">
-              {comments.length > 0 ? (
+              {commentsAreLoading ? (
+                <p className="rounded-[1.35rem] bg-white px-4 py-4 text-sm leading-6 text-text ring-1 ring-border/65">
+                  Carregando comentarios.
+                </p>
+              ) : commentsError ? (
+                <p className="rounded-[1.35rem] bg-primary/10 px-4 py-4 text-sm font-bold leading-6 text-primary">
+                  {commentsError}
+                </p>
+              ) : comments.length > 0 ? (
                 comments.map((comment) => (
                   <article
                     className="rounded-[1.35rem] bg-white px-4 py-4 ring-1 ring-border/65"
@@ -141,11 +198,43 @@ function AdminCommunityPostModal({
                       </span>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-text">{comment.message}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-background px-3 py-1 text-xs font-extrabold text-text ring-1 ring-border/65">
+                        Status: {comment.status ?? "active"}
+                      </span>
+                      {comment.status !== "hidden" ? (
+                        <button
+                          className="h-9 rounded-full bg-surface px-3 text-xs font-extrabold text-title"
+                          onClick={() => void handleCommentStatus(comment.id, "hidden")}
+                          type="button"
+                        >
+                          Ocultar
+                        </button>
+                      ) : null}
+                      {comment.status !== "removed" ? (
+                        <button
+                          className="h-9 rounded-full bg-danger px-3 text-xs font-extrabold text-white"
+                          onClick={() => void handleCommentStatus(comment.id, "removed")}
+                          type="button"
+                        >
+                          Remover
+                        </button>
+                      ) : null}
+                      {comment.status !== "active" ? (
+                        <button
+                          className="h-9 rounded-full bg-primary px-3 text-xs font-extrabold text-white"
+                          onClick={() => void handleCommentStatus(comment.id, "active")}
+                          type="button"
+                        >
+                          Restaurar
+                        </button>
+                      ) : null}
+                    </div>
                   </article>
                 ))
               ) : (
                 <p className="rounded-[1.35rem] bg-white px-4 py-4 text-sm leading-6 text-text ring-1 ring-border/65">
-                  Esta publicação ainda não possui comentários mockados.
+                  Esta publicação ainda não possui comentários carregados nesta visão.
                 </p>
               )}
             </div>
@@ -157,7 +246,7 @@ function AdminCommunityPostModal({
 }
 
 export function AdminCommunityPage() {
-  const posts = useAdminCommunityPosts();
+  const { error, isLoading, posts, reload } = useAdminCommunityPosts();
   const [search, setSearch] = useState("");
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const normalizedSearch = normalizeAdminSearch(search);
@@ -170,6 +259,11 @@ export function AdminCommunityPage() {
       ),
     [normalizedSearch, posts]
   );
+
+  async function handleRemovePost(postId: string) {
+    await moderateCommunityPost(postId, "removed");
+    await reload();
+  }
 
   return (
     <AdminShell
@@ -214,7 +308,18 @@ export function AdminCommunityPage() {
         </div>
 
         <div className="mt-5 grid gap-4">
-          {filteredPosts.length > 0 ? (
+          {isLoading ? (
+            <div className="rounded-[1.9rem] bg-white px-6 py-8 text-center shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65">
+              <h3 className="font-title text-lg font-extrabold text-title">Carregando posts</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text">
+                Buscando publicacoes disponiveis para moderacao.
+              </p>
+            </div>
+          ) : error ? (
+            <div className="rounded-[1.9rem] bg-primary/10 px-6 py-6 text-sm font-bold leading-6 text-primary">
+              {error}
+            </div>
+          ) : filteredPosts.length > 0 ? (
             filteredPosts.map((post) => (
               <article
                 className="rounded-[1.85rem] bg-white px-5 py-5 shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65"
@@ -258,7 +363,7 @@ export function AdminCommunityPage() {
                   </button>
                   <button
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-danger px-4 text-sm font-extrabold text-white shadow-[0_10px_22px_rgb(248_113_113_/_0.22)] transition hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
-                    onClick={() => removeCommunityPost(post.id)}
+                    onClick={() => handleRemovePost(post.id)}
                     type="button"
                   >
                     <Trash2 aria-hidden size={17} strokeWidth={2.3} />

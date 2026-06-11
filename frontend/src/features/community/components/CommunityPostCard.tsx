@@ -1,18 +1,13 @@
 "use client";
 
-import { type KeyboardEvent, type MouseEvent, useMemo, useSyncExternalStore } from "react";
+import { type KeyboardEvent, type MouseEvent, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { EyeOff, Heart, MessageCircle, ShieldCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { HomeProfile } from "@/features/home/types";
-import {
-  COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY,
-  COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT,
-  getStoredSupportedPostIds,
-  saveStoredSupportedPostIds,
-} from "@/features/community/data/community-storage";
+import { toggleCommunitySupport } from "@/features/community/services";
 import type { CommunityPost } from "@/features/community/types";
-import { getProfileQuery } from "@/features/profile/utils/profile-routing";
+import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
 type CommunityPostCardProps = {
@@ -23,44 +18,6 @@ type CommunityPostCardProps = {
   variant?: "feed" | "detail";
 };
 
-function subscribeToSupportedPosts(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(COMMUNITY_SUPPORTED_POSTS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getSupportedPostsSnapshot() {
-  if (typeof window === "undefined") {
-    return "[]";
-  }
-
-  return window.localStorage.getItem(COMMUNITY_SUPPORTED_POSTS_STORAGE_KEY) ?? "[]";
-}
-
-function getSupportedPostsServerSnapshot() {
-  return "[]";
-}
-
-function parseSupportedPostIds(snapshot: string) {
-  try {
-    const parsedPostIds = JSON.parse(snapshot);
-
-    return Array.isArray(parsedPostIds)
-      ? parsedPostIds.filter((postId): postId is string => typeof postId === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 export function CommunityPostCard({
   onDelete,
   onReply,
@@ -70,21 +27,13 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
   const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
-  const supportedPostsSnapshot = useSyncExternalStore(
-    subscribeToSupportedPosts,
-    getSupportedPostsSnapshot,
-    getSupportedPostsServerSnapshot
-  );
-  const supportedPostIds = useMemo(
-    () => parseSupportedPostIds(supportedPostsSnapshot),
-    [supportedPostsSnapshot]
-  );
-  const isSupported = supportedPostIds.includes(post.id);
-  const supportCount = post.supportCount + (isSupported ? 1 : 0);
+  const [isSupported, setIsSupported] = useState(false);
+  const [supportCount, setSupportCount] = useState(post.supportCount);
+  const [supportIsUpdating, setSupportIsUpdating] = useState(false);
   const displayName = post.isAnonymous ? "Usuária" : post.authorName;
   const displayRole = post.isAnonymous ? "Publicação protegida" : post.authorRole;
   const isInteractive = variant === "feed";
-  const postUrl = `/comunidade/${post.id}${getProfileQuery(profile)}`;
+  const postUrl = getProfileScopedHref(`/comunidade/${post.id}`, profile);
 
   function openPost(comments = false) {
     if (!isInteractive) {
@@ -103,15 +52,30 @@ export function CommunityPostCard({
     openPost();
   }
 
-  function handleSupportClick(event: MouseEvent<HTMLButtonElement>) {
+  async function handleSupportClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
-    const nextSupportedValue = !isSupported;
-    const storedSupportedPostIds = getStoredSupportedPostIds();
-    const nextSupportedPostIds = nextSupportedValue
-      ? [post.id, ...storedSupportedPostIds.filter((postId) => postId !== post.id)]
-      : storedSupportedPostIds.filter((postId) => postId !== post.id);
 
-    saveStoredSupportedPostIds(nextSupportedPostIds);
+    if (supportIsUpdating) {
+      return;
+    }
+
+    setSupportIsUpdating(true);
+
+    try {
+      const result = await toggleCommunitySupport(post.id);
+
+      if (typeof result.supported === "boolean") {
+        setIsSupported(result.supported);
+      }
+
+      if (typeof result.supportCount === "number") {
+        setSupportCount(result.supportCount);
+      }
+    } catch {
+      // O card preserva o estado atual quando o apoio nao pode ser sincronizado.
+    } finally {
+      setSupportIsUpdating(false);
+    }
   }
 
   function handleReplyClick(event: MouseEvent<HTMLButtonElement>) {
@@ -235,6 +199,7 @@ export function CommunityPostCard({
               "grid size-12 flex-1 place-items-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
               isSupported && "bg-primary text-white hover:bg-primary/90"
             )}
+            disabled={supportIsUpdating}
             onClick={handleSupportClick}
             type="button"
             whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}

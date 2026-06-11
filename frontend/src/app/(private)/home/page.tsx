@@ -1,30 +1,11 @@
 import { HomePage } from "@/features/home/components/HomePage";
-import type { HomeProfile } from "@/features/home/types";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
-type HomeRouteProps = {
-  searchParams?: Promise<{
-    profile?: string;
-  }>;
-};
+export default async function HomeRoute() {
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
 
-function resolveHomeProfile(profile?: string): HomeProfile {
-  if (profile === "health-professional") {
-    return "health-professional";
-  }
-
-  if (profile === "experienced-mother") {
-    return "experienced-mother";
-  }
-
-  if (profile === "future-mother") {
-    return "future-mother";
-  }
-
-  return "recent-mother";
-}
-
-export default async function HomeRoute({ searchParams }: HomeRouteProps) {
-  const params = await searchParams;
-
-  return <HomePage profile={resolveHomeProfile(params?.profile)} />;
+  return <HomePage profile={resolveUserProfile(user)} />;
 }

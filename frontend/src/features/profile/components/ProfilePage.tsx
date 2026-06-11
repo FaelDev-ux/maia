@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, CheckCircle2 } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
 import type { HomeProfile } from "@/features/home/types";
 import { NotificationSettingsCard } from "@/features/notifications/components/NotificationSettingsCard";
+import { getStoredNotificationPreferences } from "@/features/notifications/data/notification-preferences";
 import { profileContentByProfile } from "@/features/profile/data/profile-content";
-import { saveProfileValues } from "@/features/profile/data/profile-storage";
+import {
+  saveAuthenticatedUserProfile,
+  saveProfileValues,
+} from "@/features/profile/data/profile-storage";
 import { ProfileFieldControl } from "@/features/profile/components/ProfileFieldControl";
 import {
   useStoredProfileValues,
@@ -23,12 +27,17 @@ import {
   professionalStateOptions,
   type ProfessionalOption,
 } from "@/features/usertypeselection/health-professional/data/professional-options";
+import type { AuthenticatedUser } from "@/types/user";
 
 type ProfilePageProps = {
+  initialUser?: AuthenticatedUser | null;
   profile: HomeProfile;
 };
 
 type ProfessionalProfileSelectId = "council" | "specialty" | "state";
+
+const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
 
 function getOptionValue(options: ProfessionalOption[], value: string, fallback = "") {
   return options.find((option) => option.value === value || option.label === value)?.value ?? fallback;
@@ -62,11 +71,35 @@ function getProfessionalProfileBadge(status: string) {
   return "Aguardando análise";
 }
 
-export function ProfilePage({ profile }: ProfilePageProps) {
+function parseProfileDate(value: string) {
+  const trimmedValue = value.trim();
+  const brazilianDateMatch = trimmedValue.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (brazilianDateMatch) {
+    const [, day, month, year] = brazilianDateMatch;
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return trimmedValue;
+}
+
+function splitTextList(value: string) {
+  return value
+    .split(/,|\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function ProfilePage({ initialUser = null, profile }: ProfilePageProps) {
   const content = profileContentByProfile[profile];
   const values = useStoredProfileValues(profile);
   const storedUser = useStoredUserProfile(profile);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [avatarError, setAvatarError] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [openProfessionalSelectId, setOpenProfessionalSelectId] =
     useState<ProfessionalProfileSelectId | null>(null);
   const [professionalSelectDrafts, setProfessionalSelectDrafts] = useState<
@@ -88,6 +121,10 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       ? getProfessionalProfileBadge(storedUser.professionalVerificationStatus)
       : content.badge;
 
+  useEffect(() => {
+    saveAuthenticatedUserProfile(initialUser);
+  }, [initialUser]);
+
   function updateValue(fieldId: keyof ProfileFormValues, value: string) {
     saveProfileValues(
       {
@@ -97,6 +134,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       profile
     );
     setIsSaved(false);
+    setSaveError("");
   }
 
   function handleProfessionalSelectOpenChange(
@@ -194,27 +232,150 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     );
   }
 
-  function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
+    setAvatarError("");
+    setIsSaved(false);
 
-    reader.addEventListener("load", () => {
-      if (typeof reader.result !== "string") {
-        return;
-      }
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      setAvatarError("Envie apenas fotos em JPG, PNG ou WebP.");
+      event.target.value = "";
+      return;
+    }
 
-      updateValue("avatarUrl", reader.result);
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setAvatarError("A foto deve ter no maximo 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("image", file);
+
+    setIsUploadingAvatar(true);
+
+    const response = await fetch("/api/users/me/avatar", {
+      body: formData,
+      method: "POST",
     });
-    reader.readAsDataURL(file);
+    const result = (await response.json().catch(() => ({}))) as {
+      avatarUrl?: string;
+      erro?: string;
+      user?: unknown;
+    };
+
+    setIsUploadingAvatar(false);
+    event.target.value = "";
+
+    if (!response.ok || !result.avatarUrl) {
+      setAvatarError(result.erro ?? "Nao foi possivel salvar sua foto agora.");
+      return;
+    }
+
+    updateValue("avatarUrl", result.avatarUrl);
+    saveAuthenticatedUserProfile(result.user);
+    setIsSaved(true);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function buildProfilePayload() {
+    const notificationPreferences = getStoredNotificationPreferences();
+    const payload = {
+      avatarUrl: values.avatarUrl || undefined,
+      birthDate: parseProfileDate(values.birthDate),
+      fullName: values.fullName,
+      notificationSummary: {
+        ...storedUser.notificationSummary,
+        dailyCheckInEnabled: notificationPreferences.dailyCheckInEnabled,
+        pushEnabled: notificationPreferences.dailyCheckInEnabled,
+        timezone: storedUser.notificationSummary.timezone || "America/Fortaleza",
+      },
+      phone: values.phone,
+      privacy: storedUser.privacy,
+    };
+
+    if (profile === "recent-mother") {
+      return {
+        ...payload,
+        recentMother: {
+          ...(storedUser.recentMother ?? {}),
+          babyBirthDate: parseProfileDate(values.babyBirthDate),
+          bio: values.bio.trim(),
+        },
+      };
+    }
+
+    if (profile === "future-mother") {
+      return {
+        ...payload,
+        futureMother: {
+          ...(storedUser.futureMother ?? {}),
+          interests: splitTextList(values.interests),
+          journeyMoment: values.journeyMoment.trim(),
+        },
+      };
+    }
+
+    if (profile === "experienced-mother") {
+      return {
+        ...payload,
+        mentor: {
+          ...(storedUser.mentor ?? {
+            availableForSupport: true,
+            supportTopics: [],
+          }),
+          mentorBio: values.mentorBio.trim(),
+          motherhoodExperience: values.motherhoodExperience.trim(),
+        },
+      };
+    }
+
+    if (profile === "health-professional") {
+      return {
+        ...payload,
+        professional: {
+          ...(storedUser.professional ?? {}),
+          council: values.council.trim(),
+          registrationNumber: values.registrationNumber.trim(),
+          specialty: values.specialty.trim(),
+          state: values.state.trim(),
+        },
+      };
+    }
+
+    return payload;
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSaving(true);
+    setIsSaved(false);
+    setSaveError("");
+
+    const response = await fetch("/api/users/me", {
+      body: JSON.stringify(buildProfilePayload()),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    const result = (await response.json().catch(() => ({}))) as {
+      erro?: string;
+      user?: unknown;
+    };
+
+    setIsSaving(false);
+
+    if (!response.ok) {
+      setSaveError(result.erro ?? "Nao foi possivel salvar seu perfil agora.");
+      return;
+    }
+
+    saveAuthenticatedUserProfile(result.user);
     setIsSaved(true);
   }
 
@@ -282,12 +443,14 @@ export function ProfilePage({ profile }: ProfilePageProps) {
                       Escolher foto
                     </span>
                     <span className="mt-2 block truncate px-2 text-xs font-semibold text-text/70">
-                      {values.avatarUrl.startsWith("data:")
-                        ? "Imagem selecionada"
-                        : "Use uma foto do celular"}
+                      {isUploadingAvatar
+                        ? "Enviando foto..."
+                        : values.avatarUrl
+                          ? "Foto salva com seguranca"
+                          : "Use uma foto JPG, PNG ou WebP"}
                     </span>
                     <input
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       className="sr-only"
                       id="profile-avatarFile"
                       onChange={handleAvatarFileChange}
@@ -295,6 +458,11 @@ export function ProfilePage({ profile }: ProfilePageProps) {
                     />
                   </span>
                 </span>
+                {avatarError ? (
+                  <span className="mt-3 block rounded-2xl bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
+                    {avatarError}
+                  </span>
+                ) : null}
               </label>
 
               <div className="grid gap-6">
@@ -319,16 +487,23 @@ export function ProfilePage({ profile }: ProfilePageProps) {
               </div>
 
               <button
-                className="mt-9 flex h-16 w-full items-center justify-center rounded-full bg-primary px-6 font-title text-lg font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                className="mt-9 flex h-16 w-full items-center justify-center rounded-full bg-primary px-6 font-title text-lg font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isSaving}
                 type="submit"
               >
-                Salvar
+                {isSaving ? "Salvando..." : "Salvar"}
               </button>
 
               {isSaved ? (
                 <p className="mt-5 flex items-center justify-center gap-2 text-sm font-extrabold text-primary">
                   <CheckCircle2 aria-hidden size={17} strokeWidth={2.4} />
-                  Perfil atualizado localmente
+                  Perfil atualizado
+                </p>
+              ) : null}
+
+              {saveError ? (
+                <p className="mt-5 rounded-2xl bg-primary/10 px-4 py-3 text-center text-sm font-bold leading-6 text-primary">
+                  {saveError}
                 </p>
               ) : null}
             </form>
@@ -337,7 +512,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           </div>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

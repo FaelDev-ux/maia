@@ -1,9 +1,10 @@
-import { BellRing } from "lucide-react";
+import { AlertCircle, BellRing, Clock3, Save } from "lucide-react";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   disableDailyCheckInNotifications,
   requestDailyCheckInNotifications,
+  updateDailyCheckInReminderTime,
 } from "@/features/notifications/data/notification-preferences";
 import { useNotificationPreferences } from "@/features/notifications/hooks/useNotificationPreferences";
 import cn from "@/lib/utils";
@@ -26,22 +27,52 @@ function getPermissionStatusLabel(permission: ReturnType<typeof useNotificationP
 
 export function NotificationSettingsCard() {
   const { permission, preferences } = useNotificationPreferences();
+  const [error, setError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reminderTimeDraft, setReminderTimeDraft] = useState<string | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const isEnabled = preferences.dailyCheckInEnabled && permission === "granted";
   const isUnavailable = permission === "unsupported" || permission === "denied";
+  const reminderTime = reminderTimeDraft ?? preferences.dailyCheckInTime ?? "20:00";
 
   async function handleToggle() {
     setIsUpdating(true);
+    setError("");
 
-    if (isEnabled) {
-      disableDailyCheckInNotifications();
+    try {
+      if (isEnabled) {
+        await disableDailyCheckInNotifications();
+        return;
+      }
+
+      await requestDailyCheckInNotifications();
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel atualizar as notificacoes."
+      );
+    } finally {
       setIsUpdating(false);
-      return;
     }
+  }
 
-    await requestDailyCheckInNotifications();
-    setIsUpdating(false);
+  async function handleSaveTime() {
+    setIsUpdating(true);
+    setError("");
+
+    try {
+      await updateDailyCheckInReminderTime(reminderTime);
+      setReminderTimeDraft(null);
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel salvar o horario do lembrete."
+      );
+    } finally {
+      setIsUpdating(false);
+    }
   }
 
   return (
@@ -111,6 +142,43 @@ export function NotificationSettingsCard() {
           {permission === "denied" ? (
             <p className="mt-4 text-sm leading-6 text-text">
               Para ativar novamente, libere as notificações nas configurações do navegador.
+            </p>
+          ) : null}
+
+          <div className="mt-5 grid gap-3 border-t border-border/70 pt-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <label className="min-w-0">
+              <span className="flex items-center gap-2 text-sm font-extrabold text-title">
+                <Clock3 aria-hidden size={17} />
+                Horario do lembrete
+              </span>
+              <input
+                className="mt-2 h-12 w-full rounded-[0.85rem] bg-background px-4 text-sm font-bold text-title outline-none ring-1 ring-border/80 focus:ring-2 focus:ring-primary"
+                disabled={isUpdating}
+                onChange={(event) => setReminderTimeDraft(event.target.value)}
+                type="time"
+                value={reminderTime}
+              />
+            </label>
+            <button
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white disabled:opacity-60"
+              disabled={isUpdating}
+              onClick={() => void handleSaveTime()}
+              type="button"
+            >
+              <Save aria-hidden size={17} />
+              Salvar
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs leading-5 text-text/75">
+            O lembrete usa o fuso horario deste dispositivo e nao e enviado se o check-in do dia ja
+            tiver sido registrado.
+          </p>
+
+          {error ? (
+            <p className="mt-4 flex items-start gap-2 rounded-[1rem] bg-danger/[0.1] px-4 py-3 text-sm font-bold leading-5 text-red-800">
+              <AlertCircle aria-hidden className="mt-0.5 shrink-0" size={17} />
+              {error}
             </p>
           ) : null}
         </div>

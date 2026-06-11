@@ -1,31 +1,36 @@
 import { notFound } from "next/navigation";
 import { ContentArticlePage } from "@/features/contents/components/ContentArticlePage";
-import { contentArticles, getContentArticleById } from "@/features/contents/data/content-articles";
-import { resolveProfile } from "@/features/profile/utils/profile-routing";
+import { normalizeContent } from "@/features/contents/services";
+import { appRouteAccess, requireRouteRoles } from "@/features/auth/route-access";
+import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
+import { backendFetch } from "@/services/api/server";
+import { getServerAuthenticatedUser } from "@/services/api/session";
 
 type ContentArticleRouteProps = {
   params: Promise<{
     contentId: string;
   }>;
-  searchParams?: Promise<{
-    profile?: string;
-  }>;
 };
 
-export function generateStaticParams() {
-  return contentArticles.map((article) => ({
-    contentId: article.id,
-  }));
-}
-
-export default async function ContentArticleRoute({ params, searchParams }: ContentArticleRouteProps) {
+export default async function ContentArticleRoute({ params }: ContentArticleRouteProps) {
   const { contentId } = await params;
-  const resolvedSearchParams = await searchParams;
-  const article = getContentArticleById(contentId);
+  const user = await getServerAuthenticatedUser();
+  requireRouteRoles(user, appRouteAccess.app);
+  const response = await backendFetch(`/api/contents/${contentId}/`, {
+    cache: "no-store",
+  });
 
-  if (!article) {
+  if (!response.ok) {
     notFound();
   }
 
-  return <ContentArticlePage article={article} profile={resolveProfile(resolvedSearchParams?.profile)} />;
+  const data = (await response.json().catch(() => ({}))) as { content?: unknown };
+
+  if (!data.content || typeof data.content !== "object") {
+    notFound();
+  }
+
+  const article = normalizeContent(data.content);
+
+  return <ContentArticlePage article={article} profile={resolveUserProfile(user)} />;
 }

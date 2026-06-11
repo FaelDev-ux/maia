@@ -114,7 +114,7 @@ export function ContentArticlePage({ article, profile }: ContentArticlePageProps
           />
         </article>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

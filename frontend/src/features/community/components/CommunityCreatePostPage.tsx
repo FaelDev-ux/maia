@@ -17,20 +17,11 @@ import {
 } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MaiaBrand } from "@/components/layout/MaiaBrand";
-import {
-  getCommunityAuthorRole,
-  getCommunityComposerCopy,
-} from "@/features/community/data/community-composer";
-import {
-  getStoredCreatedCommunityPosts,
-  saveStoredCreatedCommunityPosts,
-} from "@/features/community/data/community-storage";
-import type { CommunityPost, CommunityPostCategory } from "@/features/community/types";
+import { getCommunityComposerCopy } from "@/features/community/data/community-composer";
+import { createCommunityPost } from "@/features/community/services";
+import type { CommunityPostCategory } from "@/features/community/types";
 import type { HomeProfile } from "@/features/home/types";
-import {
-  useStoredProfileValues,
-  useStoredUserProfile,
-} from "@/features/profile/hooks/useStoredProfileValues";
+import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
 import { getProfileScopedHref } from "@/features/profile/utils/profile-routing";
 import cn from "@/lib/utils";
 
@@ -75,14 +66,6 @@ const categoryOptions: CategoryOption[] = [
     icon: Stethoscope,
   },
 ];
-
-const categoryLabels = categoryOptions.reduce(
-  (labels, option) => ({
-    ...labels,
-    [option.value]: option.label,
-  }),
-  {} as Record<CommunityPostCategory, string>
-);
 
 function parseTags(value: string) {
   return value
@@ -134,9 +117,7 @@ function focusInvalidField(field: HTMLInputElement | HTMLTextAreaElement | null)
 export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProps) {
   const router = useRouter();
   const storedProfile = useStoredProfileValues(profile);
-  const storedUser = useStoredUserProfile(profile);
   const composerCopy = getCommunityComposerCopy(profile);
-  const authorRole = getCommunityAuthorRole(profile, storedUser.professionalVerificationStatus);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState("");
@@ -144,7 +125,9 @@ export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProp
   const [category, setCategory] = useState<CommunityPostCategory>(composerCopy.defaultCategory);
   const [tags, setTags] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const titleError = getTitleError(title);
   const messageError = getMessageError(message);
   const shouldShowTitleError = hasSubmitted && Boolean(titleError);
@@ -155,16 +138,11 @@ export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProp
   const firstName = storedProfile.fullName.split(" ")[0] ?? "Maia";
   const avatarInitial = firstName.charAt(0).toUpperCase();
   const avatarUrl = storedProfile.avatarUrl;
-  const authorInitials = storedProfile.fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((name) => name.charAt(0).toUpperCase())
-    .join("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setHasSubmitted(true);
+    setSubmitError("");
 
     if (titleError) {
       focusInvalidField(titleInputRef.current);
@@ -176,28 +154,25 @@ export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProp
       return;
     }
 
-    const nextPost: CommunityPost = {
-      id: `mock-post-${Date.now()}`,
-      authorName: storedProfile.fullName || "Usuária Maia",
-      authorRole: isAnonymous ? "Publicação protegida" : authorRole,
-      avatarInitials: isAnonymous ? "IP" : authorInitials || avatarInitial,
-      timeAgo: "agora",
-      category,
-      categoryLabel: categoryLabels[category],
-      title: title.trim(),
-      message: message.trim(),
-      tags: parseTags(tags),
-      supportCount: 0,
-      repliesCount: 0,
-      isAnonymous,
-    };
-    const storedPosts = getStoredCreatedCommunityPosts();
+    setIsSubmitting(true);
 
-    saveStoredCreatedCommunityPosts([
-      nextPost,
-      ...storedPosts.filter((post) => post.id !== nextPost.id),
-    ]);
-    router.push(getProfileScopedHref("/comunidade", profile));
+    try {
+      await createCommunityPost({
+        category,
+        isAnonymous,
+        message: message.trim(),
+        tags: parseTags(tags),
+        title: title.trim(),
+      });
+      router.push(getProfileScopedHref("/comunidade", profile));
+      return;
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Nao foi possivel publicar agora.");
+    } finally {
+      setIsSubmitting(false);
+    }
+
+    return;
   }
 
   return (
@@ -411,18 +386,24 @@ export function CommunityCreatePostPage({ profile }: CommunityCreatePostPageProp
                 Cancelar
               </Link>
               <button
-                className="inline-flex min-h-[3.5rem] items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex min-h-[3.5rem] items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-neutral disabled:text-text/60 disabled:shadow-none"
+                disabled={isSubmitting}
                 type="submit"
               >
                 <Send aria-hidden size={17} strokeWidth={2.3} />
-                {composerCopy.submitLabel}
+                {isSubmitting ? "Publicando..." : composerCopy.submitLabel}
               </button>
             </div>
+            {submitError ? (
+              <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-center text-sm font-bold leading-6 text-primary">
+                {submitError}
+              </p>
+            ) : null}
           </form>
         </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ClipboardList, History, Home, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,13 +17,9 @@ import {
   sleepQualityOptions,
   supportOptions,
 } from "@/features/check-in/data/check-in-options";
-import {
-  DAILY_CHECK_INS_STORAGE_KEY,
-  DAILY_CHECK_INS_UPDATED_EVENT,
-  getDailyCheckInDateKey,
-  getTodayDateKey,
-  saveDailyCheckIn,
-} from "@/features/check-in/data/check-in-storage";
+import { getDailyCheckInDateKey, getTodayDateKey } from "@/features/check-in/date";
+import { createDailyCheckIn } from "@/features/check-in/services";
+import { useStoredDailyCheckIns } from "@/features/check-in/hooks/useStoredDailyCheckIns";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 import type { HomeProfile } from "@/features/home/types";
 import { useStoredProfileValues } from "@/features/profile/hooks/useStoredProfileValues";
@@ -40,72 +36,8 @@ function getDefaultEmotionId(initialEmotionId?: string) {
   return isCheckInEmotionId(initialEmotionId) ? initialEmotionId : "";
 }
 
-function createDailyCheckInRecord(data: CheckInFormData): DailyCheckInRecord {
-  const createdAt = new Date().toISOString();
-
-  return {
-    id: `daily-check-in-${createdAt}`,
-    createdAt,
-    emotionId: data.emotionId,
-    intensity: data.intensity,
-    secondaryEmotionIds: data.secondaryEmotionIds,
-    sleepQuality: data.sleepQuality,
-    receivedSupport: data.receivedSupport,
-    note: data.note?.trim() || undefined,
-  };
-}
-
 const selectedPillClasses =
   "bg-primary text-white ring-primary hover:bg-white hover:text-primary hover:ring-primary";
-
-function subscribeToStoredCheckIns(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getStoredCheckInsSnapshot() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(DAILY_CHECK_INS_STORAGE_KEY) ?? "";
-}
-
-function getStoredCheckInsServerSnapshot() {
-  return "";
-}
-
-function getDailyCheckInByDateFromSnapshot(snapshot: string, dateKey: string) {
-  if (!snapshot) {
-    return null;
-  }
-
-  try {
-    const records = JSON.parse(snapshot) as unknown;
-
-    if (!Array.isArray(records)) {
-      return null;
-    }
-
-    const dailyCheckInRecords = records as DailyCheckInRecord[];
-
-    return (
-      dailyCheckInRecords.find((record) => getDailyCheckInDateKey(record.createdAt) === dateKey) ??
-      null
-    );
-  } catch {
-    return null;
-  }
-}
 
 export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPageProps) {
   const router = useRouter();
@@ -113,14 +45,12 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
   const [todayDateKey] = useState(getTodayDateKey);
   const [savedRecord, setSavedRecord] = useState<DailyCheckInRecord | null>(null);
   const [modalCountdown, setModalCountdown] = useState(10);
-  const storedCheckInsSnapshot = useSyncExternalStore(
-    subscribeToStoredCheckIns,
-    getStoredCheckInsSnapshot,
-    getStoredCheckInsServerSnapshot
-  );
+  const [saveError, setSaveError] = useState("");
+  const { records: dailyCheckIns, reload: reloadDailyCheckIns } = useStoredDailyCheckIns();
   const existingTodayRecord = savedRecord
     ? null
-    : getDailyCheckInByDateFromSnapshot(storedCheckInsSnapshot, todayDateKey);
+    : dailyCheckIns.find((record) => getDailyCheckInDateKey(record.createdAt) === todayDateKey) ??
+      null;
   const statusModalType = existingTodayRecord ? "existing" : savedRecord ? "saved" : null;
   const statusModalIsExisting = statusModalType === "existing";
   const statusModalRedirectHref = getProfileScopedHref(
@@ -185,16 +115,28 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
     setValue("secondaryEmotionIds", nextOptions, { shouldDirty: true, shouldValidate: true });
   }
 
-  function handleSave(data: CheckInFormData) {
-    const record = createDailyCheckInRecord(data);
+  async function handleSave(data: CheckInFormData) {
+    setSaveError("");
 
-    saveDailyCheckIn(record);
-    setModalCountdown(10);
-    setSavedRecord(record);
-    reset({
-      ...data,
-      note: "",
-    });
+    try {
+      const record = await createDailyCheckIn(data);
+
+      if (!record) {
+        throw new Error("Nao foi possivel confirmar o check-in salvo.");
+      }
+
+      await reloadDailyCheckIns();
+      setModalCountdown(10);
+      setSavedRecord(record);
+      reset({
+        ...data,
+        note: "",
+      });
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Nao foi possivel salvar seu check-in agora."
+      );
+    }
   }
 
   return (
@@ -235,8 +177,8 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
                 Como você está agora?
               </h1>
               <p className="mt-5 max-w-[21rem] text-[1.02rem] leading-8 text-text md:max-w-[23rem] md:text-lg">
-                Registre este momento em poucos toques. Esses dados ficarão no histórico local e
-                poderão apoiar recomendações no futuro.
+                Registre este momento em poucos toques. Esses dados ficarao no seu historico e
+                poderao apoiar recomendacoes no futuro.
               </p>
             </section>
 
@@ -470,6 +412,11 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
                 <Save aria-hidden size={17} strokeWidth={2.4} />
                 Salvar check-in
               </button>
+              {saveError ? (
+                <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-center text-sm font-bold leading-6 text-primary">
+                  {saveError}
+                </p>
+              ) : null}
             </div>
           </form>
         </div>
@@ -498,7 +445,7 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
             <p className="mt-3 text-sm leading-6 text-text">
               {statusModalIsExisting
                 ? "Você já registrou seu check-in hoje. Para revisar ou editar esse registro, vá para o histórico."
-                : "Seu registro ficou salvo no histórico local. Você pode voltar para a Home agora ou revisar seus registros."}
+                : "Seu registro ficou salvo no historico. Voce pode voltar para a Home agora ou revisar seus registros."}
             </p>
 
             <div className="mt-6 grid gap-3">
@@ -538,7 +485,7 @@ export function DailyCheckInPage({ initialEmotionId, profile }: DailyCheckInPage
         </div>
       ) : null}
 
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

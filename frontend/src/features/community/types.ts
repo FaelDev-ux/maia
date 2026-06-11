@@ -37,6 +37,7 @@ export type CommunityComment = {
   timeAgo: string;
   helpfulCount: number;
   notHelpfulCount: number;
+  status?: "active" | "hidden" | "removed";
   isAnonymous?: boolean;
   userVote?: "helpful" | "not-helpful";
 };

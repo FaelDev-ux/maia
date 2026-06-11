@@ -18,8 +18,8 @@ import { ProfessionalStatusBadge } from "@/features/admin/components/Professiona
 import {
   professionalVerificationStatusLabels,
   professionalVerificationStatusDescriptions,
-  updateProfessionalVerificationStatus,
 } from "@/features/admin/data/professional-verifications";
+import { updateProfessionalVerificationStatusApi } from "@/features/admin/services";
 import { useProfessionalVerifications } from "@/features/admin/hooks/useProfessionalVerifications";
 import type {
   ProfessionalVerification,
@@ -93,7 +93,7 @@ function getFeedbackClassName(tone: FeedbackState["tone"]) {
 function NotFoundState() {
   return (
     <AdminShell
-      description="A solicitação pode ter sido removida do armazenamento local ou ainda não foi criada."
+      description="A solicitacao pode ter sido removida ou ainda nao esta disponivel."
       eyebrow="Verificação profissional"
       title="Solicitação não encontrada"
     >
@@ -122,11 +122,39 @@ function NotFoundState() {
 export function AdminProfessionalVerificationDetailPage({
   verificationId,
 }: AdminProfessionalVerificationDetailPageProps) {
-  const verifications = useProfessionalVerifications();
+  const { error, isLoading, reload, verifications } = useProfessionalVerifications();
   const verification = useMemo<ProfessionalVerification | undefined>(
     () => verifications.find((currentVerification) => currentVerification.id === verificationId),
     [verificationId, verifications]
   );
+
+  if (isLoading) {
+    return (
+      <AdminShell
+        description="Buscando os dados enviados pela profissional."
+        eyebrow="Analise profissional"
+        title="Carregando solicitacao"
+      >
+        <div className="rounded-[1.5rem] bg-white px-5 py-7 text-sm font-bold text-text ring-1 ring-border/65">
+          Aguarde enquanto carregamos os dados da verificacao.
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminShell
+        description="Nao foi possivel consultar a solicitacao agora."
+        eyebrow="Analise profissional"
+        title="Falha ao carregar"
+      >
+        <div className="rounded-[1.5rem] bg-danger/[0.1] px-5 py-5 text-sm font-bold leading-6 text-red-800 ring-1 ring-danger/20">
+          {error}
+        </div>
+      </AdminShell>
+    );
+  }
 
   if (!verification) {
     return <NotFoundState />;
@@ -188,6 +216,7 @@ export function AdminProfessionalVerificationDetailPage({
 
         <ProfessionalVerificationDecisionPanel
           key={verification.id}
+          onUpdated={reload}
           verification={verification}
           verificationId={verificationId}
         />
@@ -199,17 +228,20 @@ export function AdminProfessionalVerificationDetailPage({
 function ProfessionalVerificationDecisionPanel({
   verification,
   verificationId,
+  onUpdated,
 }: {
+  onUpdated: () => Promise<void>;
   verification: ProfessionalVerification;
   verificationId: string;
 }) {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<ProfessionalVerificationReviewStatus>(
     verification.status
   );
   const [rejectionReason, setRejectionReason] = useState(verification.rejectionReason ?? "");
 
-  function updateVerification() {
+  async function updateVerification() {
     if (selectedStatus === "rejected" && rejectionReason.trim().length < 8) {
       setFeedback({
         tone: "danger",
@@ -218,24 +250,43 @@ function ProfessionalVerificationDecisionPanel({
       return;
     }
 
-    const updatedVerification = updateProfessionalVerificationStatus({
-      rejectionReason: selectedStatus === "rejected" ? rejectionReason : undefined,
-      status: selectedStatus,
-      verificationId,
-    });
+    let updatedVerification: ProfessionalVerification | null = null;
+    setIsUpdating(true);
+
+    try {
+      updatedVerification = await updateProfessionalVerificationStatusApi(
+        verificationId,
+        selectedStatus,
+        selectedStatus === "rejected" ? rejectionReason.trim() : undefined
+      );
+    } catch (error) {
+      setFeedback({
+        tone: "danger",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Nao foi possivel atualizar essa solicitacao agora.",
+      });
+      setIsUpdating(false);
+      return;
+    }
 
     if (!updatedVerification) {
       setFeedback({
         tone: "danger",
-        message: "Não foi possível atualizar essa solicitação localmente.",
+        message: "Nao foi possivel atualizar essa solicitacao agora.",
       });
+      setIsUpdating(false);
       return;
     }
+
+    await onUpdated();
+    setIsUpdating(false);
 
     if (selectedStatus === "verified") {
       setFeedback({
         tone: "success",
-        message: "Profissional verificada. O status do usuário local foi atualizado quando aplicável.",
+        message: "Profissional verificada. O status foi atualizado no backend.",
       });
       return;
     }
@@ -243,7 +294,7 @@ function ProfessionalVerificationDecisionPanel({
     if (selectedStatus === "rejected") {
       setFeedback({
         tone: "danger",
-        message: "Solicitação rejeitada e registrada no histórico local.",
+        message: "Solicitacao rejeitada no backend.",
       });
       return;
     }
@@ -327,6 +378,7 @@ function ProfessionalVerificationDecisionPanel({
           <button
             className="mt-6 inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-neutral disabled:text-text/60 disabled:shadow-none"
             disabled={
+              isUpdating ||
               selectedStatus === verification.status &&
               (selectedStatus !== "rejected" ||
                 rejectionReason.trim() === (verification.rejectionReason ?? ""))
@@ -334,8 +386,13 @@ function ProfessionalVerificationDecisionPanel({
             onClick={updateVerification}
             type="button"
           >
-            <RefreshCw aria-hidden size={19} strokeWidth={2.4} />
-            Atualizar
+            <RefreshCw
+              aria-hidden
+              className={isUpdating ? "animate-spin" : undefined}
+              size={19}
+              strokeWidth={2.4}
+            />
+            {isUpdating ? "Atualizando..." : "Atualizar"}
           </button>
     </aside>
   );

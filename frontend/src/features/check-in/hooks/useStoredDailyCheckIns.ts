@@ -1,54 +1,34 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import {
-  DAILY_CHECK_INS_STORAGE_KEY,
-  DAILY_CHECK_INS_UPDATED_EVENT,
-} from "@/features/check-in/data/check-in-storage";
+import { useCallback, useEffect, useState } from "react";
+import { fetchDailyCheckIns } from "@/features/check-in/services";
 import type { DailyCheckInRecord } from "@/features/check-in/types";
 
-function subscribeToDailyCheckIns(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(DAILY_CHECK_INS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function getDailyCheckInsSnapshot() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(DAILY_CHECK_INS_STORAGE_KEY) ?? "";
-}
-
-function getDailyCheckInsServerSnapshot() {
-  return "";
-}
-
 export function useStoredDailyCheckIns() {
-  const snapshot = useSyncExternalStore(
-    subscribeToDailyCheckIns,
-    getDailyCheckInsSnapshot,
-    getDailyCheckInsServerSnapshot
-  );
+  const [records, setRecords] = useState<DailyCheckInRecord[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!snapshot) {
-    return [];
-  }
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
 
-  try {
-    const records = JSON.parse(snapshot) as unknown;
+    try {
+      setRecords(await fetchDailyCheckIns());
+    } catch (currentError) {
+      setError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Nao foi possivel carregar seus check-ins."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    return Array.isArray(records) ? (records as DailyCheckInRecord[]) : [];
-  } catch {
-    return [];
-  }
+  useEffect(() => {
+    void Promise.resolve().then(reload);
+  }, [reload]);
+
+  return { error, isLoading, records, reload };
 }

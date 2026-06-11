@@ -118,11 +118,98 @@ Este arquivo funciona como memória operacional e guia de contexto do projeto Ma
 
 ## 10. Backend planejado
 
-- O Documento de Visão define backend em Python com Django REST.
-- O frontend deve ser desenvolvido de forma desacoplada, consumindo API REST.
+- Decisão atual confirmada: usar Django REST + Firebase.
+- Django REST será a camada HTTP/API principal do backend.
+- Firebase Authentication gerencia credenciais, login e tokens de usuário.
+- Cloud Firestore será usado como banco principal para perfis, check-ins, comunidade, conteúdos e dados operacionais.
+- Arquitetura BFF: o navegador consome apenas rotas internas Next.js (`/api/...`), e o servidor Next chama o Django REST.
+- O backend Django deve permanecer oculto do client; Server Components podem buscar dados diretamente no Django pelo servidor.
+- Autenticação usa cookies httpOnly gerenciados pelo Next; não usar localStorage/sessionStorage, Auth.js ou Firebase Auth no frontend para autenticação.
 - Evitar acoplar regras de negócio críticas apenas no frontend.
-- Endpoints reais ainda precisam ser validados com o time de backend.
-- Enquanto a API não existir, usar mocks tipados e isolados por feature.
+- Enquanto endpoints reais não estiverem completos, usar mocks tipados e isolados por feature.
+
+### Backend em Cloud Run
+
+- O backend Django REST está publicado no Google Cloud Run.
+- Projeto Google Cloud: `maia-86c23`.
+- Região: `southamerica-east1` (São Paulo).
+- Serviço: `maia-backend`.
+- URL canônica do serviço: `https://maia-backend-33fbqbgqka-rj.a.run.app`.
+- URL alternativa impressa pelo deploy e também funcional: `https://maia-backend-325650050541.southamerica-east1.run.app`.
+- O frontend hospedado na Vercel deve usar `MAIA_BACKEND_URL=https://maia-backend-33fbqbgqka-rj.a.run.app`.
+- Não usar `NEXT_PUBLIC_` para `MAIA_BACKEND_URL`; essa variável deve ficar disponível apenas no servidor Next/BFF.
+- Secrets do backend ficam no Google Secret Manager:
+  - `maia-firebase-service-account`
+  - `maia-django-secret-key`
+  - `maia-firebase-web-api-key`
+- Arquivos locais sensíveis continuam ignorados pelo Git: `backend/.env` e `backend/firebase.json`.
+- O script de deploy do backend é `backend/scripts/deploy-cloud-run.ps1`.
+
+Para subir uma nova versão do backend no Cloud Run:
+
+```powershell
+cd C:\Users\tiora\OneDrive\Documentos\GitHub\maia\backend
+.\scripts\deploy-cloud-run.ps1
+```
+
+Pré-requisitos do deploy:
+
+```powershell
+gcloud auth login
+gcloud config set project maia-86c23
+```
+
+O script:
+
+- habilita APIs necessárias do Google Cloud;
+- cria ou atualiza versões dos secrets no Secret Manager;
+- concede `roles/secretmanager.secretAccessor` para a service account da revisão do Cloud Run;
+- faz build a partir do `backend/Dockerfile`;
+- publica o serviço `maia-backend` na região `southamerica-east1`.
+
+Validação já realizada em produção:
+
+- Vercel frontend -> Next BFF -> Cloud Run Django -> Firebase.
+- Cadastro real pelo frontend: OK.
+- Login real pelo frontend: OK.
+- Logout com limpeza de cookies: OK.
+- `/api/auth/me` com cookie httpOnly: OK.
+- Rota protegida sem sessão redireciona para login: OK.
+- Rota pública com sessão redireciona para `/home`: OK.
+
+Endpoints de dominio implementados no Django REST e publicados no Cloud Run:
+
+- Check-ins: `POST/GET /api/check-ins/`, `GET/PATCH/PUT/DELETE /api/check-ins/<id>/`, `GET /api/check-ins/summary/`.
+- Conteudos: `GET /api/contents/`, `GET /api/contents/<id>/`, `POST/PATCH/DELETE` restritos a PRO/ADM quando aplicavel.
+- Recomendacoes: `GET /api/recommendations/`, com regras simples baseadas em tags/sinais dos check-ins.
+- Comunidade: `GET/POST /api/community/posts/`, detalhes, comentarios, apoio e feedback de comentario.
+- Notificacoes: `GET/PUT /api/notifications/preferences/` e `POST /api/notifications/subscriptions/`.
+- Admin: `GET /api/admin/metrics/`, profissionais pendentes e moderacao de posts, protegidos por permissao ADM.
+- Privacidade: `GET /api/privacy/export/` e `POST /api/privacy/delete-request/`.
+- Avatar de perfil: `POST /api/usuario/<uid>/avatar/`, usando Firebase Storage e aceitando apenas `image/jpeg`, `image/png` e `image/webp` ate 5 MB.
+
+Next BFF:
+
+- Existe proxy catch-all em `frontend/src/app/api/[...backendPath]/route.ts` para rotas de dominio.
+- Upload de avatar pelo navegador passa por `frontend/src/app/api/users/me/avatar/route.ts` e nunca chama o Django diretamente.
+- O perfil envia foto real para o backend; nao deve mais usar base64/localStorage para avatar autenticado.
+
+Validacao de dominio ja realizada:
+
+- Django `manage.py check`: OK.
+- Frontend `npm run lint`: OK.
+- Frontend `npm run build`: OK.
+- Teste integrado Cloud Run -> Firebase: check-ins, summary, contents, recommendations, community, notifications, privacy, admin 403 para usuario comum e avatar JPG/PNG/WebP-only: OK.
+- Teste local do Next BFF em `localhost:3002` apontando para Cloud Run: cookies httpOnly, `/api/check-ins/` e `/api/users/me/avatar`: OK.
+- 2026-06-09: Fluxos pendentes fechados para MVP tecnico:
+  - Recuperacao de senha: `POST /api/password/forgot/` no Django e `/api/auth/forgot-password` no Next BFF.
+  - Nova senha por `oobCode`: `POST /api/password/reset/`, `/api/auth/reset-password` e tela `/auth/new-password`.
+  - Troca de senha conhecida: `POST /api/password/change/` e card autenticado em `/mais`.
+  - Admin: metricas agregadas reais, historico `GET /api/admin/actions/` e registro de acoes de validacao/moderacao.
+  - Conteudos PRO/ADM: profissional envia conteudo para revisao; admin pode publicar/arquivar.
+  - Push: service worker recebe push, frontend registra subscription quando `NEXT_PUBLIC_VAPID_PUBLIC_KEY` existe, backend dispara via `POST /api/notifications/dispatch-daily-check-ins/` protegido por `X-Maia-Dispatch-Secret`.
+  - Testes automatizados iniciais criados em `backend/users/tests.py`.
+  - Mojibake visivel no app removido de `frontend/src`/`backend`.
 
 ## 11. Estrutura atual conhecida
 
@@ -330,7 +417,7 @@ Executar dentro de `frontend` quando aplicável:
 - Usar `src/schemas/auth.schema.ts` para centralizar validações de autenticação.
 - Reaproveitar componentes de input entre login, cadastro e recuperação quando fizer sentido.
 - Priorizar construção das telas internas do produto após autenticação visual.
-- Usar mocks tipados até existir contrato real da API Django REST.
+- Usar mocks tipados até existir contrato real da API Django REST + Firebase.
 - Buscar imagens de perfil mockadas a partir de `frontend/src/data/authenticated-user.ts`; telas internas não devem hardcodar avatar de usuária em mocks de feature.
 - Considerar `context.md` como memória do projeto e futuro `AGENTS.md` como instrução específica para Codex/agentes.
 
@@ -343,10 +430,12 @@ Executar dentro de `frontend` quando aplicável:
 5. Implementar Home autenticada com base no Figma.
 6. Criar componentes base reutilizáveis: Button, Input, Card, Badge, BottomNavigation.
 7. Criar mocks tipados de check-in, conteúdos, posts e perfil.
-8. Integrar com API real quando o backend Django REST estiver disponível.
+8. Integrar com API real quando o backend Django REST + Firebase estiver disponível.
 
 ## 30. Registro de mudanças
 
 - 2026-05-27: Criado contexto operacional inicial com estado do frontend, padrões, riscos e comandos.
 - 2026-05-28: Incorporado Documento de Visão do Maia, perfis de usuário, requisitos funcionais/não funcionais, stack planejada com Django REST e referência ao Figma/export das telas principais.
 - 2026-06-02: Centralizada a imagem de perfil mockada em `frontend/src/data/authenticated-user.ts`; dashboards e telas internas devem ler avatar de usuária desse mock global.
+- 2026-06-08: Confirmada direção de backend Django REST + Firebase; Django REST será a API principal, com Firebase Authentication e Firestore como serviços de autenticação e dados.
+- 2026-06-08: Backend Django publicado no Google Cloud Run como `maia-backend` em `southamerica-east1`; frontend Vercel validado consumindo o backend via Next BFF com cookies httpOnly.

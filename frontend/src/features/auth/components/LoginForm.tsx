@@ -3,7 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, Mail } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { saveAuthenticatedUserProfile } from "@/features/profile/data/profile-storage";
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema";
 import { AuthInput } from "./AuthInput";
 
@@ -12,6 +15,8 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ onRegisterClick }: LoginFormProps) {
+  const router = useRouter();
+  const [submitError, setSubmitError] = useState("");
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -24,8 +29,26 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
     },
   });
 
-  async function onSubmit(_data: LoginFormData) {
-    await Promise.resolve();
+  async function onSubmit(data: LoginFormData) {
+    setSubmitError("");
+
+    const response = await fetch("/api/auth/login", {
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const result = (await response.json().catch(() => ({}))) as { erro?: string; user?: unknown };
+
+    if (!response.ok) {
+      setSubmitError(result.erro ?? "Nao foi possivel entrar. Confira seus dados.");
+      return;
+    }
+
+    saveAuthenticatedUserProfile(result.user);
+    router.replace("/home");
+    router.refresh();
   }
 
   return (
@@ -71,6 +94,12 @@ export function LoginForm({ onRegisterClick }: LoginFormProps) {
       >
         {isSubmitting ? "Entrando..." : "Entrar"}
       </button>
+
+      {submitError ? (
+        <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-center text-xs font-semibold leading-5 text-primary">
+          {submitError}
+        </p>
+      ) : null}
 
       <p className="mt-7 text-center text-xs text-text">
         Ainda não tem uma conta?{" "}

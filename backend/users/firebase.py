@@ -1,0 +1,206 @@
+from firebase_admin import auth, credentials, firestore, get_app, initialize_app, storage
+from google.auth.exceptions import DefaultCredentialsError
+from django.conf import settings
+import json
+import requests
+
+
+class FirebaseNotConfiguredError(RuntimeError):
+    pass
+
+
+class FirebaseAuthRequestError(RuntimeError):
+    pass
+
+
+def initialize_firebase_app():
+    try:
+        return get_app()
+    except ValueError:
+        pass
+
+    credentials_json = settings.FIREBASE_CREDENTIALS_JSON
+    credentials_file = settings.FIREBASE_CREDENTIALS_FILE
+    firebase_options = {}
+
+    if settings.FIREBASE_STORAGE_BUCKET:
+        firebase_options["storageBucket"] = settings.FIREBASE_STORAGE_BUCKET
+
+    if credentials_json:
+        try:
+            credential = credentials.Certificate(json.loads(credentials_json))
+            return initialize_app(credential, firebase_options)
+        except (json.JSONDecodeError, ValueError, DefaultCredentialsError) as exc:
+            raise FirebaseNotConfiguredError(
+                "FIREBASE_CREDENTIALS_JSON invalido ou indisponivel."
+            ) from exc
+
+    if not credentials_file:
+        try:
+            return initialize_app(credentials.ApplicationDefault(), firebase_options)
+        except (ValueError, DefaultCredentialsError) as exc:
+            raise FirebaseNotConfiguredError(
+                "Credencial Firebase indisponivel. Configure FIREBASE_CREDENTIALS_JSON ou FIREBASE_CREDENTIALS_FILE."
+            ) from exc
+
+    try:
+        credential = credentials.Certificate(credentials_file)
+        return initialize_app(credential, firebase_options)
+    except (FileNotFoundError, ValueError, DefaultCredentialsError) as exc:
+        raise FirebaseNotConfiguredError(
+            "Credencial Firebase indisponivel. Configure FIREBASE_CREDENTIALS_FILE."
+        ) from exc
+
+
+def get_firebase_auth():
+    initialize_firebase_app()
+    return auth
+
+
+def get_firestore_client():
+    initialize_firebase_app()
+    return firestore.client()
+
+
+def get_storage_bucket():
+    initialize_firebase_app()
+    return storage.bucket()
+
+
+def server_timestamp():
+    return firestore.SERVER_TIMESTAMP
+
+
+def sign_in_with_password(email, password):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    response = requests.post(
+        "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        json={
+            "email": email,
+            "password": password,
+            "returnSecureToken": True,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message in {"OPERATION_NOT_ALLOWED", "PASSWORD_LOGIN_DISABLED"}:
+        raise FirebaseAuthRequestError("Login por e-mail e senha nao esta habilitado no Firebase.")
+
+    if error_message == "INVALID_LOGIN_CREDENTIALS":
+        raise FirebaseAuthRequestError("E-mail ou senha invalidos.")
+
+    if error_message == "INVALID_PASSWORD":
+        raise FirebaseAuthRequestError("E-mail ou senha invalidos.")
+
+    if error_message == "EMAIL_NOT_FOUND":
+        raise FirebaseAuthRequestError("E-mail ou senha invalidos.")
+
+    raise FirebaseAuthRequestError("Nao foi possivel autenticar com o Firebase.")
+
+
+def send_password_reset_email(email):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    response = requests.post(
+        "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        json={
+            "requestType": "PASSWORD_RESET",
+            "email": email,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message == "EMAIL_NOT_FOUND":
+        return {"email": email}
+
+    raise FirebaseAuthRequestError("Nao foi possivel enviar o e-mail de recuperacao.")
+
+
+def reset_password_with_oob_code(oob_code, new_password):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    if not oob_code:
+        raise FirebaseAuthRequestError("Codigo de recuperacao invalido.")
+
+    response = requests.post(
+        "https://identitytoolkit.googleapis.com/v1/accounts:resetPassword",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        json={
+            "oobCode": oob_code,
+            "newPassword": new_password,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message in {"EXPIRED_OOB_CODE", "INVALID_OOB_CODE"}:
+        raise FirebaseAuthRequestError("Link de recuperacao expirado ou invalido.")
+
+    if error_message == "WEAK_PASSWORD":
+        raise FirebaseAuthRequestError("A nova senha precisa ter pelo menos 8 caracteres.")
+
+    raise FirebaseAuthRequestError("Nao foi possivel redefinir a senha.")
+
+
+def refresh_id_token(refresh_token):
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise FirebaseNotConfiguredError("FIREBASE_WEB_API_KEY nao foi configurada.")
+
+    if not refresh_token:
+        raise FirebaseAuthRequestError("Refresh token nao informado.")
+
+    response = requests.post(
+        "https://securetoken.googleapis.com/v1/token",
+        params={"key": settings.FIREBASE_WEB_API_KEY},
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        },
+        timeout=10,
+    )
+
+    if response.ok:
+        return response.json()
+
+    try:
+        error_payload = response.json()
+        error_message = error_payload.get("error", {}).get("message")
+    except ValueError:
+        error_message = None
+
+    if error_message in {"INVALID_REFRESH_TOKEN", "TOKEN_EXPIRED", "USER_DISABLED"}:
+        raise FirebaseAuthRequestError("Sessao expirada. Entre novamente.")
+
+    raise FirebaseAuthRequestError("Nao foi possivel renovar a sessao.")

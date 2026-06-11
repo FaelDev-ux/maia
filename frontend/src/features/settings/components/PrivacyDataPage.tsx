@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Database, Download, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import type { HomeProfile } from "@/features/home/types";
 import { SettingsHeader } from "@/features/settings/components/SettingsHeader";
+import { fetchPrivacyExport, requestPrivacyDelete } from "@/features/settings/services";
 
 type PrivacyDataPageProps = {
   profile: HomeProfile;
@@ -12,9 +14,9 @@ type PrivacyDataPageProps = {
 const motherPrivacyItems = [
   {
     icon: Database,
-    title: "Dados armazenados localmente",
+    title: "Dados sincronizados com segurança",
     description:
-      "Cadastro, preferências, perfil, check-ins e publicações mockadas ficam salvos neste navegador durante o protótipo.",
+      "Cadastro, preferências, perfil, check-ins e publicações são sincronizados pelo backend do Maia.",
   },
   {
     icon: EyeOff,
@@ -24,15 +26,15 @@ const motherPrivacyItems = [
   },
   {
     icon: Download,
-    title: "Exportação futura",
+    title: "Exportação de dados",
     description:
-      "A exportação do histórico emocional é uma funcionalidade prevista para evolução do produto.",
+      "A exportação dos dados da conta é atendida pelo endpoint de privacidade do Maia.",
   },
   {
     icon: Trash2,
     title: "Remoção de dados",
     description:
-      "Quando houver backend, a remoção definitiva deverá seguir LGPD e confirmação segura de identidade.",
+      "Solicitações de remoção seguem o fluxo de privacidade e LGPD do backend.",
   },
 ] as const;
 
@@ -41,13 +43,13 @@ const professionalPrivacyItems = [
     icon: Database,
     title: "Dados profissionais locais",
     description:
-      "Nome, contato, conselho, registro, UF, especialidade e publicações mockadas ficam salvos neste navegador durante o protótipo.",
+      "Nome, contato, conselho, registro, UF, especialidade e publicações são sincronizados pelo backend.",
   },
   {
     icon: ShieldCheck,
     title: "Status de verificação",
     description:
-      "Enquanto o backend não estiver conectado, a análise do registro é simulada localmente e aparece como uma flag na comunidade.",
+      "A análise do registro é registrada no backend e exibida como status no perfil e na comunidade.",
   },
   {
     icon: EyeOff,
@@ -59,13 +61,59 @@ const professionalPrivacyItems = [
     icon: Trash2,
     title: "Remoção de dados",
     description:
-      "Na versão com backend, alterações, remoção e auditoria de dados profissionais deverão seguir LGPD e regras administrativas.",
+      "Alterações, remoção e auditoria de dados profissionais seguem LGPD e regras administrativas.",
   },
 ] as const;
 
 export function PrivacyDataPage({ profile }: PrivacyDataPageProps) {
   const isHealthProfessional = profile === "health-professional";
   const privacyItems = isHealthProfessional ? professionalPrivacyItems : motherPrivacyItems;
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRequestingDelete, setIsRequestingDelete] = useState(false);
+
+  async function handleExportData() {
+    setIsExporting(true);
+    setStatusMessage("");
+    setErrorMessage("");
+
+    try {
+      const data = await fetchPrivacyExport();
+      const blob = new Blob([JSON.stringify(data.export ?? data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = url;
+      anchor.download = `maia-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setStatusMessage("Exportacao preparada com sucesso.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel exportar dados.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleRequestDelete() {
+    setIsRequestingDelete(true);
+    setStatusMessage("");
+    setErrorMessage("");
+
+    try {
+      await requestPrivacyDelete();
+      setStatusMessage("Solicitacao de exclusao registrada com seguranca.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Nao foi possivel solicitar exclusao agora."
+      );
+    } finally {
+      setIsRequestingDelete(false);
+    }
+  }
 
   return (
     <main className="min-h-dvh bg-background text-text">
@@ -111,9 +159,47 @@ export function PrivacyDataPage({ profile }: PrivacyDataPageProps) {
               );
             })}
           </section>
+          <section className="mt-8 rounded-[1.75rem] bg-white px-6 py-6 shadow-[0_14px_38px_rgb(140_64_84_/_0.08)] ring-1 ring-border/65">
+            <h2 className="font-title text-xl font-extrabold leading-tight text-title">
+              Gerenciar meus dados
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-text">
+              Use estas acoes para exportar seus dados ou registrar uma solicitacao de exclusao.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <button
+                className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-white shadow-button transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-neutral disabled:text-text/60 disabled:shadow-none"
+                disabled={isExporting}
+                onClick={handleExportData}
+                type="button"
+              >
+                <Download aria-hidden size={17} strokeWidth={2.4} />
+                {isExporting ? "Exportando..." : "Exportar dados"}
+              </button>
+              <button
+                className="inline-flex min-h-[3.25rem] items-center justify-center gap-2 rounded-full bg-danger px-5 text-sm font-extrabold text-white shadow-[0_10px_22px_rgb(248_113_113_/_0.22)] transition hover:bg-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:bg-neutral disabled:text-text/60 disabled:shadow-none"
+                disabled={isRequestingDelete}
+                onClick={handleRequestDelete}
+                type="button"
+              >
+                <Trash2 aria-hidden size={17} strokeWidth={2.4} />
+                {isRequestingDelete ? "Solicitando..." : "Solicitar exclusao"}
+              </button>
+            </div>
+            {statusMessage ? (
+              <p className="mt-4 rounded-2xl bg-success/10 px-4 py-3 text-sm font-bold leading-6 text-emerald-800">
+                {statusMessage}
+              </p>
+            ) : null}
+            {errorMessage ? (
+              <p className="mt-4 rounded-2xl bg-primary/10 px-4 py-3 text-sm font-bold leading-6 text-primary">
+                {errorMessage}
+              </p>
+            ) : null}
+          </section>
         </div>
       </div>
-      <BottomNavigation />
+      <BottomNavigation profile={profile} />
     </main>
   );
 }

@@ -90,13 +90,18 @@ Frontend atual:
 - Ícones com `lucide-react`.
 - Máscaras com `@react-input/mask`.
 
-Backend planejado no Documento de Visão:
+Backend planejado:
 
-- Python com Django REST.
+- Django REST como camada HTTP/API principal.
+- Firebase Authentication para credenciais, login e tokens.
+- Cloud Firestore como banco principal para os dados do produto.
+- Next.js funciona como BFF: navegador chama apenas `/api/...`; o servidor Next chama o Django.
+- Autenticação usa cookies httpOnly gerenciados pelo Next. Não usar localStorage/sessionStorage, Auth.js ou Firebase Auth no frontend para autenticação.
 
 Regra importante:
 
-- Não crie backend em Next.js Route Handlers como arquitetura definitiva se a tarefa estiver relacionada ao backend real do projeto. O contexto atual aponta Django REST como direção do backend.
+- Não crie backend em Next.js Route Handlers como arquitetura definitiva se a tarefa estiver relacionada ao backend real do projeto. O contexto atual aponta Django REST + Firebase como direção do backend.
+- Route Handlers do Next podem ser usados como BFF/proxy para o Django, gerenciando cookies e traduzindo respostas.
 - Se precisar mockar dados no frontend, deixe claro que é mock temporário e organize de forma fácil de substituir por API.
 
 ## 6. Estrutura conhecida do frontend
