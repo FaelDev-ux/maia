@@ -6,7 +6,9 @@ from zoneinfo import ZoneInfo
 
 from .domain_views import (
     NavigationView,
+    build_recommendation_context,
     check_in_payload,
+    content_recommendation_score,
     get_user_local_now,
     user_has_check_in_on_local_date,
     user_notification_is_due,
@@ -38,6 +40,67 @@ class CheckInPayloadTests(SimpleTestCase):
 
     def test_create_requires_main_emotion(self):
         self.assertIsNone(check_in_payload({"intensity": 3}, "uid-123"))
+
+
+class RecommendationPatternTests(SimpleTestCase):
+    def test_sleep_pattern_prioritizes_sleep_content(self):
+        context = build_recommendation_context(
+            [
+                {
+                    "emotion": "tired",
+                    "intensity": 4,
+                    "sleepQuality": "poor",
+                    "tags": ["cansaço"],
+                }
+            ],
+            {"roles": ["PUE"]},
+        )
+        sleep_content = {
+            "id": "sono-descanso-puerperio",
+            "title": "Sono e descanso no puerpério",
+            "summary": "Estratégias para descanso",
+            "category": "Sono e Repouso",
+            "tags": ["sono", "descanso", "energia"],
+        }
+        generic_content = {
+            "id": "cuidados-recem-nascido",
+            "title": "Cuidados com o recém-nascido",
+            "summary": "Banho e vacinas",
+            "category": "Cuidados com o Bebê",
+            "tags": ["recém-nascido", "cuidados"],
+        }
+
+        self.assertIn("sono", context["signals"])
+        self.assertGreater(
+            content_recommendation_score(sleep_content, context),
+            content_recommendation_score(generic_content, context),
+        )
+
+    def test_anxiety_pattern_prioritizes_breathing_content(self):
+        context = build_recommendation_context(
+            [{"emotion": "ansiedade", "intensity": 3, "tags": ["medo"]}],
+            {"roles": ["PUE"]},
+        )
+
+        self.assertIn("ansiedade", context["signals"])
+        self.assertGreater(
+            context["preferredContentIds"]["respiracao-para-ansiedade"],
+            context["preferredContentIds"]["cuidados-recem-nascido"],
+        )
+
+    def test_high_intensity_adds_safety_pattern_without_diagnosis(self):
+        context = build_recommendation_context(
+            [
+                {"emotion": "tristeza", "intensity": 5, "tags": ["tristeza"]},
+                {"emotion": "tristeza", "intensity": 4, "tags": ["tristeza"]},
+            ],
+            {"roles": ["PUE"]},
+        )
+        labels = [pattern["label"].lower() for pattern in context["patterns"]]
+
+        self.assertIn("saude e seguranca", context["signals"])
+        self.assertTrue(any("intensidade alta" in label for label in labels))
+        self.assertFalse(any("diagnostico" in label for label in labels))
 
 
 class PasswordRecoveryTests(SimpleTestCase):
