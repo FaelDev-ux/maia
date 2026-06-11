@@ -1,4 +1,5 @@
 import type { HomeProfile } from "@/features/home/types";
+import { setAuthSessionUser } from "@/features/auth/session-store";
 import type { ProfileFormValues } from "@/features/profile/types";
 import { resolveUserProfile } from "@/features/profile/utils/profile-routing";
 import type { RegisterFormData } from "@/schemas/auth.schema";
@@ -390,6 +391,7 @@ export function getStoredProfileValues(profile: HomeProfile): ProfileFormValues 
 export function saveUserProfile(user: User) {
   currentUserProfile = user;
   currentUserProfileSnapshot = JSON.stringify(user);
+  setAuthSessionUser(user);
   emitProfileUpdated();
 }
 

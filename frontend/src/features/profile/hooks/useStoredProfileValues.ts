@@ -1,11 +1,13 @@
-import { useEffect, useSyncExternalStore } from "react";
+"use client";
+
+import { useSyncExternalStore } from "react";
+import { useAuthSession } from "@/features/auth/session-store";
 import type { HomeProfile } from "@/features/home/types";
 import {
   getStoredUserProfileSnapshot,
   getStoredUserProfile,
   getUserProfileFromSnapshot,
   PROFILE_UPDATED_EVENT,
-  saveAuthenticatedUserProfile,
   userProfileToFormValues,
 } from "@/features/profile/data/profile-storage";
 
@@ -29,45 +31,28 @@ function getProfileServerSnapshot() {
   return "";
 }
 
-function useAuthenticatedProfileSync() {
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadUser() {
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
-      const data = (await response.json().catch(() => ({}))) as { user?: unknown };
-
-      if (isMounted && response.ok) {
-        saveAuthenticatedUserProfile(data.user);
-      }
-    }
-
-    void loadUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-}
-
 export function useStoredProfileValues(profile: HomeProfile) {
-  useAuthenticatedProfileSync();
+  const authenticatedUser = useAuthSession((state) => state.user);
   const snapshot = useSyncExternalStore(
     subscribeToProfileChanges,
     getProfileSnapshot,
     getProfileServerSnapshot
   );
+  const profileSnapshot = authenticatedUser ? JSON.stringify(authenticatedUser) : snapshot;
 
-  return userProfileToFormValues(getUserProfileFromSnapshot(snapshot, profile), profile);
+  return userProfileToFormValues(getUserProfileFromSnapshot(profileSnapshot, profile), profile);
 }
 
 export function useStoredUserProfile(profile: HomeProfile) {
-  useAuthenticatedProfileSync();
+  const authenticatedUser = useAuthSession((state) => state.user);
   const snapshot = useSyncExternalStore(
     subscribeToProfileChanges,
     getProfileSnapshot,
     getProfileServerSnapshot
   );
+  const profileSnapshot = authenticatedUser ? JSON.stringify(authenticatedUser) : snapshot;
 
-  return snapshot ? getUserProfileFromSnapshot(snapshot, profile) : getStoredUserProfile(profile);
+  return profileSnapshot
+    ? getUserProfileFromSnapshot(profileSnapshot, profile)
+    : getStoredUserProfile(profile);
 }

@@ -1,3 +1,5 @@
+import { setAuthSessionNotificationPreferences } from "@/features/auth/session-store";
+
 export type NotificationPermissionState =
   | NotificationPermission
   | "prompt"
@@ -85,6 +87,7 @@ export function saveNotificationPreferences(preferences: NotificationPreferences
     ...defaultNotificationPreferences,
     ...preferences,
   };
+  setAuthSessionNotificationPreferences(currentNotificationPreferences);
   emitNotificationPreferencesUpdated();
 }
 

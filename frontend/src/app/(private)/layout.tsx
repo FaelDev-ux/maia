@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
-import { getServerAuthenticatedUser } from "@/services/api/session";
+import { AuthSessionProvider } from "@/features/auth/session-store";
+import {
+  getServerAuthenticatedUser,
+  getServerNotificationPreferences,
+} from "@/services/api/session";
 
 type PrivateLayoutProps = {
   children: React.ReactNode;
@@ -12,5 +16,14 @@ export default async function PrivateLayout({ children }: PrivateLayoutProps) {
     redirect("/auth?mode=login");
   }
 
-  return children;
+  const notificationPreferences = await getServerNotificationPreferences();
+
+  return (
+    <AuthSessionProvider
+      initialNotificationPreferences={notificationPreferences}
+      initialUser={user}
+    >
+      {children}
+    </AuthSessionProvider>
+  );
 }
