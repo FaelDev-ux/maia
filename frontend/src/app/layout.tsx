@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
+import { NativeBackButtonHandler } from "@/components/native/NativeBackButtonHandler";
 import { PwaInstallPrompt } from "@/features/pwa/components/PwaInstallPrompt";
 import { InAppPushNotification } from "@/features/notifications/components/InAppPushNotification";
 import "./globals.css";
@@ -60,6 +61,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-dvh bg-background text-text">
         {children}
+        <NativeBackButtonHandler />
         <InAppPushNotification />
         <PwaInstallPrompt />
       </body>

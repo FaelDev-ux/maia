@@ -48,6 +48,24 @@ export async function saveNotificationSubscription(subscription: PushSubscriptio
   );
 }
 
+export async function saveNativeNotificationSubscription(subscription: {
+  platform: string;
+  token: string;
+}) {
+  return apiFetch(
+    "/api/notifications/subscriptions",
+    {
+      body: JSON.stringify({
+        platform: subscription.platform,
+        provider: "fcm",
+        token: subscription.token,
+      }),
+      method: "POST",
+    },
+    "Nao foi possivel salvar sua inscricao de notificacao."
+  );
+}
+
 export async function deleteNotificationSubscriptions() {
   return apiFetch(
     "/api/notifications/subscriptions",

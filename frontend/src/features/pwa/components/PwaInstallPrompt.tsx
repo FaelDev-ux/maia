@@ -1,5 +1,6 @@
 "use client";
 
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, Home, Share, Smartphone, Sparkles, X } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -78,6 +79,7 @@ export function PwaInstallPrompt() {
   );
   const [isHiddenForSession, setIsHiddenForSession] = useState(false);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const isNativeApp = hasMounted && Capacitor.isNativePlatform();
   const isHomeRoute = pathname === "/home";
   const canUseNativePrompt = Boolean(installPromptEvent);
   const canShowIosInstructions = hasMounted && !canUseNativePrompt && isIosInstallCapable();
@@ -87,9 +89,14 @@ export function PwaInstallPrompt() {
     (canUseNativePrompt || canShowIosInstructions) &&
     !isHiddenForSession &&
     shouldShowPwaInstallPrompt() &&
-    !isStandaloneDisplay();
+    !isStandaloneDisplay() &&
+    !isNativeApp;
 
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      return;
+    }
+
     if (!("serviceWorker" in navigator)) {
       return;
     }
@@ -100,6 +107,10 @@ export function PwaInstallPrompt() {
   }, []);
 
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      return;
+    }
+
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallPromptEvent(event as BeforeInstallPromptEvent);

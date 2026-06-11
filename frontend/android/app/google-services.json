@@ -1,0 +1,33 @@
+{
+    "project_info":  {
+                         "project_number":  "325650050541",
+                         "project_id":  "maia-86c23",
+                         "storage_bucket":  "maia-86c23.firebasestorage.app"
+                     },
+    "client":  [
+                   {
+                       "client_info":  {
+                                           "mobilesdk_app_id":  "1:325650050541:android:6de4332351e3b26f6b8be4",
+                                           "android_client_info":  {
+                                                                       "package_name":  "com.maia.app"
+                                                                   }
+                                       },
+                       "oauth_client":  [
+
+                                        ],
+                       "api_key":  [
+                                       {
+                                           "current_key":  "AIzaSyDl3zuDcIMpiPLrwExid94ngV-18WASRBU"
+                                       }
+                                   ],
+                       "services":  {
+                                        "appinvite_service":  {
+                                                                  "other_platform_oauth_client":  [
+
+                                                                                                  ]
+                                                              }
+                                    }
+                   }
+               ],
+    "configuration_version":  "1"
+}

@@ -8,6 +8,8 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
+from firebase_admin import exceptions as firebase_exceptions
+from firebase_admin import messaging
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -62,6 +64,8 @@ ALLOWED_IMAGE_TYPES = {
     "image/webp": ".webp",
 }
 MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
+NATIVE_NOTIFICATION_PROVIDERS = {"fcm"}
+WEB_NOTIFICATION_PROVIDER = "webpush"
 
 SEED_CONTENTS = [
     {
@@ -2655,8 +2659,37 @@ class NotificationSubscriptionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        provider = str(request.data.get("provider") or WEB_NOTIFICATION_PROVIDER).strip().lower()
+        platform = str(request.data.get("platform") or "").strip().lower()
         endpoint = request.data.get("endpoint")
+        token = str(request.data.get("token") or "").strip()
         keys = request.data.get("keys") if isinstance(request.data.get("keys"), dict) else {}
+
+        if provider in NATIVE_NOTIFICATION_PROVIDERS:
+            if not token:
+                return error_response(
+                    "Token nativo da subscription e obrigatorio.",
+                    code="notification_token_required",
+                )
+
+            subscription_id = uuid.uuid5(uuid.NAMESPACE_URL, f"{provider}:{token}").hex
+            ref = get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document(subscription_id)
+            existing = get_document_payload(ref.get())
+            ref.set(
+                {
+                    "id": subscription_id,
+                    "userId": request.user.uid,
+                    "provider": provider,
+                    "platform": platform or "native",
+                    "token": token,
+                    "status": "active",
+                    "createdAt": existing.get("createdAt") if existing else server_timestamp(),
+                    "updatedAt": server_timestamp(),
+                },
+                merge=True,
+            )
+
+            return success_response({"subscription": get_document_payload(ref.get())}, status.HTTP_201_CREATED)
 
         if not endpoint:
             return error_response(
@@ -2677,6 +2710,7 @@ class NotificationSubscriptionView(APIView):
             {
                 "id": subscription_id,
                 "userId": request.user.uid,
+                "provider": WEB_NOTIFICATION_PROVIDER,
                 "endpoint": endpoint,
                 "keys": keys,
                 "status": "active",
@@ -2757,6 +2791,43 @@ def user_has_check_in_on_local_date(user_id, local_now, check_ins):
     return False
 
 
+def send_native_push_notification(subscription, payload):
+    token = subscription.get("token")
+
+    if not token:
+        raise ValueError("Token FCM ausente.")
+
+    message = messaging.Message(
+        android=messaging.AndroidConfig(
+            notification=messaging.AndroidNotification(
+                tag=payload["tag"],
+            ),
+            ttl=timedelta(seconds=3600),
+        ),
+        data={
+            "tag": payload["tag"],
+            "type": payload["type"],
+            "url": payload["url"],
+        },
+        notification=messaging.Notification(
+            title=payload["title"],
+            body=payload["body"],
+        ),
+        token=token,
+    )
+    return messaging.send(message)
+
+
+def firebase_error_indicates_expired_token(exc):
+    message = str(exc).lower()
+
+    return (
+        "registration-token-not-registered" in message
+        or "requested entity was not found" in message
+        or "invalid registration token" in message
+    )
+
+
 class NotificationDispatchView(APIView):
     def post(self, request):
         configured_secret = getattr(settings, "NOTIFICATION_DISPATCH_SECRET", "")
@@ -2764,20 +2835,6 @@ class NotificationDispatchView(APIView):
 
         if configured_secret and request_secret != configured_secret:
             return error_response("Chave de disparo invalida.", status.HTTP_403_FORBIDDEN)
-
-        if not settings.VAPID_PRIVATE_KEY:
-            return success_response(
-                {
-                    "sent": 0,
-                    "skipped": True,
-                    "message": "Configure VAPID_PRIVATE_KEY para ativar push real.",
-                }
-            )
-
-        try:
-            from pywebpush import WebPushException, webpush
-        except ImportError:
-            return error_response("Dependencia pywebpush indisponivel.", status.HTTP_503_SERVICE_UNAVAILABLE)
 
         users = list_collection(
             "users",
@@ -2818,25 +2875,73 @@ class NotificationDispatchView(APIView):
                 "type": "daily-check-in",
             }
         )
+        payload_data = json.loads(payload)
+        web_subscriptions = [
+            subscription
+            for subscription in subscriptions
+            if subscription.get("provider", WEB_NOTIFICATION_PROVIDER) == WEB_NOTIFICATION_PROVIDER
+        ]
+        native_subscriptions = [
+            subscription
+            for subscription in subscriptions
+            if subscription.get("provider") in NATIVE_NOTIFICATION_PROVIDERS
+        ]
+        webpush = None
+        WebPushException = Exception
+        skipped_web_push = False
+
+        if web_subscriptions:
+            if settings.VAPID_PRIVATE_KEY:
+                try:
+                    from pywebpush import WebPushException, webpush
+                except ImportError:
+                    return error_response(
+                        "Dependencia pywebpush indisponivel.",
+                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+            else:
+                skipped_web_push = True
+
         sent = 0
+        native_sent = 0
+        web_sent = 0
         failed = 0
         expired = 0
         notified_user_ids = set()
 
         for subscription in subscriptions:
             try:
-                webpush(
-                    subscription_info={
-                        "endpoint": subscription.get("endpoint"),
-                        "keys": subscription.get("keys") or {},
-                    },
-                    data=payload,
-                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
-                    vapid_claims={"sub": settings.VAPID_CLAIMS_EMAIL},
-                    ttl=3600,
-                )
+                if subscription.get("provider") in NATIVE_NOTIFICATION_PROVIDERS:
+                    send_native_push_notification(subscription, payload_data)
+                    native_sent += 1
+                elif webpush:
+                    webpush(
+                        subscription_info={
+                            "endpoint": subscription.get("endpoint"),
+                            "keys": subscription.get("keys") or {},
+                        },
+                        data=payload,
+                        vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                        vapid_claims={"sub": settings.VAPID_CLAIMS_EMAIL},
+                        ttl=3600,
+                    )
+                    web_sent += 1
+                else:
+                    failed += 1
+                    continue
+
                 sent += 1
                 notified_user_ids.add(subscription.get("userId"))
+            except firebase_exceptions.FirebaseError as exc:
+                failed += 1
+
+                if firebase_error_indicates_expired_token(exc):
+                    get_db().collection(NOTIFICATION_SUBSCRIPTION_COLLECTION).document(
+                        subscription["id"]
+                    ).delete()
+                    expired += 1
+            except ValueError:
+                failed += 1
             except WebPushException as exc:
                 failed += 1
                 response_status = getattr(getattr(exc, "response", None), "status_code", None)
@@ -2868,9 +2973,14 @@ class NotificationDispatchView(APIView):
                 "eligibleUsers": len(users),
                 "dueUsers": len(due_users),
                 "sent": sent,
+                "nativeSent": native_sent,
+                "webSent": web_sent,
                 "failed": failed,
                 "expiredSubscriptions": expired,
+                "skippedWebPush": skipped_web_push,
                 "subscriptions": len(subscriptions),
+                "nativeSubscriptions": len(native_subscriptions),
+                "webSubscriptions": len(web_subscriptions),
             }
         )
 

@@ -1,4 +1,10 @@
-export type NotificationPermissionState = NotificationPermission | "unsupported";
+import { Capacitor } from "@capacitor/core";
+
+export type NotificationPermissionState =
+  | NotificationPermission
+  | "prompt"
+  | "prompt-with-rationale"
+  | "unsupported";
 
 export type NotificationPreferences = {
   dailyCheckInTime?: string;
@@ -18,6 +24,7 @@ const defaultNotificationPreferences: NotificationPreferences = {
 };
 
 let currentNotificationPreferences = defaultNotificationPreferences;
+let currentNativeNotificationPermission: NotificationPermissionState | null = null;
 
 function emitNotificationPreferencesUpdated() {
   if (typeof window === "undefined") {
@@ -32,11 +39,45 @@ export function getTodayNotificationPromptDate() {
 }
 
 export function getBrowserNotificationPermission(): NotificationPermissionState {
+  if (Capacitor.isNativePlatform()) {
+    return currentNativeNotificationPermission ?? "default";
+  }
+
   if (typeof window === "undefined" || !("Notification" in window)) {
     return "unsupported";
   }
 
   return Notification.permission;
+}
+
+function normalizeNativePermission(permission: string): NotificationPermissionState {
+  if (permission === "granted" || permission === "denied") {
+    return permission;
+  }
+
+  if (permission === "prompt" || permission === "prompt-with-rationale") {
+    return permission;
+  }
+
+  return "default";
+}
+
+export async function syncNativeNotificationPermission() {
+  if (!Capacitor.isNativePlatform()) {
+    return getBrowserNotificationPermission();
+  }
+
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    const permission = await PushNotifications.checkPermissions();
+    currentNativeNotificationPermission = normalizeNativePermission(permission.receive);
+  } catch {
+    currentNativeNotificationPermission = "unsupported";
+  }
+
+  emitNotificationPreferencesUpdated();
+
+  return currentNativeNotificationPermission;
 }
 
 function urlBase64ToUint8Array(value: string) {
@@ -72,6 +113,60 @@ async function registerPushSubscription() {
   await saveNotificationSubscription(subscription);
 }
 
+async function registerNativePushSubscription() {
+  const [{ PushNotifications }, { saveNativeNotificationSubscription }] = await Promise.all([
+    import("@capacitor/push-notifications"),
+    import("@/features/notifications/services"),
+  ]);
+  const platform = Capacitor.getPlatform();
+
+  return new Promise<void>((resolve, reject) => {
+    let isSettled = false;
+    const cleanupHandles: Array<{ remove: () => Promise<void> }> = [];
+    const timeoutId = setTimeout(() => {
+      settle(() => reject(new Error("Nao foi possivel registrar este dispositivo para notificacoes.")));
+    }, 15000);
+
+    function settle(callback: () => void) {
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
+
+      clearTimeout(timeoutId);
+      void Promise.all(cleanupHandles.map((handle) => handle.remove().catch(() => undefined)));
+      callback();
+    }
+
+    PushNotifications.addListener("registration", async (token) => {
+      try {
+        await saveNativeNotificationSubscription({
+          platform,
+          token: token.value,
+        });
+        settle(resolve);
+      } catch (error) {
+        settle(() => reject(error));
+      }
+    })
+      .then((handle) => cleanupHandles.push(handle))
+      .catch((error) => settle(() => reject(error)));
+
+    PushNotifications.addListener("registrationError", (error) => {
+      const message =
+        typeof error.error === "string"
+          ? error.error
+          : "Nao foi possivel ativar notificacoes neste dispositivo.";
+      settle(() => reject(new Error(message)));
+    })
+      .then((handle) => cleanupHandles.push(handle))
+      .catch((error) => settle(() => reject(error)));
+
+    void PushNotifications.register();
+  });
+}
+
 export function getStoredNotificationPreferences(): NotificationPreferences {
   return currentNotificationPreferences;
 }
@@ -104,7 +199,9 @@ export function shouldShowDailyNotificationPrompt() {
 
 export async function requestDailyCheckInNotifications() {
   const { updateNotificationPreferences } = await import("@/features/notifications/services");
-  const permission = getBrowserNotificationPermission();
+  const permission = Capacitor.isNativePlatform()
+    ? await syncNativeNotificationPermission()
+    : getBrowserNotificationPermission();
   const nextPreferences = {
     ...getStoredNotificationPreferences(),
     lastPromptDate: getTodayNotificationPromptDate(),
@@ -122,8 +219,18 @@ export async function requestDailyCheckInNotifications() {
     return "unsupported" satisfies NotificationPermissionState;
   }
 
-  const nextPermission =
-    permission === "default" ? await Notification.requestPermission() : permission;
+  let nextPermission: NotificationPermissionState = permission;
+
+  if (Capacitor.isNativePlatform()) {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    const nativePermission =
+      permission === "granted" ? await PushNotifications.checkPermissions() : await PushNotifications.requestPermissions();
+    nextPermission = normalizeNativePermission(nativePermission.receive);
+    currentNativeNotificationPermission = nextPermission;
+  } else {
+    nextPermission = permission === "default" ? await Notification.requestPermission() : permission;
+  }
+
   const preferences = {
     ...nextPreferences,
     dailyCheckInEnabled: nextPermission === "granted",
@@ -131,7 +238,11 @@ export async function requestDailyCheckInNotifications() {
   };
 
   if (nextPermission === "granted") {
-    await registerPushSubscription();
+    if (Capacitor.isNativePlatform()) {
+      await registerNativePushSubscription();
+    } else {
+      await registerPushSubscription();
+    }
   }
 
   saveNotificationPreferences(preferences);
@@ -153,7 +264,7 @@ export async function disableDailyCheckInNotifications() {
   saveNotificationPreferences(preferences);
   await updateNotificationPreferences(preferences);
 
-  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+  if (!Capacitor.isNativePlatform() && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
 

@@ -15,11 +15,15 @@ function getPermissionStatusLabel(permission: ReturnType<typeof useNotificationP
   }
 
   if (permission === "denied") {
-    return "Bloqueado pelo navegador";
+    return "Bloqueado pelo dispositivo";
   }
 
   if (permission === "unsupported") {
     return "Indisponível neste dispositivo";
+  }
+
+  if (permission === "prompt" || permission === "prompt-with-rationale") {
+    return "Aguardando permissão";
   }
 
   return "Ainda não permitido";
@@ -141,7 +145,7 @@ export function NotificationSettingsCard() {
 
           {permission === "denied" ? (
             <p className="mt-4 text-sm leading-6 text-text">
-              Para ativar novamente, libere as notificações nas configurações do navegador.
+              Para ativar novamente, libere as notificações nas configurações do dispositivo.
             </p>
           ) : null}
 
