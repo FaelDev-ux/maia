@@ -3,7 +3,6 @@ import {
   getBrowserNotificationPermission,
   getStoredNotificationPreferences,
   saveNotificationPreferences,
-  syncNativeNotificationPermission,
   type NotificationPermissionState,
   type NotificationPreferences,
   NOTIFICATION_PREFERENCES_UPDATED_EVENT,
@@ -66,7 +65,6 @@ export function useNotificationPreferences() {
     }
 
     void loadPreferences();
-    void syncNativeNotificationPermission();
 
     return () => {
       isMounted = false;

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
-import { NativeBackButtonHandler } from "@/components/native/NativeBackButtonHandler";
 import { PwaInstallPrompt } from "@/features/pwa/components/PwaInstallPrompt";
 import { InAppPushNotification } from "@/features/notifications/components/InAppPushNotification";
 import "./globals.css";
@@ -58,10 +57,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${poppins.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.variable} ${poppins.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="min-h-dvh bg-background text-text">
         {children}
-        <NativeBackButtonHandler />
         <InAppPushNotification />
         <PwaInstallPrompt />
       </body>

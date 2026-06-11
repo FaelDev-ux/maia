@@ -168,66 +168,15 @@ Tipos de formulário devem ser derivados dos schemas com `z.infer` para manter p
 - Evitar rodar formatação global sem alinhamento, pois `format:check` já foi registrado como sensível a formatação/line endings.
 - Resolver a duplicidade de `@babel/runtime` em `dependencies` e `devDependencies` quando houver uma tarefa própria para dependências.
 
-## Capacitor
+## PWA
 
-O Maia também possui projetos nativos gerados com Capacitor 8:
+O Maia roda como aplicação web responsiva e PWA. A instalação no celular acontece pelo navegador compatível usando `manifest.json`, service worker e o convite de instalação exibido na Home quando o usuário está elegível.
 
-- `android/`: projeto Android (minSdk 24).
-- `ios/`: projeto iOS (iOS 15 ou superior).
-- `capacitor.config.ts`: configuração compartilhada.
-- `native-shell/`: tela local de contingência usada quando nenhuma URL de desenvolvimento foi informada.
+As notificações usam Web Push com VAPID:
 
-O PWA continua funcionando normalmente no navegador. Dentro do aplicativo Capacitor, o convite de instalação PWA e o registro manual do service worker ficam desativados.
+1. Configure `NEXT_PUBLIC_VAPID_PUBLIC_KEY` no frontend.
+2. Configure `VAPID_PRIVATE_KEY` e `VAPID_CLAIMS_EMAIL` no backend.
+3. Faça login, abra `/perfil` e ative o switch de notificações.
+4. O navegador registra uma subscription Web Push em `/api/notifications/subscriptions`.
 
-Notificações no app nativo usam Firebase Cloud Messaging via `@capacitor/push-notifications`. O arquivo `android/app/google-services.json` precisa existir e corresponder ao package `com.maia.app`; ele foi gerado a partir do app Android "Maia Android" no projeto Firebase `maia-86c23`. No navegador/PWA, o fluxo continua usando Web Push com VAPID.
-
-Como o frontend usa recursos server-side do Next.js, ele não pode ser empacotado como export estático sem uma mudança de arquitetura. Durante o desenvolvimento, o aplicativo nativo deve abrir uma instância acessível do servidor Next:
-
-```powershell
-npm run dev -- --hostname 0.0.0.0
-
-# Android Emulator
-$env:CAPACITOR_SERVER_URL="http://10.0.2.2:3000"
-npm run cap:sync
-
-# Aparelho físico na mesma rede Wi-Fi
-$env:CAPACITOR_SERVER_URL="http://SEU-IP-LOCAL:3000"
-npm run cap:sync
-```
-
-Depois da sincronização:
-
-```powershell
-npm run cap:open:android
-npm run cap:open:ios
-```
-
-Para limpar a URL de desenvolvimento e voltar ao shell local:
-
-```powershell
-Remove-Item Env:CAPACITOR_SERVER_URL -ErrorAction SilentlyContinue
-npm run cap:sync
-```
-
-Comandos adicionais:
-
-```powershell
-npm run cap:doctor
-npm run cap:copy
-npm run cap:run:android
-npm run cap:run:ios
-```
-
-Para testar notificações no Android:
-
-1. Faça login no app instalado.
-2. Abra `/perfil` e ative o switch de notificações.
-3. Aceite a permissão do sistema Android.
-4. Verifique no backend se uma subscription `provider: "fcm"` foi criada para o usuário.
-
-Requisitos externos:
-
-- Android: Android Studio, Android SDK e JDK compatível.
-- iOS: macOS com Xcode; o projeto pode ser gerado no Windows, mas não compilado nem assinado nele.
-
-Antes de publicar nas lojas, confirme o identificador `com.maia.app`, configure assinatura, ícones, splash screen e uma estratégia de produção para servir o frontend. A opção `server.url` deve permanecer restrita a desenvolvimento e live reload.
+O projeto não mantém mais empacotamento nativo Android/iOS. Qualquer evolução mobile deve partir do PWA atual, salvo nova decisão explícita da equipe.

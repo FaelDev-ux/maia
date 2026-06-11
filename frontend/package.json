@@ -11,22 +11,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "check": "npm run lint && npm run format:check && npm run build",
-    "cap:doctor": "cap doctor",
-    "cap:sync": "cap sync",
-    "cap:copy": "cap copy",
-    "cap:open:android": "cap open android",
-    "cap:open:ios": "cap open ios",
-    "cap:run:android": "cap run android",
-    "cap:run:ios": "cap run ios"
+    "check": "npm run lint && npm run format:check && npm run build"
   },
   "dependencies": {
     "@babel/runtime": "^7.29.2",
-    "@capacitor/android": "^8.4.0",
-    "@capacitor/app": "^8.1.0",
-    "@capacitor/core": "^8.4.0",
-    "@capacitor/ios": "^8.4.0",
-    "@capacitor/push-notifications": "^8.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@react-input/mask": "^2.0.4",
     "clsx": "^2.1.1",
@@ -41,7 +29,6 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.26.10",
-    "@capacitor/cli": "^8.4.0",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^20",
     "@types/react": "^19",

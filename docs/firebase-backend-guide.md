@@ -657,8 +657,8 @@ Documento: `users/{userId}/devices/{deviceId}`
 type UserDevice = {
   id: string;
   userId: string;
-  fcmToken: string;
-  platform: "web" | "android" | "ios";
+  webPushSubscription: PushSubscriptionJSON;
+  platform: "web";
   browser?: string;
   enabled: boolean;
   createdAt: Timestamp;

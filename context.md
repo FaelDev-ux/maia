@@ -207,8 +207,7 @@ Validacao de dominio ja realizada:
   - Troca de senha conhecida: `POST /api/password/change/` e card autenticado em `/mais`.
   - Admin: metricas agregadas reais, historico `GET /api/admin/actions/` e registro de acoes de validacao/moderacao.
   - Conteudos PRO/ADM: profissional envia conteudo para revisao; admin pode publicar/arquivar.
-  - Push Web/PWA: service worker recebe push, frontend registra subscription quando `NEXT_PUBLIC_VAPID_PUBLIC_KEY` existe, backend dispara via `POST /api/notifications/dispatch-daily-check-ins/` protegido por `X-Maia-Dispatch-Secret`.
-  - Push nativo Android/Capacitor: app usa `@capacitor/push-notifications`, Firebase Android app `com.maia.app` e `android/app/google-services.json`; frontend registra token FCM com `provider: "fcm"` e backend dispara via Firebase Admin Messaging.
+  - Push Web/PWA: service worker recebe push, frontend registra subscription quando `NEXT_PUBLIC_VAPID_PUBLIC_KEY` existe, backend dispara via `POST /api/notifications/dispatch-daily-check-ins/` protegido por `X-Maia-Dispatch-Secret`; esse e o caminho unico de notificacoes do app.
   - Testes automatizados iniciais criados em `backend/users/tests.py`.
   - Mojibake visivel no app removido de `frontend/src`/`backend`.
 

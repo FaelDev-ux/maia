@@ -1,6 +1,5 @@
 "use client";
 
-import { Capacitor } from "@capacitor/core";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, Home, Share, Smartphone, Sparkles, X } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -67,6 +66,22 @@ function getMountedServerSnapshot() {
   return false;
 }
 
+async function clearDevelopmentServiceWorkers() {
+  if (process.env.NODE_ENV === "production" || !("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+  }
+}
+
 export function PwaInstallPrompt() {
   const pathname = usePathname();
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
@@ -79,7 +94,6 @@ export function PwaInstallPrompt() {
   );
   const [isHiddenForSession, setIsHiddenForSession] = useState(false);
   const [showIosInstructions, setShowIosInstructions] = useState(false);
-  const isNativeApp = hasMounted && Capacitor.isNativePlatform();
   const isHomeRoute = pathname === "/home";
   const canUseNativePrompt = Boolean(installPromptEvent);
   const canShowIosInstructions = hasMounted && !canUseNativePrompt && isIosInstallCapable();
@@ -89,15 +103,15 @@ export function PwaInstallPrompt() {
     (canUseNativePrompt || canShowIosInstructions) &&
     !isHiddenForSession &&
     shouldShowPwaInstallPrompt() &&
-    !isStandaloneDisplay() &&
-    !isNativeApp;
+    !isStandaloneDisplay();
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
+    if (!("serviceWorker" in navigator)) {
       return;
     }
 
-    if (!("serviceWorker" in navigator)) {
+    if (process.env.NODE_ENV !== "production") {
+      void clearDevelopmentServiceWorkers();
       return;
     }
 
@@ -107,10 +121,6 @@ export function PwaInstallPrompt() {
   }, []);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      return;
-    }
-
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
